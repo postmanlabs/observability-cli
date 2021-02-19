@@ -15,7 +15,6 @@ See the full Akita docs [here](https://docs.akita.software/docs/welcome). Watch 
 
 Sign up for our private beta [here](https://www.akitasoftware.com/get-invite).
 
----
 
 ## About this repo
 This is the open-source repository for our CLI, containing the code for:
@@ -25,7 +24,6 @@ This is the open-source repository for our CLI, containing the code for:
 
 The CLI is intended for use with the Akita SaaS tool. This repository does not contain our path generalization, type and data format, or spec generation implementations.
 
----
 
 ## How to build
 1. Install [Go 1.15 or above](https://golang.org/doc/install). 
