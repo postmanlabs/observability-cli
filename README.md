@@ -17,9 +17,16 @@ Sign up for our private beta [here](https://www.akitasoftware.com/get-invite).
 
 ---
 
+## About this repo
 This is the open-source repository for our CLI, containing the code for:
 * `apidump` for listening to API traffic and generating HAR files
 * `apispec` for generating API specs from HAR files
 * `apidiff` for diffing API specs
 
 The CLI is intended for use with the Akita SaaS tool. This repository does not contain our path generalization, type and data format, or spec generation implementations.
+
+---
+
+## How to build
+1. Install [Go 1.15 or above](https://golang.org/doc/install). 
+2. `go build .`
