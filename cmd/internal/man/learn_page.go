@@ -13,6 +13,10 @@ Generate API specifications from network traffic.
 
 Capture requests/responses going to or coming from port 80 and convert them into an API spec.
 
+## akita learn --filter "port 80" -c ./my_tests.sh -u ${USER}
+
+Run <bt>my_tests.sh<bt> as <bt>${USER}<bt> and capture requests/responses going to or coming from port 80. Akita will automatically terminate once the script finishes.
+
 # Optional Flags
 
 ## --out location
@@ -54,6 +58,16 @@ A number between [0.0, 1.0] to control sampling.
 Adds tags to the dump.
 
 You may specify a comma separated list of "key=value" pairs (e.g. <bt>--tags a=b,c=d<bt>) or multiple separate flags (e.g. <bt>--tags a=b --tags c=d<bt>)
+
+## --command, -c string
+
+A command that generates requests and responses for Akita to observe. Akita will execute the command (similar to <bt>bash -c<bt>) and automatically terminate when the command finishes, without needing to receive a SIGINT.
+
+By default, the command runs as the current user. As a safety precaution, if the current user is <bt>root<bt>, you must use the <bt>-u<bt> flag to explicitly indicate that you want to run as <bt>root<bt>.
+
+## --user, -u string
+
+Username of the user to use when running the command specified in <bt>-c<bt>
 
 ## --path-exclusions []string
 

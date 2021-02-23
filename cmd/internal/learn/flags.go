@@ -194,8 +194,6 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 	)
 	Cmd.Flags().MarkHidden("checkpoint_timeout")
 
-	// TODO(kku): add more docs on how it's like "bash -c" and how it affects
-	// SIGINT behavior.
 	Cmd.Flags().StringVarP(
 		&execCommandFlag,
 		"command",
@@ -203,7 +201,6 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		"",
 		"Command to generate API traffic.",
 	)
-	Cmd.Flags().MarkHidden("command")
 
 	Cmd.Flags().StringVarP(
 		&execCommandUserFlag,
@@ -212,7 +209,6 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		"",
 		"User to use when running command specified by -c. Defaults to current user.",
 	)
-	Cmd.Flags().MarkHidden("user")
 
 	// TODO(kku): reveal plugins flag
 	Cmd.Flags().StringSliceVar(

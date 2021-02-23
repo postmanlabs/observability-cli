@@ -109,8 +109,6 @@ func init() {
 		"Removes HTTP paths matching regular expressions.",
 	)
 
-	// TODO(kku): add more docs on how it's like "bash -c" and how it affects
-	// SIGINT behavior.
 	Cmd.Flags().StringVarP(
 		&execCommandFlag,
 		"command",
@@ -118,7 +116,6 @@ func init() {
 		"",
 		"Command to generate API traffic.",
 	)
-	Cmd.Flags().MarkHidden("command")
 
 	Cmd.Flags().StringVarP(
 		&execCommandUserFlag,
@@ -127,7 +124,6 @@ func init() {
 		"",
 		"User to use when running command specified by -c. Defaults to current user.",
 	)
-	Cmd.Flags().MarkHidden("user")
 
 	// TODO(kku): reveal plugins flag
 	Cmd.Flags().StringSliceVar(
