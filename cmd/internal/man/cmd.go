@@ -53,6 +53,10 @@ var (
 			command: "learn",
 			content: addBackticks(learnPage),
 		},
+		{
+			command: "upload",
+			content: addBackticks(uploadPage),
+		},
 	}
 )
 

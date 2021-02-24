@@ -4,8 +4,8 @@ import (
 	"context"
 	"regexp"
 
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/akid"
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
@@ -38,6 +38,7 @@ type LearnClient interface {
 	CreateSpec(context.Context, string, []akid.LearnSessionID, CreateSpecOptions) (akid.APISpecID, error)
 	GetSpec(context.Context, akid.APISpecID, GetSpecOptions) (kgxapi.GetSpecResponse, error)
 	GetSpecVersion(context.Context, string) (kgxapi.APISpecVersion, error)
+	UploadSpec(context.Context, kgxapi.UploadSpecRequest) (*kgxapi.UploadSpecResponse, error)
 
 	// Resolve names.
 	GetAPISpecIDByName(context.Context, string) (akid.APISpecID, error)

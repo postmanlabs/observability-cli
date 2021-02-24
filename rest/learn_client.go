@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"path"
 
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/akid"
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
 )
 
@@ -133,6 +133,13 @@ func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (k
 		return kgxapi.APISpecVersion{}, err
 	}
 	return resp, nil
+}
+
+func (c *learnClientImpl) UploadSpec(ctx context.Context, req kgxapi.UploadSpecRequest) (*kgxapi.UploadSpecResponse, error) {
+	p := path.Join("/v1/services", akid.String(c.serviceID), "upload-spec")
+	var resp kgxapi.UploadSpecResponse
+	err := c.post(ctx, p, req, &resp)
+	return &resp, err
 }
 
 func (c *learnClientImpl) GetAPISpecIDByName(ctx context.Context, n string) (akid.APISpecID, error) {
