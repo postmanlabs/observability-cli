@@ -210,14 +210,12 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		"User to use when running command specified by -c. Defaults to current user.",
 	)
 
-	// TODO(kku): reveal plugins flag
 	Cmd.Flags().StringSliceVar(
 		&pluginsFlag,
 		"plugins",
 		nil,
 		"Paths of third-party Akita plugins. They are executed in the order given.",
 	)
-	Cmd.Flags().MarkHidden("plugins")
 }
 
 func registerHiddenLegacyFlags() {

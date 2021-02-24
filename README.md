@@ -28,3 +28,8 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 ## How to build
 1. Install [Go 1.15 or above](https://golang.org/doc/install). 
 2. `go build .`
+
+
+## Plugins
+
+Refer to [README in plugin](plugin/README.md)

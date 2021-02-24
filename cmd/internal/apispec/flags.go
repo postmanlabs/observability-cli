@@ -147,14 +147,12 @@ func init() {
 		"SHA of gitlab commit that this spec belongs to.",
 	)
 
-	// TODO(kku): reveal plugins flag
 	Cmd.Flags().StringSliceVar(
 		&pluginsFlag,
 		"plugins",
 		nil,
 		"Paths of third-party Akita plugins. They are executed in the order given.",
 	)
-	Cmd.Flags().MarkHidden("plugins")
 }
 
 func toLocations(traces []string) ([]location.Location, error) {
