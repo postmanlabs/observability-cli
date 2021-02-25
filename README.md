@@ -71,12 +71,6 @@ You should now see output that looks like this:
 
 For more information, see the docs: [QuickStart: Server APIs](https://docs.akita.software/docs/get-started-with-superlearn); [`apidump`](https://docs.akita.software/docs/apidump); [`apispec`](https://docs.akita.software/docs/apispec-1); [`learn`](https://docs.akita.software/docs/learn); [`apidiff`](https://docs.akita.software/docs/apidiff).
 
-## Plugins
-
-Client-side inference for the Akita CLI happens through our plugins: for instance, API path argument generalization and type and data format inference. Please refer to [README in plugin](plugin/README.md) for more information.
-
-If you want to contribute to this repository, we recommend submitting pull requests directly rather than developing plugins, as it makes distribution easier.
-
 ## Getting involved
 * Please file bugs as issue to this repository.
 * We welcome contributions! If you want to make changes or build your own extensions to the CLI on top of the [Akita IR](https://github.com/akitasoftware/akita-ir), please see our [CONTRIBUTING](CONTRIBUTING.md) doc.
