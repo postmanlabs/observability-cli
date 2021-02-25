@@ -46,7 +46,7 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 If it's your first use, start by logging into Akita:
 
 ```
-> akita login
+> ./bin/akita login
 API Key ID: apk_0000000000000000000000
 API Key Secret: ******************************
 Login successful!
@@ -56,7 +56,7 @@ API keys stored in ${HOME}/.akita/credentials.yaml
 You're now ready to run the Akita `learn` command to generate an API spec by watching traffic:
 
 ```
-akita learn --service {service name} \
+./bin/akita learn --service {service name} \
     --interface {network interface} \
     --port {port}
 ```

@@ -5,6 +5,7 @@
 *.so
 *.dylib
 akita-cli
+bin/
 
 # Test binary, built with `go test -c`
 *.test

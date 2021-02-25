@@ -3,7 +3,7 @@
 export GO111MODULE = on
 
 build: clean
-	go build .
+	go build -o bin/akita .
 
 clean:
 	go clean
