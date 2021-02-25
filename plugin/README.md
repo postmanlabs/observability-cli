@@ -1,8 +1,10 @@
-# Akita Plugin Interface
+# Akita Plugins
 
-Plugins allow third-party developers to dynamically add functionality to the
-Akita CLI without recompiling. This is achieved through the use of shared
-libraries that are loaded at runtime.
+Akita plugins allow developers to dynamically add functionality to the
+Akita CLI without recompiling, through dynamically loaded shared
+libraries.
+
+Currently, we use plugins for the Akita binary that we release, for the proprietary parts of the Akita CLI that are not open-source. We plan to eventually provide a way for the Akita community to share and distribute plugins.
 
 ## How to Implement a Plugin
 
