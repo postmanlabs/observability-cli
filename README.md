@@ -35,6 +35,36 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 
 `go test ./...`
 
+### How to use
+
+If it's your first use, start by logging into Akita:
+
+```
+> akita login
+API Key ID: apk_0000000000000000000000
+API Key Secret: ******************************
+Login successful!
+API keys stored in ${HOME}/.akita/credentials.yaml
+```
+
+You're now ready to run the Akita `learn` command to generate an API spec by watching traffic:
+
+```
+akita learn --service {service name} \
+    --interface {network interface} \
+    --port {port}
+```
+
+You should now see output that looks like this:
+
+```
+[INFO] Running learn mode on interface lo0
+[INFO] Preview the learned API spec at https://app.akita.software/service/svc_4UxRRNmhL8R2MAqrmCmCvn/spec-preview/lrn_40lxi9tlHnfdiRsBzXYbBY
+[INFO] Send SIGINT (Ctrl-C) to stop...
+```
+
+For more information, see the docs: [QuickStart: Server APIs](https://docs.akita.software/docs/get-started-with-superlearn); [`apidump`](https://docs.akita.software/docs/apidump); [`apispec`](https://docs.akita.software/docs/apispec-1); [`learn`](https://docs.akita.software/docs/learn); [`apidiff`](https://docs.akita.software/docs/apidiff).
+
 ## Plugins
 
 Client-side inference for the Akita CLI happens through our plugins: for instance, API path argument generalization and type and data format inference. Please refer to [README in plugin](plugin/README.md) for more information.
