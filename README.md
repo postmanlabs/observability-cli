@@ -8,6 +8,7 @@ Akita builds models of your APIs to help you:
 In addition to recording traffic, Akita provides:
 * Path generalization for endpoints
 * Type and data format inference ([docs](https://docs.akita.software/docs/data-formats))
+* Diffing across generated and uploaded API specs ([docs](https://docs.akita.software/docs/diff-api-specifications))
 * Integrations with CI ([docs](https://docs.akita.software/docs/install-in-cicd)) and source control ([GitHub](https://docs.akita.software/docs/connect-to-github); [GitLab](https://docs.akita.software/docs/integrate-with-gitlab))
 * Integrations with web frameworks to watch integration tests ([docs](https://docs.akita.software/docs/integrate-with-integration-tests))
 
@@ -15,6 +16,7 @@ See the full Akita docs [here](https://docs.akita.software/docs/welcome). Watch 
 
 Sign up for our private beta [here](https://www.akitasoftware.com/get-invite).
 
+[About this repo](#about-this-repo) | [Running this repo](#running-this-repo) | [Plugins](#plugins) | [Getting involved](#getting-involved) | [Related links](#related-links)
 
 ## About this repo
 This is the open-source repository for our CLI, containing the code for:
