@@ -131,4 +131,5 @@ func init() {
 		nil,
 		"Paths of third-party Akita plugins. They are executed in the order given.",
 	)
+	Cmd.Flags().MarkHidden("plugins")
 }

@@ -216,6 +216,7 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		nil,
 		"Paths of third-party Akita plugins. They are executed in the order given.",
 	)
+	Cmd.Flags().MarkHidden("plugins")
 }
 
 func registerHiddenLegacyFlags() {

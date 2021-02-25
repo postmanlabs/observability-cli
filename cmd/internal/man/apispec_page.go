@@ -57,10 +57,6 @@ Add tags to the spec.
 
 You may specify a comma separated list of "key=value" pairs (e.g. <bt>--tags a=b,c=d<bt>) or multiple separate flags (e.g. <bt>--tags a=b --tags c=d<bt>)
 
-## --plugins []string
-
-Paths of third-party Akita plugins. They are executed in the order given.
-
 ## --path-parameters []path-prefix
 
 A path prefix is composed of components separated by "/". There are 3 types of components:
