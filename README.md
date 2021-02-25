@@ -34,11 +34,11 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 2. Install `libpcap`
     - For Homebrew on mac: `brew install libpcap`
     - For Ubuntu/Debian: `apt-get install libpcap-dev`
-4. `go build .`
+4. `make`
 
 ### How to test
 
-`go test ./...`
+`make test`
 
 ### How to use
 
