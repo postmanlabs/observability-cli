@@ -31,7 +31,10 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 
 ### How to build
 1. Install [Go 1.15 or above](https://golang.org/doc/install). 
-2. `go build .`
+2. Install `libpcap`
+    - For Homebrew on mac: `brew install libpcap`
+    - For Ubuntu/Debian: `apt-get install libpcap-dev`
+4. `go build .`
 
 ### How to test
 
