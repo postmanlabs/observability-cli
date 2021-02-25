@@ -19,22 +19,23 @@ Sign up for our private beta [here](https://www.akitasoftware.com/get-invite).
 [About this repo](#about-this-repo) | [Running this repo](#running-this-repo) | [Plugins](#plugins) | [Getting involved](#getting-involved) | [Related links](#related-links)
 
 ## About this repo
-This is the open-source repository for our CLI, containing the code for:
+This is the open-source repository for the community version of our CLI, containing the code for:
 * `apidump` for listening to API traffic and generating HAR files
 * `apispec` for generating API specs from HAR files
 * `apidiff` for diffing API specs
 
-The CLI is intended for use with the Akita SaaS tool. This repository does not contain our path generalization, type and data format, or spec generation implementations.
-
+The CLI is intended for use with the Akita SaaS tool: for instance, `apispec` communicates with the Akita backend to generate API specs. Note that this community version of the CLI does not include functionality for type and data format inference. This functionality is available only in the `akita` binary we distribute.
 
 ## Running this repo
 
 ### How to build
+Running the following commands will generate the `akita-cli` binary:
 1. Install [Go 1.15 or above](https://golang.org/doc/install). 
 2. Install `libpcap`
     - For Homebrew on mac: `brew install libpcap`
     - For Ubuntu/Debian: `apt-get install libpcap-dev`
-4. `make`
+3. `make`
+
 
 ### How to test
 
