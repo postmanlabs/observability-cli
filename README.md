@@ -38,7 +38,7 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 
 ### How to test
 
-1. Install [gomock](https://github.com/golang/mock#installation)
+1. Install [gomock](https://github.com/golang/mock#installation): `go get github.com/golang/mock/mockgen`
 2. `make test`
 
 ### How to use
