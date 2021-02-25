@@ -25,18 +25,36 @@ This is the open-source repository for our CLI, containing the code for:
 The CLI is intended for use with the Akita SaaS tool. This repository does not contain our path generalization, type and data format, or spec generation implementations.
 
 
-## How to build
+## Running this repo
 
-1. Install [Go 1.15 or above](https://golang.org/doc/install).
-2. `make`
+### How to build
+1. Install [Go 1.15 or above](https://golang.org/doc/install). 
+2. `go build .`
 
+### How to test
 
-## How to run tests
-
-1. Install [gomock](https://github.com/golang/mock#installation).
-2. `make test`
-
+`go test ./...`
 
 ## Plugins
 
-Refer to [README in plugin](plugin/README.md)
+Client-side inference for the Akita CLI happens through our plugins: for instance, API path argument generalization and type and data format inference. Please refer to [README in plugin](plugin/README.md) for more information.
+
+If you want to contribute to this repository, we recommend submitting pull requests directly rather than developing plugins, as it makes distribution easier.
+
+## Getting involved
+* Please file bugs as issue to this repository.
+* We welcome contributions! If you want to make changes or build your own extensions to the CLI on top of the [Akita IR](https://github.com/akitasoftware/akita-ir), please see our [CONTRIBUTING](CONTRIBUTING.md) doc.
+* We're always happy to answer any questions about the CLI, or about how you can contribute. Email us at `opensource [at] akitasoftware [dot] com` and/or [request to join our Slack](https://docs.google.com/forms/d/e/1FAIpQLSfF-Mf4Li_DqysCHy042IBfvtpUDHGYrV6DOHZlJcQV8OIlAA/viewform?usp=sf_link)!
+
+## Related links
+Using the Akita beta:
+* [Akita docs](https://docs.akita.software/docs/welcome)
+* [Watch a demo](https://www.youtube.com/watch?app=desktop&v=1jII0y0SGxs&ab_channel=Work-Bench) (first ~5 min)
+* [Sign up for our private beta](https://www.akitasoftware.com/get-invite)
+
+The Akita philosophy:
+* [On CloudBees's DevOps Radio](https://www.cloudbees.com/resources/devops-radio/jean-yang)
+* [On Mulesoft's APIs Unplugged](https://soundcloud.com/mulesoft/apis-unplugged-season-2-episode-3-understanding-systems-through-apis-with-dr-jean-yang)
+* [At the API Specs Conference](https://www.youtube.com/watch?v=uYA4DsuMrg8)
+* [At Rebase](https://2020.splashcon.org/details/splash-2020-rebase/4/APIs-are-Illness-and-Cure-The-Software-Heterogeneity-Problem-in-Web-Programming)
+
