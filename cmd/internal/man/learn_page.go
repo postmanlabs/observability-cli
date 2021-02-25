@@ -69,10 +69,6 @@ By default, the command runs as the current user. As a safety precaution, if the
 
 Username of the user to use when running the command specified in <bt>-c<bt>
 
-## --plugins []string
-
-Paths of third-party Akita plugins. They are executed in the order given.
-
 ## --path-exclusions []string
 
 Removes HTTP paths matching regular expressions.
