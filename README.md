@@ -26,8 +26,15 @@ The CLI is intended for use with the Akita SaaS tool. This repository does not c
 
 
 ## How to build
-1. Install [Go 1.15 or above](https://golang.org/doc/install). 
-2. `go build .`
+
+1. Install [Go 1.15 or above](https://golang.org/doc/install).
+2. `make`
+
+
+## How to run tests
+
+1. Install [gomock](https://github.com/golang/mock#installation).
+2. `make test`
 
 
 ## Plugins

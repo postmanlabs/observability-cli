@@ -17,3 +17,6 @@ akita-cli
 
 # vim
 *.swp
+
+# Go mocks
+*.mock.go
