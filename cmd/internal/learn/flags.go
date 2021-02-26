@@ -18,6 +18,7 @@ var (
 
 	pathParamsFlag     []string
 	pathExclusionsFlag []string
+	hostExclusionsFlag []string
 
 	execCommandFlag     string
 	execCommandUserFlag string
@@ -120,7 +121,14 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		&pathExclusionsFlag,
 		"path-exclusions",
 		nil,
-		"List of regular expressions used to exclude endpoints from the spec.",
+		"Removes HTTP paths matching regular expressions.",
+	)
+
+	Cmd.Flags().StringSliceVar(
+		&hostExclusionsFlag,
+		"host-exclusions",
+		nil,
+		"Removes HTTP hosts matching regular expressions.",
 	)
 
 	// GitHub integration flags.

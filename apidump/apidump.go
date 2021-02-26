@@ -17,9 +17,9 @@ import (
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
-	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -63,6 +63,7 @@ type Args struct {
 	Filter         string
 	Tags           map[string]string
 	PathExclusions []string
+	HostExclusions []string
 	SampleRate     float64
 
 	// If set, apidump will run the command in a subshell and terminate
@@ -114,6 +115,16 @@ func Run(args Args) error {
 			return errors.Wrapf(err, "failed to compile path filter %q", f)
 		} else {
 			pathExclusions = append(pathExclusions, r)
+		}
+	}
+
+	// Build host filters.
+	hostExclusions := make([]*regexp.Regexp, 0, len(args.HostExclusions))
+	for _, f := range args.HostExclusions {
+		if r, err := regexp.Compile(f); err != nil {
+			return errors.Wrapf(err, "failed to compile host filter %q", f)
+		} else {
+			hostExclusions = append(hostExclusions, r)
 		}
 	}
 
@@ -212,7 +223,10 @@ func Run(args Args) error {
 			collector = &trace.UserTrafficCollector{
 				Collector: &trace.SamplingCollector{
 					SampleRate: args.SampleRate,
-					Collector:  trace.NewHTTPPathFilterCollector(pathExclusions, collector),
+					Collector: trace.NewHTTPPathFilterCollector(
+						pathExclusions,
+						trace.NewHTTPHostFilterCollector(hostExclusions, collector),
+					),
 				},
 			}
 
