@@ -22,6 +22,7 @@ var (
 	sampleRateFlag      float64
 	tagsFlag            []string
 	pathExclusionsFlag  []string
+	hostExclusionsFlag  []string
 	execCommandFlag     string
 	execCommandUserFlag string
 	pluginsFlag         []string
@@ -53,6 +54,7 @@ var Cmd = &cobra.Command{
 			Interfaces:      interfacesFlag,
 			Filter:          filterFlag,
 			PathExclusions:  pathExclusionsFlag,
+			HostExclusions:  hostExclusionsFlag,
 			ExecCommand:     execCommandFlag,
 			ExecCommandUser: execCommandUserFlag,
 			Plugins:         plugins,
@@ -107,6 +109,13 @@ func init() {
 		"path-exclusions",
 		nil,
 		"Removes HTTP paths matching regular expressions.",
+	)
+
+	Cmd.Flags().StringSliceVar(
+		&hostExclusionsFlag,
+		"host-exclusions",
+		nil,
+		"Removes HTTP hosts matching regular expressions.",
 	)
 
 	Cmd.Flags().StringVarP(

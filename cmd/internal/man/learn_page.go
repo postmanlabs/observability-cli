@@ -75,6 +75,12 @@ Removes HTTP paths matching regular expressions.
 
 For example, to filter out requests fetching files with png or jpg extensions, you can specify <bt>--path-exclusions ".*\.png" --path-exclusions ".*\.jpg"<bt>
 
+## --host-exclusions []string
+
+Removes HTTP hosts matching regular expressions.
+
+For example, to filter out requests to all subdomains of <bt>example.com<bt>, you can specify <bt>--host-exclusions ".*example.com"<bt>
+
 ## --path-parameters []path-prefix
 
 A path prefix is composed of components separated by "/". There are 3 types of components:

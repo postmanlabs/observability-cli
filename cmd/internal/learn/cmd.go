@@ -14,8 +14,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/akitasoftware/akita-cli/printer"
-	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
@@ -23,6 +21,8 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/cmd/internal/tags"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
@@ -242,6 +242,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[string]s
 		Tags:            tagsMap,
 		SampleRate:      sampleRate,
 		PathExclusions:  pathExclusionsFlag,
+		HostExclusions:  hostExclusionsFlag,
 		ExecCommand:     execCommandFlag,
 		ExecCommandUser: execCommandUserFlag,
 		Plugins:         plugins,

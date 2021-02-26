@@ -26,6 +26,20 @@ func NewHTTPPathFilterCollector(matchers []*regexp.Regexp, col Collector) Collec
 	}
 }
 
+func NewHTTPHostFilterCollector(matchers []*regexp.Regexp, col Collector) Collector {
+	return &genericRequestFilter{
+		Collector: col,
+		filterFunc: func(r akinet.HTTPRequest) bool {
+			for _, m := range matchers {
+				if m.MatchString(r.Host) {
+					return false
+				}
+			}
+			return true
+		},
+	}
+}
+
 // Filters out third-party trackers.
 func New3PTrackerFilterCollector(col Collector) Collector {
 	return &genericRequestFilter{
