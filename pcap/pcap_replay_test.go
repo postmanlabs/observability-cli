@@ -131,6 +131,7 @@ func readFileOrDie(path string) []byte {
 
 func removeNonDeterministicField(p *akinet.ParsedNetworkTraffic) {
 	p.ObservationTime = time.Time{}
+	p.FinalPacketTime = time.Time{}
 	switch c := p.Content.(type) {
 	case akinet.HTTPRequest:
 		c.StreamID = uuid.Nil
@@ -221,6 +222,7 @@ func TestPcapHTTP(t *testing.T) {
 	}
 
 	for _, c := range testCases {
+		t.Logf("testing %q", c.pcapFile)
 		collected, err := readFromPcapFile(c.pcapFile)
 		if err != nil {
 			t.Errorf("[%s] got unexpected error: %v", c.name, err)

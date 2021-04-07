@@ -59,17 +59,17 @@ func newTCPFlow(clock clockWrapper, bidiID akinet.TCPBidiID, nf, tf gopacket.Flo
 
 func (f *tcpFlow) handleUnparseable(t time.Time, d memview.MemView) {
 	if d.Len() > 0 {
-		f.outChan <- f.toPNT(t, akinet.RawBytes(d))
+		f.outChan <- f.toPNT(t, t, akinet.RawBytes(d))
 	}
 }
 
 // Handles reassmbled TCP flow data.
-func (f *tcpFlow) reassembled(sg reassembly.ScatterGather) {
-	f.reassembledWithIgnore(0, sg)
+func (f *tcpFlow) reassembled(sg reassembly.ScatterGather, ac reassembly.AssemblerContext) {
+	f.reassembledWithIgnore(0, sg, ac)
 }
 
 // Ignore leading bytes from sg.
-func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGather) {
+func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGather, ac reassembly.AssemblerContext) {
 	_, _, isEnd, _ := sg.Info()
 	bytesAvailable, _ := sg.Lengths()
 	// Fetch returns a copy of the packet data.
@@ -101,8 +101,8 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			printer.V(6).Infof("Accept by %s\n", fact.Name())
 			f.unusedAcceptBuf.Clear()
 
-			ac := sg.AssemblerContext(ignoreCount + int(discardFront))
-			ctx, ok := ac.(*assemblerCtxWithSeq)
+			acForFirstByte := sg.AssemblerContext(ignoreCount + int(discardFront))
+			ctx, ok := acForFirstByte.(*assemblerCtxWithSeq)
 			if !ok {
 				printer.Errorf("received AssemblerContext without TCP seq info, treating %s data as raw bytes\n", fact.Name())
 				f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData)
@@ -128,8 +128,9 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 		f.currentParserCtx = nil
 	} else if pnc != nil {
 		// Parsing complete.
-		t := f.currentParserCtx.GetCaptureInfo().Timestamp
-		f.outChan <- f.toPNT(t, pnc)
+		parseStart := f.currentParserCtx.GetCaptureInfo().Timestamp
+		parseEnd := ac.GetCaptureInfo().Timestamp
+		f.outChan <- f.toPNT(parseStart, parseEnd, pnc)
 
 		f.currentParser = nil
 		f.currentParserCtx = nil
@@ -141,7 +142,7 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 				// This is the last chance we can parse the unused portion of data.
 				// Don't just treat as RawBytes in case 2 pieces of parsable content
 				// arrived on the same packet.
-				f.reassembledWithIgnore(bytesAvailable-int(unused.Len()), sg)
+				f.reassembledWithIgnore(bytesAvailable-int(unused.Len()), sg, ac)
 				return
 			} else {
 				sg.KeepFrom(bytesAvailable - int(unused.Len()))
@@ -162,7 +163,7 @@ func (f *tcpFlow) reassemblyComplete() {
 		t := f.currentParserCtx.GetCaptureInfo().Timestamp
 		f.handleUnparseable(t, unused)
 		if pnc != nil {
-			f.outChan <- f.toPNT(t, pnc)
+			f.outChan <- f.toPNT(t, t, pnc)
 		}
 		f.currentParser = nil
 		f.currentParserCtx = nil
@@ -172,14 +173,17 @@ func (f *tcpFlow) reassemblyComplete() {
 		// We estimate the time with current time instead of tracking a separate
 		// context since unusedAcceptBuf is unlikely to be used and is almost
 		// certainly very small in size.
-		f.outChan <- f.toPNT(f.clock.Now(), akinet.RawBytes(f.unusedAcceptBuf))
+		f.outChan <- f.toPNT(f.clock.Now(), f.clock.Now(), akinet.RawBytes(f.unusedAcceptBuf))
 	}
 }
 
-func (f *tcpFlow) toPNT(firstPacketTime time.Time, c akinet.ParsedNetworkContent) akinet.ParsedNetworkTraffic {
-	t := firstPacketTime
-	if t.IsZero() {
-		t = f.clock.Now()
+func (f *tcpFlow) toPNT(firstPacketTime time.Time, lastPacketTime time.Time,
+	c akinet.ParsedNetworkContent) akinet.ParsedNetworkTraffic {
+	if firstPacketTime.IsZero() {
+		firstPacketTime = f.clock.Now()
+	}
+	if lastPacketTime.IsZero() {
+		lastPacketTime = firstPacketTime
 	}
 
 	// Endpoint interpretation logic from
@@ -192,7 +196,8 @@ func (f *tcpFlow) toPNT(firstPacketTime time.Time, c akinet.ParsedNetworkContent
 		DstIP:           net.IP(dstE.Raw()),
 		DstPort:         int(binary.BigEndian.Uint16(dstP.Raw())),
 		Content:         c,
-		ObservationTime: t,
+		ObservationTime: firstPacketTime,
+		FinalPacketTime: lastPacketTime,
 	}
 }
 
@@ -257,13 +262,13 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 }
 
 // Handles reassmbled TCP stream data.
-func (c *tcpStream) ReassembledSG(sg reassembly.ScatterGather, _ reassembly.AssemblerContext) {
+func (c *tcpStream) ReassembledSG(sg reassembly.ScatterGather, ac reassembly.AssemblerContext) {
 	if c.flows == nil {
 		printer.Errorf("received reassembled TCP stream data before accept, dropping packets\n")
 		return
 	}
 	dir, _, _, _ := sg.Info()
-	c.flows[dir].reassembled(sg)
+	c.flows[dir].reassembled(sg, ac)
 }
 
 func (c *tcpStream) ReassemblyComplete(_ reassembly.AssemblerContext) bool {
