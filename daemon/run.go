@@ -135,6 +135,16 @@ func addWitnesses(request *http.Request) HTTPResponse {
 		return NewHTTPError(err, http.StatusNotFound, "Learning session not found")
 	}
 
+	jsonDecoder := json.NewDecoder(request.Body)
+
+	// Obtain options for the call. We require the "filterThirdPartyTrackers" option to be specified. This prevents HAR entries from being interpreted as empty options objects.
+	var callOptions struct {
+		FilterThirdPartyTrackers *bool `json:"filterThirdPartyTrackers"`
+	}
+	if err := jsonDecoder.Decode(&callOptions); err != nil || callOptions.FilterThirdPartyTrackers == nil {
+		return NewHTTPError(err, http.StatusBadRequest, "Error parsing call options")
+	}
+
 	successfulEntries := 0
 	sampledErrs := sampled_err.Errors{SampleCount: 3}
 
@@ -146,8 +156,9 @@ func addWitnesses(request *http.Request) HTTPResponse {
 
 		// Create collector for ingesting the witnesses.
 		collector := trace.NewBackendCollector(serviceID, learnSessionID, learnClient, kgxapi.Inbound, cmdArgs.Plugins)
-
-		// TODO: Offer option to remove third-party trackers?
+		if *callOptions.FilterThirdPartyTrackers {
+			collector = trace.New3PTrackerFilterCollector(collector)
+		}
 
 		// Create a new stream ID for the witnesses we are about to process.
 		streamID := uuid.New()
@@ -170,7 +181,6 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	// Process the witnesses in the request body.
 	numWitnessesParsed := 0
 	numWitnessesDropped := 0
-	jsonDecoder := json.NewDecoder(request.Body)
 	for seqNum := 0; true; seqNum++ {
 		// Deserialize the next witness.
 		// XXX How to prevent client from giving us extremely large witnesses?
