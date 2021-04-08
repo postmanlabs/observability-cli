@@ -31,6 +31,7 @@ func dummyPNT(c akinet.ParsedNetworkContent) akinet.ParsedNetworkTraffic {
 		DstPort:         81,
 		Content:         c,
 		ObservationTime: testTime,
+		FinalPacketTime: testTime,
 	}
 }
 
@@ -92,7 +93,7 @@ func runTCPFlowTestCase(c tcpFlowTestCase) error {
 		sg.keepFrom = -1
 		sg.isEnd = i == len(c.inputs)-1
 
-		f.reassembled(sg)
+		f.reassembled(sg, sg.AssemblerContext(0))
 
 		// ScatterGather bookkeeping
 		if sg.keepFrom >= 0 {
