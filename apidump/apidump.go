@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	randomdata "github.com/Pallinder/go-randomdata"
-	"github.com/google/uuid"
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 
@@ -144,11 +142,7 @@ func Run(args Args) error {
 		args.Out.AkitaURI = &akiuri.URI{
 			ServiceName: serviceName,
 			ObjectType:  akiuri.TRACE,
-			ObjectName: strings.Join([]string{
-				randomdata.Adjective(),
-				randomdata.Noun(),
-				uuid.New().String()[0:8],
-			}, "-"),
+			ObjectName: util.RandomLearnSessionName(),
 		}
 	}
 
