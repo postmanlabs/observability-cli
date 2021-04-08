@@ -38,10 +38,18 @@ type Args struct {
 	Plugins []plugin.AkitaPlugin
 }
 
-// A wrapper around HTTP request handlers for handling HTTP responses generically.
-type httpHandler func(*http.Request) HTTPResponse
-
 var cmdArgs Args
+
+// Produces an HTTPResponse from an *http.Request.
+type httpRequestHandler func(*http.Request) HTTPResponse
+
+// A wrapper for converting httpRequestHandlers into http.Handlers.
+func httpHandler(requestHandler httpRequestHandler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		response := requestHandler(request)
+		response.Write(writer)
+	})
+}
 
 func Run(args Args) error {
 	cmdArgs = args
@@ -310,10 +318,4 @@ func createModel(request *http.Request) HTTPResponse {
 			ModelID:  akid.String(outModelID),
 			ModelURL: modelURL.String(),
 		})
-}
-
-// Implements http.Handler interface.
-func (fn httpHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	response := fn(request)
-	response.Write(writer)
 }
