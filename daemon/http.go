@@ -5,9 +5,11 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/golang/gddo/httputil/header"
 )
 
@@ -25,24 +27,10 @@ func EnsureJSONEncodedRequestBody(request *http.Request) *HTTPResponse {
 	return nil
 }
 
-// Encapsulates an HTTP status code and a set of headers with a JSON response
-// body.
-type ClientResponse interface {
-	// Returns the JSON body of the response.
-	ResponseBody() []byte
-
-	// Returns the HTTP status code and headers for the response.
-	ResponseHeaders() (int, map[string]string)
-}
-
-// Implements ClientResponse.
-type HTTPResponse struct {
-	// The HTTP status code.
-	Status int
-
-	// The body of the response, serialized as JSON.
-	Body []byte
-}
+// Use rest.HTTPError as an HTTP response. Even though its name suggests that it
+// represents an error, HTTPError has all of the elements needed to encapsulate
+// a response.
+type HTTPResponse rest.HTTPError
 
 // Obtains the JSON body of an HTTP response.
 func (response *HTTPResponse) ResponseBody() []byte {
@@ -51,7 +39,7 @@ func (response *HTTPResponse) ResponseBody() []byte {
 
 // Produces the response code and a set of headers for an HTTP response.
 func (response *HTTPResponse) ResponseHeaders() (int, map[string]string) {
-	return response.Status, map[string]string{
+	return response.StatusCode, map[string]string{
 		"Content-Type": "application/json; charset=utf-8",
 	}
 }
@@ -80,13 +68,21 @@ func NewHTTPResponse(status int, body interface{}) HTTPResponse {
 		}
 	}
 	return HTTPResponse{
-		Status: status,
-		Body:   bodyJson,
+		StatusCode: status,
+		Body:       bodyJson,
 	}
 }
 
-// Convenience method for creating HTTPResponses that represent errors.
+// Convenience method for creating HTTPResponses that represent errors. If the
+// given error is a rest.HTTPError, then this is used as is, and the remaining
+// arguments are ignored.
 func NewHTTPError(err error, status int, message string) HTTPResponse {
+	var httpErr rest.HTTPError
+	if errors.As(err, &httpErr) {
+		// Just use the HTTPError as is.
+		return HTTPResponse(httpErr)
+	}
+
 	detail := ""
 	if err != nil {
 		detail = err.Error()
