@@ -117,20 +117,19 @@ func createLearnSession(request *http.Request) HTTPResponse {
 
 	// Create the learning session.
 	tags := map[string]string{}
-	_, err := util.NewLearnSession(cmdArgs.Domain, cmdArgs.ClientID, serviceID, *callArgs.SessionName, tags, nil)
+	learnSessionID, err := util.NewLearnSession(cmdArgs.Domain, cmdArgs.ClientID, serviceID, *callArgs.SessionName, tags, nil)
 	if err != nil {
 		return NewHTTPError(err, http.StatusInternalServerError, "Unable to start learning session")
 	}
 
 	// Return an HTTPResponse with the name of the new learning session.
-	//
-	// XXX Return session ID instead? Return both name and ID? Will either cause
-	// issues when used as part of URI?
 	return NewHTTPResponse(http.StatusOK,
 		struct {
 			LearnSessionName string `json:"learnSessionName"`
+			LearnSessionID   string `json:"learnSessionID"`
 		}{
 			LearnSessionName: *callArgs.SessionName,
+			LearnSessionID:   akid.String(learnSessionID),
 		})
 }
 
