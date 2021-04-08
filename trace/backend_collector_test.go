@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -15,8 +16,8 @@ import (
 	mockrest "github.com/akitasoftware/akita-cli/rest/mock"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
-	"github.com/akitasoftware/akita-libs/spec_util"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
 var (
@@ -180,4 +181,58 @@ func newDataMeta(httpM *pb.HTTPMeta) *pb.DataMeta {
 			Http: httpM,
 		},
 	}
+}
+
+// Make sure we obfuscate values before uploading.
+func TestTiming(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockClient := mockrest.NewMockLearnClient(ctrl)
+	defer ctrl.Finish()
+
+	var rec witnessRecorder
+	mockClient.
+		EXPECT().
+		ReportWitnesses(gomock.Any(), gomock.Any(), gomock.Any()).
+		Do(rec.recordReportWitnesses).
+		AnyTimes().
+		Return(nil)
+
+	streamID := uuid.New()
+	startTime := time.Now()
+
+	req := akinet.ParsedNetworkTraffic{
+		Content: akinet.HTTPRequest{
+			StreamID: streamID,
+			Seq:      1203,
+			Method:   "GET",
+			URL: &url.URL{
+				Path: "/v1/doggos",
+			},
+			Host: "example.com",
+		},
+		ObservationTime: startTime,
+		FinalPacketTime: startTime.Add(2 * time.Millisecond),
+	}
+
+	resp := akinet.ParsedNetworkTraffic{
+		Content: akinet.HTTPResponse{
+			StreamID:   streamID,
+			Seq:        1203,
+			StatusCode: 200,
+		},
+		ObservationTime: startTime.Add(10 * time.Millisecond),
+		FinalPacketTime: startTime.Add(13 * time.Millisecond),
+	}
+
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	assert.NoError(t, col.Process(req))
+	assert.NoError(t, col.Process(resp))
+	assert.NoError(t, col.Close())
+
+	assert.Equal(t, 1, len(rec.witnesses))
+	actual := rec.witnesses[0]
+	meta := spec_util.HTTPMetaFromMethod(actual.Method)
+	assert.NotNil(t, meta)
+	assert.InDelta(t, 8.0, meta.ProcessingLatency, 0.001)
+
 }

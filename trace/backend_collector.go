@@ -10,15 +10,16 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-cli/learn"
+	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/pbhash"
-	pb "github.com/akitasoftware/akita-ir/go/api_spec"
-	"github.com/akitasoftware/akita-cli/plugin"
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
 const (
@@ -42,6 +43,8 @@ type witnessWithInfo struct {
 	dstPort         uint16
 	observationTime time.Time
 	id              akid.WitnessID
+	requestEnd      time.Time
+	responseStart   time.Time
 
 	witness *pb.Witness
 }
@@ -71,6 +74,39 @@ func (r witnessWithInfo) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessR
 		Hash:              hash,
 		ID:                r.id,
 	}, nil
+}
+
+func (w *witnessWithInfo) recordTimestamp(isRequest bool, t akinet.ParsedNetworkTraffic) {
+	if isRequest {
+		w.requestEnd = t.FinalPacketTime
+	} else {
+		w.responseStart = t.ObservationTime
+	}
+
+}
+
+func (w witnessWithInfo) computeProcessingLatency(isRequest bool, t akinet.ParsedNetworkTraffic) {
+	// Processing latency is the time from the last packet of the request,
+	// to the first packet of the response.
+	requestEnd := w.requestEnd
+	responseStart := t.ObservationTime
+
+	// handle arrival in opposite order
+	if isRequest {
+		requestEnd = t.FinalPacketTime
+		responseStart = w.responseStart
+	}
+
+	// Missing data, leave as default value in protobuf
+	if requestEnd.IsZero() || responseStart.IsZero() {
+		return
+	}
+
+	// HTTPMethodMetadata only for now
+	if meta := spec_util.HTTPMetaFromMethod(w.witness.Method); meta != nil {
+		latency := responseStart.Sub(requestEnd)
+		meta.ProcessingLatency = float32(latency.Microseconds()) / 1000.0
+	}
 }
 
 // Sends witnesses up to akita cloud.
@@ -144,6 +180,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		// Combine the pair, merging the result into the existing item
 		// rather than the new partial.
 		learn.MergeWitness(pair.witness, partial.Witness)
+		pair.computeProcessingLatency(isRequest, t)
 		delete(c.pairCache, partial.PairKey)
 
 		// If partial is the request, flip the src/dst in the pair before
@@ -157,7 +194,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	} else {
 		// Store the partial witness for now, waiting for its pair or a
 		// flush timeout.
-		c.pairCache[partial.PairKey] = &witnessWithInfo{
+		w := &witnessWithInfo{
 			srcIP:           t.SrcIP,
 			srcPort:         uint16(t.SrcPort),
 			dstIP:           t.DstIP,
@@ -166,6 +203,10 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			observationTime: t.ObservationTime,
 			id:              partial.PairKey,
 		}
+		// Store whichever timestamp brackets the processing interval.
+		w.recordTimestamp(isRequest, t)
+		c.pairCache[partial.PairKey] = w
+
 	}
 	return nil
 }
