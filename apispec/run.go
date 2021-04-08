@@ -14,26 +14,24 @@ import (
 	"strings"
 	"time"
 
-	randomdata "github.com/Pallinder/go-randomdata"
 	"github.com/ghodss/yaml"
-	"github.com/google/uuid"
 	"github.com/jpillora/backoff"
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/akitasoftware/akita-cli/printer"
-	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 
 	"github.com/akitasoftware/akita-cli/plugin"
 )
@@ -201,11 +199,7 @@ func Run(args Args) error {
 
 	// Create spec with a random name unless user specified a name.
 	printer.Infof("Generating API specification...\n")
-	outSpecName := strings.Join([]string{
-		randomdata.Adjective(),
-		randomdata.Noun(),
-		uuid.New().String()[0:8],
-	}, "-")
+	outSpecName := util.RandomAPIModelName()
 	if args.Out.AkitaURI == nil {
 		printer.Infof("Creating a new spec: %s\n", akiuri.URI{
 			ServiceName: serviceName,
@@ -235,7 +229,7 @@ func Run(args Args) error {
 	printer.Stderr.Infof("Your API spec ID is: ")
 	fmt.Println(akid.String(outSpecID))
 
-	specURL := getSpecURL(args.Domain, serviceID, outSpecID)
+	specURL := GetSpecURL(args.Domain, serviceID, outSpecID)
 
 	// If the output is a spec on the backend, we can just show a URL to it while
 	// it's being asynchronously generated.
@@ -331,7 +325,7 @@ func writeSpec(out io.Writer, spec string) error {
 	return nil
 }
 
-func getSpecURL(domain string, svc akid.ServiceID, spec akid.APISpecID) url.URL {
+func GetSpecURL(domain string, svc akid.ServiceID, spec akid.APISpecID) url.URL {
 	specURL := url.URL{
 		Scheme: "https",
 		Host:   "app." + domain,

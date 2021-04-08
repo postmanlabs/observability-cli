@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/glamour v0.2.0
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f // indirect
 	github.com/golang/mock v1.3.1
 	// Golang protobuf APIv1, needed to compatibility with objecthash-proto. See
 	// pb/README.md
@@ -20,6 +21,7 @@ require (
 	github.com/google/gopacket v1.1.18
 	github.com/google/martian/v3 v3.0.1
 	github.com/google/uuid v1.2.0
+	github.com/gorilla/mux v1.8.0
 	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/hashicorp/go-version v1.2.1
 	github.com/jpillora/backoff v1.0.0

@@ -2,8 +2,11 @@ package util
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	randomdata "github.com/Pallinder/go-randomdata"
+	"github.com/google/uuid"
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 
@@ -76,3 +79,17 @@ func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSession
 	learnSessionNameCache.Set(name, id, cache.DefaultExpiration)
 	return id, nil
 }
+
+func randomName() string {
+	return strings.Join([]string{
+		randomdata.Adjective(),
+		randomdata.Noun(),
+		uuid.New().String()[0:8],
+	}, "-")
+}
+
+// Produces a random name for a learning session.
+var RandomLearnSessionName func() string = randomName
+
+// Produces a random name for an API model.
+var RandomAPIModelName func() string = randomName

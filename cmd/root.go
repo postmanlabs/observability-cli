@@ -14,6 +14,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/cmd/internal/daemon"
 	"github.com/akitasoftware/akita-cli/cmd/internal/learn"
 	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
 	"github.com/akitasoftware/akita-cli/cmd/internal/login"
@@ -125,6 +126,7 @@ func init() {
 	rootCmd.AddCommand(apidiff.Cmd)
 	rootCmd.AddCommand(apidump.Cmd)
 	rootCmd.AddCommand(apispec.Cmd)
+	rootCmd.AddCommand(daemon.Cmd)
 	rootCmd.AddCommand(learn.Cmd)
 	rootCmd.AddCommand(login.Cmd)
 	rootCmd.AddCommand(man.Cmd)
