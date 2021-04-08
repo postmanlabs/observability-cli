@@ -38,10 +38,20 @@ func (h *HARCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	switch c := t.Content.(type) {
 	case akinet.HTTPRequest:
 		id := learn.ToWitnessID(c.StreamID, c.Seq)
-		h.logger.RecordRequest(akid.String(id), c.ToStdRequest())
+		h.logger.RecordRequestWithTimestamps(akid.String(id), c.ToStdRequest(),
+			&har.MessageTimestamps{
+				StartTime: t.ObservationTime,
+				EndTime:   t.FinalPacketTime,
+			},
+		)
 	case akinet.HTTPResponse:
 		id := learn.ToWitnessID(c.StreamID, c.Seq)
-		h.logger.RecordResponse(akid.String(id), c.ToStdResponse())
+		h.logger.RecordResponseWithTimestamps(akid.String(id), c.ToStdResponse(),
+			&har.MessageTimestamps{
+				StartTime: t.ObservationTime,
+				EndTime:   t.FinalPacketTime,
+			},
+		)
 	}
 	return nil
 }
