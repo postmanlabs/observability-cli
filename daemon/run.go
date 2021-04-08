@@ -181,6 +181,7 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	// Process the witnesses in the request body.
 	numWitnessesParsed := 0
 	numWitnessesDropped := 0
+	numNotWitnesses := 0
 	for seqNum := 0; true; seqNum++ {
 		// Deserialize the next witness.
 		// XXX How to prevent client from giving us extremely large witnesses?
@@ -191,6 +192,12 @@ func addWitnesses(request *http.Request) HTTPResponse {
 				err = nil
 			}
 			break
+		}
+
+		// Weed out anything that has neither a request nor a response as an invalid witness.
+		if witness.Request == nil && witness.Response == nil {
+			numNotWitnesses++
+			continue
 		}
 
 		numWitnessesParsed++
@@ -217,8 +224,11 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	}
 
 	type witnessDetails struct {
-		// How many were parsed as valid witnesses.
+		// How many were parsed as valid witnesses. Currently, we assume that a JSON object is a valid witness if it has either a "request" or a "response" field.
 		Parsed int `json:"parsed"`
+
+		// How many were parsed as valid JSON objects, but were not witnesses.
+		NotWitnesses int `json:"notWitnesses"`
 
 		// How many were dropped because the queue was full.
 		Drops int `json:"drops"`
@@ -236,10 +246,11 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	}
 
 	witDetails := witnessDetails{
-		Parsed:    numWitnessesParsed,
-		Drops:     numWitnessesDropped,
-		Errors:    sampledErrs.TotalCount,
-		Successes: successfulEntries,
+		Parsed:       numWitnessesParsed,
+		NotWitnesses: numNotWitnesses,
+		Drops:        numWitnessesDropped,
+		Errors:       sampledErrs.TotalCount,
+		Successes:    successfulEntries,
 	}
 
 	// If we encountered malformed witnesses or there were errors processing witnesses, return a "Bad Request" status.
