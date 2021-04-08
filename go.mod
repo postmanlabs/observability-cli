@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.2.7
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/akitasoftware/akita-ir v0.0.0-20210211235551-a548c32e7fbe
+	github.com/akitasoftware/akita-ir v0.0.0-20210406221235-f036dc848087
 	github.com/akitasoftware/akita-libs v0.0.0-20210407224000-012a0baea6d8
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
