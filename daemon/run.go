@@ -71,15 +71,14 @@ func Run(args Args) error {
 
 // Obtains the service ID for the service name contained in the given HTTP request variables. If an error occurs, this is formatted and returned as an HTTP response.
 func getServiceID(requestVars map[string]string) (akid.ServiceID, *HTTPResponse) {
-	var httpErr *HTTPResponse = nil
-
 	serviceName := requestVars["serviceName"]
 	frontClient := rest.NewFrontClient(cmdArgs.Domain, cmdArgs.ClientID)
 	result, err := util.GetServiceIDByName(frontClient, serviceName)
 	if err != nil {
-		httpErr = NewHTTPError(err, http.StatusNotFound, "Service not found")
+		httpErr := NewHTTPError(err, http.StatusNotFound, "Service not found")
+		return result, &httpErr
 	}
-	return result, httpErr
+	return result, nil
 }
 
 // Creates a new learning session in the Akita back end.
@@ -98,12 +97,12 @@ func createLearnSession(request *http.Request) HTTPResponse {
 	tags := map[string]string{}
 	_, err := util.NewLearnSession(cmdArgs.Domain, cmdArgs.ClientID, serviceID, learnSessionName, tags, nil)
 	if err != nil {
-		return *NewHTTPError(err, http.StatusInternalServerError, "Unable to start learning session")
+		return NewHTTPError(err, http.StatusInternalServerError, "Unable to start learning session")
 	}
 
 	// Return an HTTPResponse with the name of the new learning session.
 	// XXX Return session ID instead? Return both name and ID? Will either cause issues when used as part of URI?
-	return *NewHTTPResponse(http.StatusOK,
+	return NewHTTPResponse(http.StatusOK,
 		struct {
 			LearnSessionName string `json:"learnSessionName"`
 		}{
@@ -133,7 +132,7 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
 	learnSessionID, err := util.GetLearnSessionIDByName(learnClient, learnSessionName)
 	if err != nil {
-		return *NewHTTPError(err, http.StatusNotFound, "Learning session not found")
+		return NewHTTPError(err, http.StatusNotFound, "Learning session not found")
 	}
 
 	successfulEntries := 0
@@ -240,7 +239,7 @@ func addWitnesses(request *http.Request) HTTPResponse {
 			message = "Malformed witness encountered"
 			witDetails.Errors++
 		}
-		return *NewHTTPResponse(http.StatusBadRequest,
+		return NewHTTPResponse(http.StatusBadRequest,
 			responseBody{
 				Message:        message,
 				WitnessDetails: witDetails,
@@ -249,7 +248,7 @@ func addWitnesses(request *http.Request) HTTPResponse {
 
 	// If we dropped witnesses, return a "Unprocessable Entity" status.
 	if numWitnessesDropped > 0 {
-		return *NewHTTPResponse(http.StatusUnprocessableEntity,
+		return NewHTTPResponse(http.StatusUnprocessableEntity,
 			responseBody{
 				Message:        "Not all witnesses were processed",
 				WitnessDetails: witDetails,
@@ -257,7 +256,7 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	}
 
 	// Otherwise, everything went well, so return an "OK" status.
-	return *NewHTTPResponse(http.StatusOK,
+	return NewHTTPResponse(http.StatusOK,
 		responseBody{
 			WitnessDetails: witDetails,
 		})
@@ -285,7 +284,7 @@ func createModel(request *http.Request) HTTPResponse {
 	}
 	jsonDecoder := json.NewDecoder(request.Body)
 	if err := jsonDecoder.Decode(&requestBody); err != nil {
-		return *NewHTTPError(err, http.StatusBadRequest, "Malformed request body")
+		return NewHTTPError(err, http.StatusBadRequest, "Malformed request body")
 	}
 
 	// Convert the learning session names into IDs.
@@ -294,7 +293,7 @@ func createModel(request *http.Request) HTTPResponse {
 		var err error
 		learnSessionIDs[i], err = util.GetLearnSessionIDByName(learnClient, learnSessionName)
 		if err != nil {
-			return *NewHTTPError(err, http.StatusNotFound, "Learning session not found: "+learnSessionName)
+			return NewHTTPError(err, http.StatusNotFound, "Learning session not found: "+learnSessionName)
 		}
 	}
 
@@ -305,12 +304,12 @@ func createModel(request *http.Request) HTTPResponse {
 	defer cancel()
 	outModelID, err := learnClient.CreateSpec(ctx, modelName, learnSessionIDs, rest.CreateSpecOptions{})
 	if err != nil {
-		return *NewHTTPError(err, http.StatusInternalServerError, "Failed to create new spec")
+		return NewHTTPError(err, http.StatusInternalServerError, "Failed to create new spec")
 	}
 
 	modelURL := apispec.GetSpecURL(cmdArgs.Domain, serviceID, outModelID)
 
-	return *NewHTTPResponse(http.StatusAccepted,
+	return NewHTTPResponse(http.StatusAccepted,
 		struct {
 			ModelID  string `json:"modelID"`
 			ModelURL string `json:"modelURL"`

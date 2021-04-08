@@ -17,7 +17,8 @@ func EnsureJSONEncodedRequestBody(request *http.Request) *HTTPResponse {
 		contentType, _ = header.ParseValueAndParams(request.Header, "Content-Type")
 	}
 	if contentType != "application/json" {
-		return NewHTTPError(nil, http.StatusUnsupportedMediaType, "Content-Type header is not \"application/json\"")
+		httpErr := NewHTTPError(nil, http.StatusUnsupportedMediaType, "Content-Type header is not \"application/json\"")
+		return &httpErr
 	}
 	return nil
 }
@@ -63,7 +64,7 @@ func (response *HTTPResponse) Write(writer http.ResponseWriter) {
 }
 
 // HTTPResponse constructor. If the given body cannot be serialized into JSON, this produces a status-500 response with an empty body, and an error is logged.
-func NewHTTPResponse(status int, body interface{}) *HTTPResponse {
+func NewHTTPResponse(status int, body interface{}) HTTPResponse {
 	var bodyJson []byte = nil
 	var err error = nil
 
@@ -73,14 +74,14 @@ func NewHTTPResponse(status int, body interface{}) *HTTPResponse {
 			return NewHTTPResponse(http.StatusInternalServerError, nil)
 		}
 	}
-	return &HTTPResponse{
+	return HTTPResponse{
 		Status: status,
 		Body:   bodyJson,
 	}
 }
 
 // Convenience method for creating HTTPResponses that represent errors.
-func NewHTTPError(err error, status int, message string) *HTTPResponse {
+func NewHTTPError(err error, status int, message string) HTTPResponse {
 	detail := ""
 	if err != nil {
 		detail = err.Error()
