@@ -96,11 +96,28 @@ func createLearnSession(request *http.Request) HTTPResponse {
 		return *httpErr
 	}
 
-	// Create a new learning session with a random name.
-	// TODO: Allow user to specify a name?
-	learnSessionName := util.RandomLearnSessionName()
+	jsonDecoder := json.NewDecoder(request.Body)
+
+	// Obtain arguments for the call, if any are provided.
+	callArgs := struct {
+		SessionName *string `json:"sessionName"`
+	}{
+		SessionName: nil,
+	}
+	if err := jsonDecoder.Decode(&callArgs); err != nil && err != io.EOF {
+		return NewHTTPError(err, http.StatusBadRequest, "Malformed request body")
+	}
+
+	// Default to a random name if we were not given the name of the learning
+	// session being created.
+	if callArgs.SessionName == nil {
+		name := util.RandomLearnSessionName()
+		callArgs.SessionName = &name
+	}
+
+	// Create the learning session.
 	tags := map[string]string{}
-	_, err := util.NewLearnSession(cmdArgs.Domain, cmdArgs.ClientID, serviceID, learnSessionName, tags, nil)
+	_, err := util.NewLearnSession(cmdArgs.Domain, cmdArgs.ClientID, serviceID, *callArgs.SessionName, tags, nil)
 	if err != nil {
 		return NewHTTPError(err, http.StatusInternalServerError, "Unable to start learning session")
 	}
@@ -113,7 +130,7 @@ func createLearnSession(request *http.Request) HTTPResponse {
 		struct {
 			LearnSessionName string `json:"learnSessionName"`
 		}{
-			LearnSessionName: learnSessionName,
+			LearnSessionName: *callArgs.SessionName,
 		})
 }
 
@@ -317,18 +334,27 @@ func createModel(request *http.Request) HTTPResponse {
 	}
 	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
 
-	// Parse the request body. Expect a JSON serialization of the following type.
-	var requestBody struct {
+	// Parse the request body for call arguments. Expect a JSON serialization of
+	// the following type.
+	var callArgs struct {
+		APIModelName      *string  `json:"apiModelName"`
 		LearnSessionNames []string `json:"learnSessions"`
 	}
 	jsonDecoder := json.NewDecoder(request.Body)
-	if err := jsonDecoder.Decode(&requestBody); err != nil {
+	if err := jsonDecoder.Decode(&callArgs); err != nil {
 		return NewHTTPError(err, http.StatusBadRequest, "Malformed request body")
 	}
 
+	// Default to a random name if we were not given the name of the model being
+	// created.
+	if callArgs.APIModelName == nil {
+		name := util.RandomAPIModelName()
+		callArgs.APIModelName = &name
+	}
+
 	// Convert the learning session names into IDs.
-	learnSessionIDs := make([]akid.LearnSessionID, len(requestBody.LearnSessionNames))
-	for i, learnSessionName := range requestBody.LearnSessionNames {
+	learnSessionIDs := make([]akid.LearnSessionID, len(callArgs.LearnSessionNames))
+	for i, learnSessionName := range callArgs.LearnSessionNames {
 		var err error
 		learnSessionIDs[i], err = util.GetLearnSessionIDByName(learnClient, learnSessionName)
 		if err != nil {
@@ -336,13 +362,10 @@ func createModel(request *http.Request) HTTPResponse {
 		}
 	}
 
-	// Create a new API model with a random name.
-	//
-	// TODO: Allow user to specify a name?
-	modelName := util.RandomAPIModelName()
+	// Create the API model.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	outModelID, err := learnClient.CreateSpec(ctx, modelName, learnSessionIDs, rest.CreateSpecOptions{})
+	outModelID, err := learnClient.CreateSpec(ctx, *callArgs.APIModelName, learnSessionIDs, rest.CreateSpecOptions{})
 	if err != nil {
 		return NewHTTPError(err, http.StatusInternalServerError, "Failed to create new spec")
 	}
@@ -351,10 +374,12 @@ func createModel(request *http.Request) HTTPResponse {
 
 	return NewHTTPResponse(http.StatusAccepted,
 		struct {
-			ModelID  string `json:"modelID"`
-			ModelURL string `json:"modelURL"`
+			ModelName string `json:"modelName"`
+			ModelID   string `json:"modelID"`
+			ModelURL  string `json:"modelURL"`
 		}{
-			ModelID:  akid.String(outModelID),
-			ModelURL: modelURL.String(),
+			ModelName: *callArgs.APIModelName,
+			ModelID:   akid.String(outModelID),
+			ModelURL:  modelURL.String(),
 		})
 }
