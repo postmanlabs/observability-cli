@@ -58,10 +58,13 @@ func Run(args Args) error {
 	// Register an endpoint for creating a new learning session.
 	router.Handle("/v1/services/{serviceName}/learn/sessions", httpHandler(createLearnSession)).Methods("POST")
 
-	// Register an endpoint for adding witnesses to a learning session. The request body is expected to be a stream of HAR entry objects to be added.
+	// Register an endpoint for adding witnesses to a learning session. The
+	// request body is expected to be a stream of HAR entry objects to be added.
 	router.Handle("/v1/services/{serviceName}/learn/sessions/{learnSessionName}/witnesses", httpHandler(addWitnesses)).Methods("POST")
 
-	// Register an endpoint for creating an API model out of a set of learning sessions. The request body is expected to be a JSON object specifying the names of the learning sessions.
+	// Register an endpoint for creating an API model out of a set of learning
+	// sessions. The request body is expected to be a JSON object specifying the
+	// names of the learning sessions.
 	router.Handle("/v1/services/{serviceName}/api-models", httpHandler(createModel)).Methods("POST")
 
 	listenSocket := fmt.Sprintf("127.0.0.1:%d", cmdArgs.PortNumber)
@@ -69,7 +72,9 @@ func Run(args Args) error {
 	return nil
 }
 
-// Obtains the service ID for the service name contained in the given HTTP request variables. If an error occurs, this is formatted and returned as an HTTP response.
+// Obtains the service ID for the service name contained in the given HTTP
+// request variables. If an error occurs, this is formatted and returned as an
+// HTTP response.
 func getServiceID(requestVars map[string]string) (akid.ServiceID, *HTTPResponse) {
 	serviceName := requestVars["serviceName"]
 	frontClient := rest.NewFrontClient(cmdArgs.Domain, cmdArgs.ClientID)
@@ -101,7 +106,9 @@ func createLearnSession(request *http.Request) HTTPResponse {
 	}
 
 	// Return an HTTPResponse with the name of the new learning session.
-	// XXX Return session ID instead? Return both name and ID? Will either cause issues when used as part of URI?
+	//
+	// XXX Return session ID instead? Return both name and ID? Will either cause
+	// issues when used as part of URI?
 	return NewHTTPResponse(http.StatusOK,
 		struct {
 			LearnSessionName string `json:"learnSessionName"`
@@ -112,7 +119,9 @@ func createLearnSession(request *http.Request) HTTPResponse {
 
 // Adds a set of witnesses to a learning session in the Akita back end.
 //
-// The request payload is expected to contain a sequence of HAR entries in JSON-serialized format. This entry is added as a witness to the learning session identified in the request.
+// The request payload is expected to contain a sequence of HAR entries in
+// JSON-serialized format. This entry is added as a witness to the learning
+// session identified in the request.
 func addWitnesses(request *http.Request) HTTPResponse {
 	vars := mux.Vars(request)
 
@@ -137,7 +146,9 @@ func addWitnesses(request *http.Request) HTTPResponse {
 
 	jsonDecoder := json.NewDecoder(request.Body)
 
-	// Obtain options for the call. We require the "filterThirdPartyTrackers" option to be specified. This prevents HAR entries from being interpreted as empty options objects.
+	// Obtain options for the call. We require the "filterThirdPartyTrackers"
+	// option to be specified. This prevents HAR entries from being interpreted as
+	// empty options objects.
 	var callOptions struct {
 		FilterThirdPartyTrackers *bool `json:"filterThirdPartyTrackers"`
 	}
@@ -148,7 +159,8 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	successfulEntries := 0
 	sampledErrs := sampled_err.Errors{SampleCount: 3}
 
-	// Start a consumer goroutine that will read witnesses from a channel and pass them on to a backend collector.
+	// Start a consumer goroutine that will read witnesses from a channel and pass
+	// them on to a backend collector.
 	witnessChannel := make(chan *Witness, WITNESS_BUFFER_SIZE)
 	doneChannel := make(chan bool)
 	go func() {
@@ -184,6 +196,7 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	numNotWitnesses := 0
 	for seqNum := 0; true; seqNum++ {
 		// Deserialize the next witness.
+		//
 		// XXX How to prevent client from giving us extremely large witnesses?
 		var witness Witness
 		if err := jsonDecoder.Decode(&witness); err != nil {
@@ -194,7 +207,8 @@ func addWitnesses(request *http.Request) HTTPResponse {
 			break
 		}
 
-		// Weed out anything that has neither a request nor a response as an invalid witness.
+		// Weed out anything that has neither a request nor a response as an invalid
+		// witness.
 		if witness.Request == nil && witness.Response == nil {
 			numNotWitnesses++
 			continue
@@ -210,7 +224,8 @@ func addWitnesses(request *http.Request) HTTPResponse {
 		}
 	}
 
-	// Signal the end of the witness stream and wait for the witnesses to finish uploading.
+	// Signal the end of the witness stream and wait for the witnesses to finish
+	// uploading.
 	close(witnessChannel)
 	<-doneChannel
 
@@ -224,7 +239,9 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	}
 
 	type witnessDetails struct {
-		// How many were parsed as valid witnesses. Currently, we assume that a JSON object is a valid witness if it has either a "request" or a "response" field.
+		// How many were parsed as valid witnesses. Currently, we assume that a JSON
+		// object is a valid witness if it has either a "request" or a "response"
+		// field.
 		Parsed int `json:"parsed"`
 
 		// How many were parsed as valid JSON objects, but were not witnesses.
@@ -253,7 +270,8 @@ func addWitnesses(request *http.Request) HTTPResponse {
 		Successes:    successfulEntries,
 	}
 
-	// If we encountered malformed witnesses or there were errors processing witnesses, return a "Bad Request" status.
+	// If we encountered malformed witnesses or there were errors processing
+	// witnesses, return a "Bad Request" status.
 	if err != nil || sampledErrs.TotalCount > 0 {
 		message := "Errors encountered while processing witnesses"
 		if err != nil {
@@ -319,6 +337,7 @@ func createModel(request *http.Request) HTTPResponse {
 	}
 
 	// Create a new API model with a random name.
+	//
 	// TODO: Allow user to specify a name?
 	modelName := util.RandomAPIModelName()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

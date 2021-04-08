@@ -55,9 +55,11 @@ func parseFromHAR(col trace.Collector, log *hl.CustomHARLog) (int, sampled_err.E
 	return successfulEntries, errs
 }
 
-// Processes a single entry from a HAR file. The UUID identifies the HAR file, whereas the seqNum identifies the entry within the file.
+// Processes a single entry from a HAR file. The UUID identifies the HAR file,
+// whereas the seqNum identifies the entry within the file.
 //
-// If any errors occur, the given Errors is updated, and false is returned. Otherwise, true is returned on success.
+// If any errors occur, the given Errors is updated, and false is returned.
+// Otherwise, true is returned on success.
 func ProcessHAREntry(col trace.Collector, harUUID uuid.UUID, seqNum int, entry hl.CustomHAREntry, errs *sampled_err.Errors) bool {
 	entrySuccess := true
 

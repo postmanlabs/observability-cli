@@ -1,6 +1,7 @@
 package daemon
 
-// Some of this is loosely based on https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd
+// Some of this is loosely based on
+// https://medium.com/@ozdemir.zynl/rest-api-error-handling-in-go-behavioral-type-assertion-509d93636afd
 
 import (
 	"encoding/json"
@@ -10,7 +11,8 @@ import (
 	"github.com/golang/gddo/httputil/header"
 )
 
-// Ensures the request body is JSON-encoded. If it is not, returns an HTTPResponse indicating an error. Otherwise, returns nil.
+// Ensures the request body is JSON-encoded. If it is not, returns an
+// HTTPResponse indicating an error. Otherwise, returns nil.
 func EnsureJSONEncodedRequestBody(request *http.Request) *HTTPResponse {
 	contentType := ""
 	if request.Header.Get("Content-Type") != "" {
@@ -23,7 +25,8 @@ func EnsureJSONEncodedRequestBody(request *http.Request) *HTTPResponse {
 	return nil
 }
 
-// Encapsulates an HTTP status code and a set of headers with a JSON response body.
+// Encapsulates an HTTP status code and a set of headers with a JSON response
+// body.
 type ClientResponse interface {
 	// Returns the JSON body of the response.
 	ResponseBody() []byte
@@ -63,7 +66,9 @@ func (response *HTTPResponse) Write(writer http.ResponseWriter) {
 	writer.Write(response.ResponseBody())
 }
 
-// HTTPResponse constructor. If the given body cannot be serialized into JSON, this produces a status-500 response with an empty body, and an error is logged.
+// HTTPResponse constructor. If the given body cannot be serialized into JSON,
+// this produces a status-500 response with an empty body, and an error is
+// logged.
 func NewHTTPResponse(status int, body interface{}) HTTPResponse {
 	var bodyJson []byte = nil
 	var err error = nil
