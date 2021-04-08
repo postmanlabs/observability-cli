@@ -69,7 +69,7 @@ func NewHTTPResponse(status int, body interface{}) *HTTPResponse {
 
 	if body != nil {
 		if bodyJson, err = json.Marshal(body); err != nil {
-			log.Printf("An error occurred while serializing an HTTPResponse body: %v", err)
+			log.Printf("An error occurred while serializing an HTTPResponse body: %v\n", err)
 			return NewHTTPResponse(http.StatusInternalServerError, nil)
 		}
 	}

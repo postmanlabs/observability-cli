@@ -190,6 +190,15 @@ func addWitnesses(request *http.Request) HTTPResponse {
 	close(witnessChannel)
 	<-doneChannel
 
+	// Log any errors that we encountered while processing the HAR entries.
+	if sampledErrs.TotalCount > 0 {
+		log.Printf("Encountered errors with %d HAR entries.\n", numWitnessesParsed-numWitnessesDropped-successfulEntries)
+		log.Printf("Sample errors:\n")
+		for _, e := range sampledErrs.Samples {
+			log.Printf("\t- %s\n", e)
+		}
+	}
+
 	type witnessDetails struct {
 		// How many were parsed as valid witnesses.
 		Parsed int `json:"parsed"`
