@@ -56,13 +56,13 @@ func Run(args Args) error {
 	router := mux.NewRouter().StrictSlash(true)
 
 	// Register an endpoint for creating a new learning session.
-	router.Handle("/services/{serviceName}/learn/sessions", httpHandler(createLearnSession)).Methods("POST")
+	router.Handle("/v1/services/{serviceName}/learn/sessions", httpHandler(createLearnSession)).Methods("POST")
 
 	// Register an endpoint for adding witnesses to a learning session. The request body is expected to be a stream of HAR entry objects to be added.
-	router.Handle("/services/{serviceName}/learn/sessions/{learnSessionName}/witnesses", httpHandler(addWitnesses)).Methods("POST")
+	router.Handle("/v1/services/{serviceName}/learn/sessions/{learnSessionName}/witnesses", httpHandler(addWitnesses)).Methods("POST")
 
 	// Register an endpoint for creating an API model out of a set of learning sessions. The request body is expected to be a JSON object specifying the names of the learning sessions.
-	router.Handle("/services/{serviceName}/api-models", httpHandler(createModel)).Methods("POST")
+	router.Handle("/v1/services/{serviceName}/api-models", httpHandler(createModel)).Methods("POST")
 
 	listenSocket := fmt.Sprintf("127.0.0.1:%d", cmdArgs.PortNumber)
 	log.Fatal(http.ListenAndServe(listenSocket, router))
