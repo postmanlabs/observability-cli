@@ -131,14 +131,14 @@ func ProcessHAREntry(col trace.Collector, harUUID uuid.UUID, seqNum int, entry h
 	if entry.Request != nil {
 		if req, err := convertRequest(entry.Request); err == nil {
 			req.StreamID = harUUID
-			req.Seq = i
+			req.Seq = seqNum
 			col.Process(akinet.ParsedNetworkTraffic{
 				ObservationTime: ts.RequestStart,
 				FinalPacketTime: ts.RequestEnd,
 				Content:         req,
 			})
 		} else {
-			printer.Debugf("%s\n", errors.Wrapf(err, "failed to convert HAR request, index=%d", i))
+			printer.Debugf("%s\n", errors.Wrapf(err, "failed to convert HAR request, index=%d", seqNum))
 			entrySuccess = false
 			errs.Add(err)
 		}
