@@ -102,6 +102,7 @@ func (t *ReconstructedTimestamps) reconstructFromHAR(entry *hl.CustomHAREntry) {
 	t.ResponseEnd = currTime
 }
 
+// Returns the number of entries successfully collected from the given HAR log.
 func parseFromHAR(col trace.Collector, log *hl.CustomHARLog) (int, sampled_err.Errors) {
 	// Use the same UUID for all witnesses from the same HAR file.
 	harUUID := uuid.New()
@@ -109,47 +110,56 @@ func parseFromHAR(col trace.Collector, log *hl.CustomHARLog) (int, sampled_err.E
 	successfulEntries := 0
 	errs := sampled_err.Errors{SampleCount: 3}
 	for i, entry := range log.Entries {
-		entrySuccess := true
-
-		var ts ReconstructedTimestamps
-		ts.reconstructFromHAR(&entry)
-		if entry.Request != nil {
-			if req, err := convertRequest(entry.Request); err == nil {
-				req.StreamID = harUUID
-				req.Seq = i
-				col.Process(akinet.ParsedNetworkTraffic{
-					ObservationTime: ts.RequestStart,
-					FinalPacketTime: ts.RequestEnd,
-					Content:         req,
-				})
-			} else {
-				printer.Debugf("%s\n", errors.Wrapf(err, "failed to convert HAR request, index=%d", i))
-				entrySuccess = false
-				errs.Add(err)
-			}
-		}
-
-		if entry.Response != nil {
-			if resp, err := convertResponse(entry.Response); err == nil {
-				resp.StreamID = harUUID
-				resp.Seq = i
-				col.Process(akinet.ParsedNetworkTraffic{
-					ObservationTime: ts.ResponseStart,
-					FinalPacketTime: ts.ResponseEnd,
-					Content:         resp,
-				})
-			} else {
-				printer.Debugf("%s\n", errors.Wrapf(err, "failed to convert HAR response, index=%d", i))
-				entrySuccess = false
-				errs.Add(err)
-			}
-		}
-
+		entrySuccess := ProcessHAREntry(col, harUUID, i, entry, &errs)
 		if entrySuccess {
 			successfulEntries += 1
 		}
 	}
 	return successfulEntries, errs
+}
+
+// Processes a single entry from a HAR file. The UUID identifies the HAR file,
+// whereas the seqNum identifies the entry within the file.
+//
+// If any errors occur, the given Errors is updated, and false is returned.
+// Otherwise, true is returned on success.
+func ProcessHAREntry(col trace.Collector, harUUID uuid.UUID, seqNum int, entry hl.CustomHAREntry, errs *sampled_err.Errors) bool {
+	entrySuccess := true
+
+	var ts ReconstructedTimestamps
+	ts.reconstructFromHAR(&entry)
+	if entry.Request != nil {
+		if req, err := convertRequest(entry.Request); err == nil {
+			req.StreamID = harUUID
+			req.Seq = i
+			col.Process(akinet.ParsedNetworkTraffic{
+				ObservationTime: ts.RequestStart,
+				FinalPacketTime: ts.RequestEnd,
+				Content:         req,
+			})
+		} else {
+			printer.Debugf("%s\n", errors.Wrapf(err, "failed to convert HAR request, index=%d", i))
+			entrySuccess = false
+			errs.Add(err)
+		}
+	}
+	if entry.Response != nil {
+		if resp, err := convertResponse(entry.Response); err == nil {
+			resp.StreamID = harUUID
+			resp.Seq = seqNum
+			col.Process(akinet.ParsedNetworkTraffic{
+				ObservationTime: ts.ResponseStart,
+				FinalPacketTime: ts.ResponseEnd,
+				Content:         resp,
+			})
+		} else {
+			printer.Debugf("%s\n", errors.Wrapf(err, "failed to convert HAR response, index=%d", seqNum))
+			entrySuccess = false
+			errs.Add(err)
+		}
+	}
+
+	return entrySuccess
 }
 
 func convertRequest(harReq *har.Request) (akinet.HTTPRequest, error) {
