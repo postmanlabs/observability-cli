@@ -183,7 +183,7 @@ func newDataMeta(httpM *pb.HTTPMeta) *pb.DataMeta {
 	}
 }
 
-// Make sure we obfuscate values before uploading.
+// Verify processing latency computation
 func TestTiming(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockClient := mockrest.NewMockLearnClient(ctrl)
