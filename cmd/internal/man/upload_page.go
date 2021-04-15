@@ -11,7 +11,7 @@ Uploads an OpenAPI 3 spec or a HAR file to Akita Cloud. When the upload complete
 
 # Examples
 
-## akita upload --dest akita://my-service:spec: /path/to/spec.yaml
+## akita upload --dest akita://my-service:spec /path/to/spec.yaml
 
 Upload the given file as a spec for my-service. A new name is generated for the spec.
 
@@ -19,7 +19,7 @@ Upload the given file as a spec for my-service. A new name is generated for the 
 
 Upload the given file as a spec for my-service. The uploaded spec will be called "spec1".
 
-## akita upload --dest akita://my-service:trace: /path/to/trace1.har /path/to/trace2.har
+## akita upload --dest akita://my-service:trace /path/to/trace1.har /path/to/trace2.har
 
 Upload the given files as a trace for my-service. A new name is generated for the trace.
 
