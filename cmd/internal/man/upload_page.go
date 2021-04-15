@@ -33,7 +33,7 @@ Upload the given files as a trace for my-service. The uploaded trace will be cal
 
 The Akita URI where you want to upload to, specifying the Akita service, the type of the upload, and optionally, the name of the upload.
 
-If a name is provided and an object already exists with that name, an error occurs, unless '--append' or '--overwrite' is also specified.
+If a name is provided and an object already exists with that name, an error occurs, unless '--append' is also specified.
 
 # Optional Flags
 
