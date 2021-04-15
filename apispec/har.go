@@ -15,7 +15,7 @@ import (
 )
 
 // Extract witnesses from a local HAR file and send them to the collector.
-func processHAR(inboundCol, outboundCol trace.Collector, p string) error {
+func ProcessHAR(inboundCol, outboundCol trace.Collector, p string) error {
 	harContent, err := hl.LoadCustomHARFromFile(p)
 	if err != nil {
 		return errors.Wrapf(err, "failed to load HAR file %s", p)

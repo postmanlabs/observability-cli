@@ -1,9 +1,11 @@
 package upload
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -11,17 +13,66 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:          "upload [PATH_TO_SPEC]",
-	Short:        "Upload API spec to Akita.",
+	Use:          "upload [FILE...]",
+	Short:        "Upload an API model or a set of traces to Akita.",
 	SilenceUsage: true,
-	Args:         cobra.ExactArgs(1),
+	Args:         cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// At least one of --dest or --service must be given.
+		if destFlag == "" && serviceFlag == "" {
+			return errors.New("required flag \"dest\" not set")
+		}
+
+		// At most one of --dest or --service can be given.
+		if destFlag != "" && serviceFlag != "" {
+			return errors.New("cannot set both \"dest\" and \"service\" flags")
+		}
+
+		// If --name is given, then --dest cannot be given.
+		if specNameFlag != "" && destFlag != "" {
+			return errors.New("\"name\" flag cannot be used with \"dest\" flag")
+		}
+
+		// Rewrite --service and --name into --dest.
+		if destFlag == "" {
+			destFlag = "akita://" + serviceFlag + ":spec"
+			if specNameFlag != "" {
+				destFlag += ":" + specNameFlag
+			}
+		}
+
+		// Parse --dest.
+		destURI, err := akiuri.Parse(destFlag)
+		if err != nil {
+			return errors.Wrapf(err, "%q is not a well-formed AkitaURI", destFlag)
+		}
+
+		// If more than one file is given, then the object type must be "trace".
+		if len(args) > 1 && destURI.ObjectType == akiuri.SPEC {
+			return errors.New("can only upload one API model at a time")
+		}
+
+		// If --append is given, then the object type must be "trace".
+		if appendFlag && destURI.ObjectType != akiuri.TRACE {
+			return errors.New("\"append\" can only be used with trace objects")
+		}
+
+		// If --include-trackers is given, then the object type must be "trace".
+		if includeTrackersFlag && destURI.ObjectType != akiuri.TRACE {
+			return errors.New("\"append\" can only be used with trace objects")
+		}
+
+		// If --plugins is given, then the object type must be "trace".
+		if pluginsFlag != nil && destURI.ObjectType != akiuri.TRACE {
+			return errors.New("\"plugins\" can only be used with trace objects")
+		}
+
 		uploadArgs := upload.Args{
 			ClientID:      akid.GenerateClientID(),
 			Domain:        akiflag.Domain,
-			Service:       serviceFlag,
-			SpecPath:      args[0],
-			SpecName:      specNameFlag,
+			DestURI:       destURI,
+			FilePaths:     args,
+			Append:        appendFlag,
 			UploadTimeout: uploadTimeoutFlag,
 		}
 
