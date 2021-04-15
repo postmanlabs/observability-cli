@@ -421,7 +421,7 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 		defer inboundCol.Close()
 		defer outboundCol.Close()
 
-		if err := processHAR(inboundCol, outboundCol, p); err != nil {
+		if err := ProcessHAR(inboundCol, outboundCol, p); err != nil {
 			return nil, errors.Wrapf(err, "failed to process HAR file %s", p)
 		} else {
 			lrns = append(lrns, lrn)

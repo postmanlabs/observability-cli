@@ -3,7 +3,9 @@ package upload
 import (
 	"time"
 
+	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
 )
 
 type Args struct {
@@ -11,10 +13,12 @@ type Args struct {
 	ClientID akid.ClientID
 	Domain   string
 
-	Service  string
-	SpecPath string
+	DestURI   akiuri.URI
+	FilePaths []string
 
 	// Optional args
-	SpecName      string
-	UploadTimeout time.Duration
+	Append          bool
+	IncludeTrackers bool
+	UploadTimeout   time.Duration
+	Plugins         []plugin.AkitaPlugin
 }
