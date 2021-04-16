@@ -30,7 +30,7 @@ func Run(args Args) error {
 	// Determine the object's name.
 	objectName := args.DestURI.ObjectName
 	if objectName == "" {
-		switch args.DestURI.ObjectType {
+		switch *args.DestURI.ObjectType {
 		case akiuri.SPEC:
 			objectName = util.RandomAPIModelName()
 		case akiuri.TRACE:
@@ -42,7 +42,7 @@ func Run(args Args) error {
 
 	// Do the upload.
 	learnClient := rest.NewLearnClient(args.Domain, args.ClientID, svc)
-	switch args.DestURI.ObjectType {
+	switch *args.DestURI.ObjectType {
 	case akiuri.SPEC:
 		if err := uploadSpec(learnClient, args, objectName); err != nil {
 			return err

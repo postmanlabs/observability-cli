@@ -50,7 +50,6 @@ type Args struct {
 	Domain   string
 
 	// Optional args
-	Service string
 
 	// If both LocalPath and AkitaURI are set, data is teed to both local traces
 	// and backend trace.
@@ -126,23 +125,17 @@ func Run(args Args) error {
 		}
 	}
 
-	var serviceName string
+	// Validate args.Out and fill in any missing defaults.
 	if uri := args.Out.AkitaURI; uri != nil {
-		serviceName = uri.ServiceName
-	} else if args.Service == "" && !args.Out.IsSet() {
-		// If out is not specified, we create the trace on Akita Cloud, so we need
-		// --service to be specified.
-		return errors.Errorf("must specify --service if --out is not specified")
-	} else {
-		serviceName = args.Service
-	}
+		if uri.ObjectType == nil {
+			uri.ObjectType = akiuri.TRACE.Ptr()
+		} else if !uri.ObjectType.Is(akiuri.TRACE) {
+			return errors.Errorf("%q is not an Akita trace URI", uri)
+		}
 
-	// Default to a randomly generated trace on Akita Cloud.
-	if !args.Out.IsSet() {
-		args.Out.AkitaURI = &akiuri.URI{
-			ServiceName: serviceName,
-			ObjectType:  akiuri.TRACE,
-			ObjectName: util.RandomLearnSessionName(),
+		// Use a random object name by default.
+		if uri.ObjectName == "" {
+			uri.ObjectName = util.RandomLearnSessionName()
 		}
 	}
 

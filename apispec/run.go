@@ -94,6 +94,9 @@ func Run(args Args) error {
 	var serviceName string
 	if uri := args.Out.AkitaURI; uri != nil {
 		serviceName = uri.ServiceName
+		if args.Service != "" && serviceName != args.Service {
+			return errors.Errorf("--service and --out cannot specify different services")
+		}
 	} else if args.Service == "" {
 		return errors.Errorf("must specify --service if --out is not an AkitaURI")
 	} else {
@@ -109,18 +112,23 @@ func Run(args Args) error {
 	}
 	learnClient := rest.NewLearnClient(args.Domain, args.ClientID, serviceID)
 
-	// Validation
-	if args.Out.AkitaURI != nil {
-		if args.Out.AkitaURI.ObjectType != akiuri.SPEC {
+	// Normalization & validation.
+	if uri := args.Out.AkitaURI; uri != nil {
+		if uri.ObjectType == nil {
+			uri.ObjectType = akiuri.SPEC.Ptr()
+		} else if !args.Out.AkitaURI.ObjectType.Is(akiuri.SPEC) {
 			return errors.Errorf("output AkitaURI must refer to a spec object")
 		}
 
-		if _, err := resolveSpecURI(learnClient, *args.Out.AkitaURI); err == nil {
-			return errors.Errorf("spec %q already exists", *args.Out.AkitaURI)
-		} else {
-			var httpErr rest.HTTPError
-			if ok := errors.As(err, &httpErr); ok && httpErr.StatusCode != 404 {
-				return errors.Wrap(err, "failed to check whether output spec exists already")
+		if args.Out.AkitaURI.ObjectName != "" {
+			// Check if the spec already exists.
+			if _, err := util.ResolveSpecURI(learnClient, *args.Out.AkitaURI); err == nil {
+				return errors.Errorf("spec %q already exists", *args.Out.AkitaURI)
+			} else {
+				var httpErr rest.HTTPError
+				if ok := errors.As(err, &httpErr); ok && httpErr.StatusCode != 404 {
+					return errors.Wrap(err, "failed to check whether output spec exists already")
+				}
 			}
 		}
 	}
@@ -200,10 +208,10 @@ func Run(args Args) error {
 	// Create spec with a random name unless user specified a name.
 	printer.Infof("Generating API specification...\n")
 	outSpecName := util.RandomAPIModelName()
-	if args.Out.AkitaURI == nil {
+	if args.Out.AkitaURI == nil || args.Out.AkitaURI.ObjectName == "" {
 		printer.Infof("Creating a new spec: %s\n", akiuri.URI{
 			ServiceName: serviceName,
-			ObjectType:  akiuri.SPEC,
+			ObjectType:  akiuri.SPEC.Ptr(),
 			ObjectName:  outSpecName,
 		})
 	} else {
@@ -345,17 +353,8 @@ func pathPatternsFromStrings(raws []string) []pp.Pattern {
 	return patterns
 }
 
-func resolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error) {
-	if uri.ObjectType != akiuri.SPEC {
-		return akid.APISpecID{}, errors.Errorf("AkitaURI must refer to a spec object")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
-}
-
 func resolveTraceURI(domain string, clientID akid.ClientID, uri akiuri.URI) (akid.LearnSessionID, error) {
-	if uri.ObjectType != akiuri.TRACE {
+	if !uri.ObjectType.Is(akiuri.TRACE) {
 		return akid.LearnSessionID{}, errors.Errorf("AkitaURI must refer to a trace object")
 	}
 

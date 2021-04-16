@@ -39,7 +39,7 @@ When specifying a local file, Akita writes the spec to the file. Note that you m
 
 To specify <bt>stdout<bt>, use <bt>--out="-"<bt>.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:spec:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the spec to create.
+When specifying an AkitaURI, the format is "akita://{SERVICE}:spec" or "akita://{SERVICE}:spec:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the spec to create. A spec name will be generated if "NAME" is not provided.
 
 ## --service string
 

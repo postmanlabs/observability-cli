@@ -52,29 +52,51 @@ func runLearnMode() error {
 		return errors.Wrap(err, "failed to load plugins")
 	}
 
-	// Determine service name.
+	// XXX Some of this input validation duplicates the input validation for `apispec` (and maybe `apidump`). We should refactor this.
+
+	// Determine service name and validate --out.
 	var serviceName string
-	if outFlag.AkitaURI == nil {
+	if uri := outFlag.AkitaURI; uri == nil {
 		if serviceFlag == "" {
 			return errors.Errorf("must specify --service when --out is not an AkitaURI")
 		}
 		serviceName = serviceFlag
 	} else {
-		serviceName = outFlag.AkitaURI.ServiceName
+		serviceName = uri.ServiceName
+
+		if serviceFlag != "" && serviceFlag != serviceName {
+			return errors.Errorf("--service and --out cannot specify different services")
+		}
+
+		if uri.ObjectType != nil && !uri.ObjectType.Is(akiuri.SPEC) {
+			return errors.Errorf("output AkitaURI must refer to a spec object")
+		}
+	}
+
+	// Resolve service name and get a learn client.
+	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	svc, err := util.GetServiceIDByName(frontClient, serviceName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to lookup service %q", serviceName)
+	}
+	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
+
+	// If a spec name was given, check if the spec already exists.
+	if uri := outFlag.AkitaURI; uri != nil && uri.ObjectName != "" {
+		if _, err := util.ResolveSpecURI(learnClient, *uri); err == nil {
+			return errors.Errorf("spec %q already exists", uri)
+		} else {
+			var httpErr rest.HTTPError
+			if ok := errors.As(err, &httpErr); ok && httpErr.StatusCode != 404 {
+				return errors.Wrap(err, "failed to check whether output spec exists already")
+			}
+		}
 	}
 
 	// Support legacy --extend.
 	// Resolve the API spec ID or version label to learn session AkitaURIs.
 	var legacyExtendTraces []*akiuri.URI
 	if legacyExtendFlag != "" {
-		frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
-		svc, err := util.GetServiceIDByName(frontClient, serviceName)
-		if err != nil {
-			return errors.Wrapf(err, "failed to lookup service %q", serviceName)
-		}
-
-		learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
-
 		var specID akid.APISpecID
 		if err := akid.ParseIDAs(legacyExtendFlag, &specID); err != nil {
 			// The flag is a version label, resolve that.
@@ -116,7 +138,7 @@ func runLearnMode() error {
 
 			legacyExtendTraces = append(legacyExtendTraces, &akiuri.URI{
 				ServiceName: serviceName,
-				ObjectType:  akiuri.TRACE,
+				ObjectType:  akiuri.TRACE.Ptr(),
 				ObjectName:  session.Name,
 			})
 		}
@@ -200,7 +222,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[string]s
 
 		traceOut.AkitaURI = &akiuri.URI{
 			ServiceName: serviceName,
-			ObjectType:  akiuri.TRACE,
+			ObjectType:  akiuri.TRACE.Ptr(),
 			ObjectName:  session.Name,
 		}
 	} else {
@@ -215,7 +237,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[string]s
 
 		traceOut.AkitaURI = &akiuri.URI{
 			ServiceName: serviceName,
-			ObjectType:  akiuri.TRACE,
+			ObjectType:  akiuri.TRACE.Ptr(),
 			ObjectName:  traceName,
 		}
 	}
