@@ -11,6 +11,9 @@ import (
 
 // Custom HAR loader to bypass type differences between martian/v3/har and
 // chrome output.
+//
+// NB 4/8/2021: I changed the Timings section in Martian to use floats, so
+// I'm not sure what other type differences exist --MGG
 
 type CustomHAR struct {
 	Log      *CustomHARLog      `json:"log"`
@@ -24,13 +27,27 @@ type CustomHARLog struct {
 	Comment string           `json:"comment"`
 }
 
+// This contains all the fields used by Martian *and*
+// by Chrome, as pointers so we can tell which ones
+// are present.
+type CustomTimings struct {
+	Blocked         *float32 `json:"blocked"`
+	DNS             *float32 `json:"dns"`
+	SSL             *float32 `json:"ssl"`
+	Connect         *float32 `json:"connect"`
+	Send            *float32 `json:"send"`
+	Wait            *float32 `json:"wait"`
+	Receive         *float32 `json:"receive"`
+	BlockedQueueing *float32 `json:"_blocked_queueing"`
+}
+
 type CustomHAREntry struct {
-	// Only include request and response since there are type conflicts in other
-	// fields (e.g. timings).
-	StartedDateTime time.Time     `json:"startedDateTime"`
-	Request         *har.Request  `json:"request"`
-	Response        *har.Response `json:"response"`
-	Comment         string        `json:"comment"`
+	// Only include fields we care about
+	StartedDateTime time.Time      `json:"startedDateTime"`
+	Request         *har.Request   `json:"request"`
+	Response        *har.Response  `json:"response"`
+	Comment         string         `json:"comment"`
+	Timings         *CustomTimings `json:"timings"`
 }
 
 func LoadCustomHARFromFile(path string) (CustomHAR, error) {
