@@ -18,6 +18,10 @@ Capture requests/responses going to or coming from port 80 and store them into a
 
 Capture requests/responses going to or coming from port 80 and store them into a trace on the Akita cloud called "mytrace".
 
+## akita apidump --filter "port 80" --out akita://my-service:trace
+
+Capture requests/responses going to or coming from port 80 and store them into a trace on the Akita cloud with a generated name.
+
 ## akita apidump --filter "port 80" -c ./my_tests.sh -u ${USER}
 
 Run <bt>my_tests.sh<bt> as <bt>${USER}<bt> and capture requests/responses going to or coming from port 80. Akita will automatically terminate once the script finishes.
@@ -32,11 +36,13 @@ If not specified, defaults to a trace on Akita Cloud. Note that you must supply 
 
 When specifying a local directory, Akita writes HAR files to the directory.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:trace:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the trace on Akita Cloud where the collected data is stored.
+When specifying an AkitaURI, the format is "akita://{SERVICE}:trace" or "akita://{SERVICE}:trace:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the trace on Akita Cloud where the collected data is stored. A trace name will be generated if "NAME" is not provided.
+
+Exactly one of <bt>--out<bt> or <bt>--service<bt> must be provided.
 
 ## --service string
 
-Your Akita service. Only needed if <bt>--out<bt> is not specified.
+Your Akita service. Exactly one of <bt>--out<bt> or <bt>--service<bt> must be provided.
 
 ## --filter string
 

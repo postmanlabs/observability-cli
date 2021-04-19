@@ -25,7 +25,7 @@ The location to store the spec. Can be an AkitaURI or a local file.
 
 If not specified, defaults to a trace on Akita Cloud. Note that you must supply <bt>--service<bt> in this case.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:spec:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the spec on Akita Cloud where the collected data is stored.
+When specifying an AkitaURI, the format is "akita://{SERVICE}:spec" or "akita://{SERVICE}:spec:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the spec on Akita Cloud where the collected data is stored. A spec name will be generated if "NAME" is not provided.
 
 ## --service string
 

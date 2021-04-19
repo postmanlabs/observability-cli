@@ -12,6 +12,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 )
 
@@ -78,6 +79,15 @@ func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSession
 	}
 	learnSessionNameCache.Set(name, id, cache.DefaultExpiration)
 	return id, nil
+}
+
+func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error) {
+	if !uri.ObjectType.IsSpec() {
+		return akid.APISpecID{}, errors.Errorf("AkitaURI must refer to a spec object")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
 }
 
 func randomName() string {

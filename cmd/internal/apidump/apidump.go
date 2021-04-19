@@ -11,6 +11,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/tags"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
 )
 
 var (
@@ -44,11 +45,24 @@ var Cmd = &cobra.Command{
 			return errors.Wrap(err, "failed to load plugins")
 		}
 
+		// Check that exactly one of --out or --service is specified.
+		if outFlag.IsSet() == (serviceFlag != "") {
+			return errors.New("exactly one of --out or --service must be specified")
+		}
+
+		// If --service was given, convert it to an equivalent --out.
+		if serviceFlag != "" {
+			uri, err := akiuri.Parse(akiuri.Scheme + serviceFlag)
+			if err != nil {
+				return errors.Wrap(err, "bad service name")
+			}
+			outFlag.AkitaURI = &uri
+		}
+
 		args := apidump.Args{
 			ClientID:        akid.GenerateClientID(),
 			Domain:          akiflag.Domain,
 			Out:             outFlag,
-			Service:         serviceFlag,
 			Tags:            tags,
 			SampleRate:      sampleRateFlag,
 			Interfaces:      interfacesFlag,
@@ -70,13 +84,13 @@ func init() {
 	Cmd.Flags().Var(
 		&outFlag,
 		"out",
-		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud.")
+		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out or --service must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service. Only needed if --out is not specified.")
+		"Your Akita service. Exactly one of --out or --service must be specified.")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,

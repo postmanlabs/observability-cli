@@ -47,23 +47,28 @@ var Cmd = &cobra.Command{
 			return errors.Wrapf(err, "%q is not a well-formed AkitaURI", destFlag)
 		}
 
+		// Destination must specify an object type.
+		if destURI.ObjectType == nil {
+			return errors.New("\"dest\" must specify an object type. For example, \"akita://serviceName:trace\"")
+		}
+
 		// If more than one file is given, then the object type must be "trace".
-		if len(args) > 1 && destURI.ObjectType == akiuri.SPEC {
+		if len(args) > 1 && destURI.ObjectType.IsSpec() {
 			return errors.New("can only upload one API model at a time")
 		}
 
 		// If --append is given, then the object type must be "trace".
-		if appendFlag && destURI.ObjectType != akiuri.TRACE {
+		if appendFlag && !destURI.ObjectType.IsTrace() {
 			return errors.New("\"append\" can only be used with trace objects")
 		}
 
 		// If --include-trackers is given, then the object type must be "trace".
-		if includeTrackersFlag && destURI.ObjectType != akiuri.TRACE {
+		if includeTrackersFlag && !destURI.ObjectType.IsTrace() {
 			return errors.New("\"append\" can only be used with trace objects")
 		}
 
 		// If --plugins is given, then the object type must be "trace".
-		if pluginsFlag != nil && destURI.ObjectType != akiuri.TRACE {
+		if pluginsFlag != nil && !destURI.ObjectType.IsTrace() {
 			return errors.New("\"plugins\" can only be used with trace objects")
 		}
 

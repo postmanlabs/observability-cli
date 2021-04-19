@@ -56,7 +56,7 @@ func Run(args Args) error {
 }
 
 func resolveAPISpecID(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error) {
-	if uri.ObjectType != akiuri.SPEC {
+	if !uri.ObjectType.IsSpec() || uri.ObjectName == "" {
 		return akid.APISpecID{}, errors.Errorf("%s does not refer to an API spec", uri)
 	}
 
