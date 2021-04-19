@@ -129,7 +129,7 @@ func Run(args Args) error {
 	if uri := args.Out.AkitaURI; uri != nil {
 		if uri.ObjectType == nil {
 			uri.ObjectType = akiuri.TRACE.Ptr()
-		} else if !uri.ObjectType.Is(akiuri.TRACE) {
+		} else if !uri.ObjectType.IsTrace() {
 			return errors.Errorf("%q is not an Akita trace URI", uri)
 		}
 

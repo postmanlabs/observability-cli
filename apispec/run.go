@@ -116,7 +116,7 @@ func Run(args Args) error {
 	if uri := args.Out.AkitaURI; uri != nil {
 		if uri.ObjectType == nil {
 			uri.ObjectType = akiuri.SPEC.Ptr()
-		} else if !args.Out.AkitaURI.ObjectType.Is(akiuri.SPEC) {
+		} else if !args.Out.AkitaURI.ObjectType.IsSpec() {
 			return errors.Errorf("output AkitaURI must refer to a spec object")
 		}
 
@@ -354,7 +354,7 @@ func pathPatternsFromStrings(raws []string) []pp.Pattern {
 }
 
 func resolveTraceURI(domain string, clientID akid.ClientID, uri akiuri.URI) (akid.LearnSessionID, error) {
-	if !uri.ObjectType.Is(akiuri.TRACE) {
+	if !uri.ObjectType.IsTrace() {
 		return akid.LearnSessionID{}, errors.Errorf("AkitaURI must refer to a trace object")
 	}
 

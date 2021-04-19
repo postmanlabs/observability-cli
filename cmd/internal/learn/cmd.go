@@ -68,7 +68,8 @@ func runLearnMode() error {
 			return errors.Errorf("--service and --out cannot specify different services")
 		}
 
-		if uri.ObjectType != nil && !uri.ObjectType.Is(akiuri.SPEC) {
+		// If an object type is provided, it must be Spec.
+		if uri.ObjectType != nil && !uri.ObjectType.IsSpec() {
 			return errors.Errorf("output AkitaURI must refer to a spec object")
 		}
 	}

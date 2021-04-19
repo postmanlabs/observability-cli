@@ -82,7 +82,7 @@ func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSession
 }
 
 func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error) {
-	if !uri.ObjectType.Is(akiuri.SPEC) {
+	if !uri.ObjectType.IsSpec() {
 		return akid.APISpecID{}, errors.Errorf("AkitaURI must refer to a spec object")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
