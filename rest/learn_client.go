@@ -8,7 +8,6 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
-	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/path_trie"
 )
 
@@ -167,18 +166,4 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 		akid.String(c.serviceID), akid.String(baseID), akid.String(newID))
 	err := c.get(ctx, path, &resp)
 	return &resp, err
-}
-
-func (c *learnClientImpl) LongPollActiveTracesForService(ctx context.Context, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
-	var resp []daemon.LoggingOptions
-	path := path.Join("/v1/services", akid.String(c.serviceID), "daemon")
-	err := c.get(ctx, path, &resp)
-	return resp, err
-}
-
-func (c *learnClientImpl) LongPollForTraceDeactivation(ctx context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
-	var resp struct{}
-	path := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(c.clientID), "daemon")
-	err := c.get(ctx, path, &resp)
-	return err
 }

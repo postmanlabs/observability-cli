@@ -22,10 +22,9 @@ func newLongPollTraceEvent(serviceID akid.ServiceID, traceID akid.LearnSessionID
 }
 
 func (event longPollTraceEvent) handle(client *cloudClient) {
-	serviceInfo, _ := client.getInfo(event.serviceID, event.traceID)
-	learnClient := serviceInfo.learnClient
+	frontClient := client.frontClient
 	go func() {
-		err := util.LongPollForTraceDeactivation(learnClient, event.serviceID, event.traceID)
+		err := util.LongPollForTraceDeactivation(frontClient, event.serviceID, event.traceID)
 		if err != nil {
 			// Log the error, wait a bit, and try again.
 			printer.Debugf("Error while polling the trace ID %s: %v\n", akid.String(event.traceID), err)

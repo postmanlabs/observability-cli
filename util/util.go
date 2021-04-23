@@ -76,6 +76,21 @@ func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
 	return nil
 }
 
+// Long-polls the cloud for additions to the set of active traces for a
+// service.
+func LongPollActiveTracesForService(c rest.FrontClient, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	defer cancel()
+	return c.LongPollActiveTracesForService(ctx, serviceID, currentTraces)
+}
+
+// Long-polls the cloud for the deactivation of a trace.
+func LongPollForTraceDeactivation(c rest.FrontClient, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	defer cancel()
+	return c.LongPollForTraceDeactivation(ctx, serviceID, traceID)
+}
+
 func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSessionID, error) {
 	if id, found := learnSessionNameCache.Get(name); found {
 		return id.(akid.LearnSessionID), nil
@@ -99,21 +114,6 @@ func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
-}
-
-// Long-polls the cloud for additions to the set of active traces for a
-// service.
-func LongPollActiveTracesForService(lc rest.LearnClient, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
-	defer cancel()
-	return lc.LongPollActiveTracesForService(ctx, serviceID, currentTraces)
-}
-
-// Long-polls the cloud for the deactivation of a trace.
-func LongPollForTraceDeactivation(lc rest.LearnClient, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
-	defer cancel()
-	return lc.LongPollForTraceDeactivation(ctx, serviceID, traceID)
 }
 
 func randomName() string {

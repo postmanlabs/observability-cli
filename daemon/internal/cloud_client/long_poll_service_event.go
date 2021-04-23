@@ -21,11 +21,11 @@ func newLongPollServiceEvent(serviceID akid.ServiceID) longPollServiceEvent {
 
 func (event longPollServiceEvent) handle(client *cloudClient) {
 	currentTraces := client.getCurrentTraces(event.serviceID)
-	learnClient := client.serviceInfoByID[event.serviceID].learnClient
+	frontClient := client.frontClient
 	go func() {
 		// Send a request to the cloud containing a list of the traces currently
 		// being logged. The response will be a list of new traces to log.
-		newTraces, err := util.LongPollActiveTracesForService(learnClient, event.serviceID, currentTraces)
+		newTraces, err := util.LongPollActiveTracesForService(frontClient, event.serviceID, currentTraces)
 		if err != nil {
 			// Log the error, wait a bit, and try again.
 			printer.Debugf("Error while polling service ID %s: %v\n", akid.String(event.serviceID), err)

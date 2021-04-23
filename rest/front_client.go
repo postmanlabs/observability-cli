@@ -2,8 +2,10 @@ package rest
 
 import (
 	"context"
+	"path"
 
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/daemon"
 )
 
 type frontClientImpl struct {
@@ -32,4 +34,18 @@ func (c *frontClientImpl) DaemonHeartbeat(ctx context.Context, daemonName string
 	}
 	resp := struct{}{}
 	return c.post(ctx, "/v1/daemon/heartbeat", body, &resp)
+}
+
+func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
+	var resp []daemon.LoggingOptions
+	path := path.Join("/v1/services", akid.String(serviceID), "daemon")
+	err := c.get(ctx, path, &resp)
+	return resp, err
+}
+
+func (c *frontClientImpl) LongPollForTraceDeactivation(ctx context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
+	var resp struct{}
+	path := path.Join("/v1/services", akid.String(serviceID), "learn", akid.String(traceID), "daemon")
+	err := c.get(ctx, path, &resp)
+	return err
 }

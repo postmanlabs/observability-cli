@@ -47,6 +47,11 @@ type LearnClient interface {
 
 	// Spec diff
 	GetSpecDiffTrie(context.Context, akid.APISpecID, akid.APISpecID) (*path_trie.PathTrie, error)
+}
+
+type FrontClient interface {
+	GetServices(context.Context) ([]Service, error)
+	DaemonHeartbeat(ctx context.Context, daemonName string) error
 
 	// Long-polls for additions to the set of active traces for a service.
 	// Callers specify what they think the current set of active traces is. When
@@ -57,9 +62,4 @@ type LearnClient interface {
 
 	// Long-polls for the deactivation of a trace.
 	LongPollForTraceDeactivation(context context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error
-}
-
-type FrontClient interface {
-	GetServices(context.Context) ([]Service, error)
-	DaemonHeartbeat(ctx context.Context, daemonName string) error
 }
