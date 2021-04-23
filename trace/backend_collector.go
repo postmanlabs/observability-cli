@@ -169,14 +169,13 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		return nil
 	}
 
-	if val, ok := c.pairCache.Load(partial.PairKey); ok {
+	if val, ok := c.pairCache.LoadAndDelete(partial.PairKey); ok {
 		pair := val.(*witnessWithInfo)
 
 		// Combine the pair, merging the result into the existing item
 		// rather than the new partial.
 		learn.MergeWitness(pair.witness, partial.Witness)
 		pair.computeProcessingLatency(isRequest, t)
-		c.pairCache.Delete(partial.PairKey)
 
 		// If partial is the request, flip the src/dst in the pair before
 		// reporting.
