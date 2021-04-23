@@ -17,7 +17,6 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
-	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
@@ -239,21 +238,15 @@ func TestTiming(t *testing.T) {
 
 // Demonstrate race condition with multiple interfaces
 func TestMultipleInterfaces(t *testing.T) {
-	bc := &BackendCollector{
-		serviceID:      fakeSvc,
-		learnSessionID: fakeLrn,
-		learnClient:    nil,
-		dir:            kgxapi.Inbound,
-		plugins:        nil,
-	}
+	ctrl := gomock.NewController(t)
+	mockClient := mockrest.NewMockLearnClient(ctrl)
+	defer ctrl.Finish()
+	mockClient.EXPECT().
+		ReportWitnesses(gomock.Any(), gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(nil)
 
-	// Do not attempt to send the trace anywhere
-	nilProcessor := func(batch []interface{}) {}
-	bc.uploadBatch = batcher.NewInMemory(
-		nilProcessor,
-		100,
-		20*time.Second,
-	)
+	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
 
 	var wg sync.WaitGroup
 	fakeTrace := func(count int) {
