@@ -3,6 +3,7 @@ package trace
 import (
 	"encoding/base64"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,12 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	pb "github.com/akitasoftware/akita-ir/go/api_spec"
-
 	mockrest "github.com/akitasoftware/akita-cli/rest/mock"
+	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
@@ -234,5 +235,66 @@ func TestTiming(t *testing.T) {
 	meta := spec_util.HTTPMetaFromMethod(actual.Method)
 	assert.NotNil(t, meta)
 	assert.InDelta(t, 8.0, meta.ProcessingLatency, 0.001)
+}
 
+// Demonstrate race condition with multiple interfaces
+func TestMultipleInterfaces(t *testing.T) {
+	bc := &BackendCollector{
+		serviceID:      fakeSvc,
+		learnSessionID: fakeLrn,
+		learnClient:    nil,
+		dir:            kgxapi.Inbound,
+		plugins:        nil,
+	}
+
+	// Do not attempt to send the trace anywhere
+	nilProcessor := func(batch []interface{}) {}
+	bc.uploadBatch = batcher.NewInMemory(
+		nilProcessor,
+		100,
+		20*time.Second,
+	)
+
+	var wg sync.WaitGroup
+	fakeTrace := func(count int) {
+		for i := 0; i < count; i++ {
+			streamID := uuid.New()
+			// Re-using the example above
+			req := akinet.ParsedNetworkTraffic{
+				Content: akinet.HTTPRequest{
+					StreamID: streamID,
+					Seq:      1203,
+					Method:   "POST",
+					URL: &url.URL{
+						Path: "/v1/doggos",
+					},
+					Host: "example.com",
+					Header: map[string][]string{
+						"Content-Type": {"application/json"},
+					},
+					Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
+				},
+			}
+			bc.Process(req)
+			resp := akinet.ParsedNetworkTraffic{
+				Content: akinet.HTTPResponse{
+					StreamID:   streamID,
+					Seq:        1203,
+					StatusCode: 200,
+					Header: map[string][]string{
+						"Content-Type": {"application/json"},
+					},
+					Body: []byte(`{"homes": ["burbank, ca", "jeuno, ak", "versailles"]}`),
+				},
+			}
+			bc.Process(resp)
+		}
+		wg.Done()
+	}
+
+	wg.Add(2)
+	go fakeTrace(100)
+	go fakeTrace(200)
+
+	wg.Wait()
 }
