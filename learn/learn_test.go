@@ -194,7 +194,7 @@ func TestPairPartialWitness(t *testing.T) {
 			inputs: []akinet.ParsedNetworkTraffic{helloResp},
 			expected: []*pb.Witness{
 				&pb.Witness{
-					Method: newMethod(nil, []*pb.Data{helloRespData}, unknownHTTPMethodMeta),
+					Method: newMethod(nil, []*pb.Data{helloRespData}, UnknownHTTPMethodMeta()),
 				},
 			},
 		},
@@ -206,7 +206,7 @@ func TestPairPartialWitness(t *testing.T) {
 			inputs: []akinet.ParsedNetworkTraffic{largeIntResp},
 			expected: []*pb.Witness{
 				&pb.Witness{
-					Method: newMethod(nil, []*pb.Data{largeIntRespData}, unknownHTTPMethodMeta),
+					Method: newMethod(nil, []*pb.Data{largeIntRespData}, UnknownHTTPMethodMeta()),
 				},
 			},
 		},

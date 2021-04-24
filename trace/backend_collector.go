@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -117,13 +118,14 @@ type BackendCollector struct {
 	dir            kgxapi.NetworkDirection
 
 	// Cache un-paired partial witnesses by pair key.
-	pairCache map[akid.WitnessID]*witnessWithInfo
+	// akid.WitnessID -> *witnessWithInfo
+	pairCache sync.Map
 
 	// Batch of witnesses pending upload.
 	uploadBatch *batcher.InMemory
 
-	// Time when last process call was made.
-	lastProcessTime time.Time
+	// Channel controlling periodic cache flush
+	flushDone chan struct{}
 
 	plugins []plugin.AkitaPlugin
 }
@@ -136,7 +138,7 @@ func NewBackendCollector(svc akid.ServiceID,
 		learnSessionID: lrn,
 		learnClient:    lc,
 		dir:            dir,
-		pairCache:      map[akid.WitnessID]*witnessWithInfo{},
+		flushDone:      make(chan struct{}),
 		plugins:        plugins,
 	}
 
@@ -144,19 +146,11 @@ func NewBackendCollector(svc akid.ServiceID,
 		col.uploadWitnesses,
 		uploadBatchMaxSize,
 		uploadBatchFlushDuration)
+	go col.periodicFlush()
 	return col
 }
 
 func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
-	defer func() {
-		// Lazily flush pair cache.
-		now := time.Now()
-		if !c.lastProcessTime.IsZero() && now.Sub(c.lastProcessTime) > pairCacheCleanupInterval {
-			c.flushPairCache(now.Add(-1 * pairCacheExpiration))
-		}
-		c.lastProcessTime = now
-	}()
-
 	var isRequest bool
 	var partial *learn.PartialWitness
 	var parseHTTPErr error
@@ -176,12 +170,13 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		return nil
 	}
 
-	if pair, ok := c.pairCache[partial.PairKey]; ok {
+	if val, ok := c.pairCache.LoadAndDelete(partial.PairKey); ok {
+		pair := val.(*witnessWithInfo)
+
 		// Combine the pair, merging the result into the existing item
 		// rather than the new partial.
 		learn.MergeWitness(pair.witness, partial.Witness)
 		pair.computeProcessingLatency(isRequest, t)
-		delete(c.pairCache, partial.PairKey)
 
 		// If partial is the request, flip the src/dst in the pair before
 		// reporting.
@@ -205,7 +200,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		}
 		// Store whichever timestamp brackets the processing interval.
 		w.recordTimestamp(isRequest, t)
-		c.pairCache[partial.PairKey] = w
+		c.pairCache.Store(partial.PairKey, w)
 
 	}
 	return nil
@@ -227,6 +222,7 @@ func (c *BackendCollector) queueUpload(w *witnessWithInfo) {
 }
 
 func (c *BackendCollector) Close() error {
+	close(c.flushDone)
 	c.flushPairCache(time.Now())
 	c.uploadBatch.Close()
 	return nil
@@ -252,11 +248,27 @@ func (c *BackendCollector) uploadWitnesses(in []interface{}) {
 	}
 }
 
-func (c *BackendCollector) flushPairCache(cutoffTime time.Time) {
-	for k, e := range c.pairCache {
-		if e.observationTime.Before(cutoffTime) {
-			c.queueUpload(e)
-			delete(c.pairCache, k)
+func (c *BackendCollector) periodicFlush() {
+	ticker := time.NewTicker(pairCacheCleanupInterval)
+
+	for true {
+		select {
+		case <-ticker.C:
+			c.flushPairCache(time.Now().Add(-1 * pairCacheExpiration))
+		case <-c.flushDone:
+			ticker.Stop()
+			break
 		}
 	}
+}
+
+func (c *BackendCollector) flushPairCache(cutoffTime time.Time) {
+	c.pairCache.Range(func(k, v interface{}) bool {
+		e := v.(*witnessWithInfo)
+		if e.observationTime.Before(cutoffTime) {
+			c.queueUpload(e)
+			c.pairCache.Delete(k)
+		}
+		return true
+	})
 }

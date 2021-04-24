@@ -23,32 +23,13 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/akitasoftware/akita-cli/printer"
+	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/pbhash"
 	"github.com/akitasoftware/akita-libs/spec_util"
-	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 )
 
 var (
-	unassignedHTTPID = &pb.MethodID{
-		Name:    "",
-		ApiType: pb.ApiType_HTTP_REST,
-	}
-
-	unknownHTTPMethodMeta = &pb.MethodMeta{
-		Meta: &pb.MethodMeta_Http{
-			Http: &pb.HTTPMethodMeta{
-				Method:       "",
-				PathTemplate: "",
-				Host:         "",
-			},
-		},
-	}
-
-	sensitiveAnnotation = &pb.AkitaAnnotations{
-		IsSensitive: true,
-	}
-
 	// List of compression algorithms to use as fallback if we can't decode the
 	// body and no Content-Encoding header is set.
 	// https://app.clubhouse.io/akita-software/story/1656
@@ -58,6 +39,28 @@ var (
 		"br",
 	}
 )
+
+// These need to be constructors, rather than a global var that's reused, so
+// that there is not a race condition when marshaling to protobufs that share
+// them. (The race condition actually manifested in obfuscate().)
+func UnassignedHTTPID() *pb.MethodID {
+	return &pb.MethodID{
+		Name:    "",
+		ApiType: pb.ApiType_HTTP_REST,
+	}
+}
+
+func UnknownHTTPMethodMeta() *pb.MethodMeta {
+	return &pb.MethodMeta{
+		Meta: &pb.MethodMeta_Http{
+			Http: &pb.HTTPMethodMeta{
+				Method:       "",
+				PathTemplate: "",
+				Host:         "",
+			},
+		},
+	}
+}
 
 type ParseAPISpecError string
 
@@ -100,7 +103,7 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 		bodyDecompressed = t.BodyDecompressed
 		headers = t.Header
 		statusCode = t.StatusCode
-		methodMeta = unknownHTTPMethodMeta
+		methodMeta = UnknownHTTPMethodMeta()
 	default:
 		return nil, ParseAPISpecError("expected http message, got something else")
 	}
@@ -142,7 +145,7 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 		}
 	}
 
-	method := &pb.Method{Id: unassignedHTTPID, Meta: methodMeta}
+	method := &pb.Method{Id: UnassignedHTTPID(), Meta: methodMeta}
 
 	// Transform our array of datas into a map.
 	// We assign sequential string IDs in order to provide a consistent ordering

@@ -3,6 +3,7 @@ package trace
 import (
 	"encoding/base64"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,9 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	pb "github.com/akitasoftware/akita-ir/go/api_spec"
-
 	mockrest "github.com/akitasoftware/akita-cli/rest/mock"
+	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
@@ -234,5 +234,60 @@ func TestTiming(t *testing.T) {
 	meta := spec_util.HTTPMetaFromMethod(actual.Method)
 	assert.NotNil(t, meta)
 	assert.InDelta(t, 8.0, meta.ProcessingLatency, 0.001)
+}
 
+// Demonstrate race condition with multiple interfaces
+func TestMultipleInterfaces(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockClient := mockrest.NewMockLearnClient(ctrl)
+	defer ctrl.Finish()
+	mockClient.EXPECT().
+		ReportWitnesses(gomock.Any(), gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(nil)
+
+	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+
+	var wg sync.WaitGroup
+	fakeTrace := func(count int, start_seq int) {
+		for i := 0; i < count; i++ {
+			streamID := uuid.New()
+			// Re-using the example above
+			req := akinet.ParsedNetworkTraffic{
+				Content: akinet.HTTPRequest{
+					StreamID: streamID,
+					Seq:      start_seq + count,
+					Method:   "POST",
+					URL: &url.URL{
+						Path: "/v1/doggos",
+					},
+					Host: "example.com",
+					Header: map[string][]string{
+						"Content-Type": {"application/json"},
+					},
+					Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
+				},
+			}
+			bc.Process(req)
+			resp := akinet.ParsedNetworkTraffic{
+				Content: akinet.HTTPResponse{
+					StreamID:   streamID,
+					Seq:        start_seq + count,
+					StatusCode: 200,
+					Header: map[string][]string{
+						"Content-Type": {"application/json"},
+					},
+					Body: []byte(`{"homes": ["burbank, ca", "jeuno, ak", "versailles"]}`),
+				},
+			}
+			bc.Process(resp)
+		}
+		wg.Done()
+	}
+
+	wg.Add(2)
+	go fakeTrace(100, 1000)
+	go fakeTrace(200, 2000)
+
+	wg.Wait()
 }
