@@ -48,16 +48,25 @@ func (fact *tcpStreamFactory) New(netFlow, tcpFlow gopacket.Flow, _ *layers.TCP,
 	return newTCPStream(fact.clock, netFlow, fact.outChan, fact.fs)
 }
 
+type NetworkTrafficObserver func(gopacket.Packet)
+
 type NetworkTrafficParser struct {
 	pcap  pcapWrapper
 	clock clockWrapper
+
+	observer NetworkTrafficObserver
 }
 
 func NewNetworkTrafficParser() *NetworkTrafficParser {
 	return &NetworkTrafficParser{
-		pcap:  &pcapImpl{},
-		clock: &realClock{},
+		pcap:     &pcapImpl{},
+		clock:    &realClock{},
+		observer: func(gopacket.Packet) {},
 	}
+}
+
+func (p *NetworkTrafficParser) InstallObserver(observer NetworkTrafficObserver) {
+	p.observer = observer
 }
 
 // Parses network traffic from an interface.
@@ -103,6 +112,7 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 				if !more || packet == nil {
 					return
 				}
+				p.observer(packet)
 				p.packetToParsedNetworkTraffic(out, assembler, packet)
 			case <-ticker.C:
 				// The assembler stops reassembly for streams older than stream timeout.

@@ -169,6 +169,9 @@ func Run(args Args) error {
 		}
 	}
 
+	// Initialize packet counts
+	summary := trace.NewPacketCountSummary()
+
 	// Start collecting
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(inboundFilters) + len(outboundFilters))
@@ -196,11 +199,11 @@ func Run(args Args) error {
 
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
 					collector = trace.TeeCollector{
-						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins),
+						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins, summary),
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins)
+					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins, summary)
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
 				} else {
@@ -220,7 +223,7 @@ func Run(args Args) error {
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := trace.Collect(stop, interfaceName, filter, collector); err != nil {
+				if err := trace.Collect(stop, interfaceName, filter, collector, summary); err != nil {
 					errChan <- errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName)
 				}
 			}(interfaceName, filter)
@@ -306,6 +309,19 @@ func Run(args Args) error {
 	if stopErr != nil {
 		return errors.Wrap(stopErr, "trace collection failed")
 	}
+
+	printer.Stderr.Infof("%15v %7v %5v %5v %5v\n", "interface", "packets", "req", "resp", "unk")
+	for n := range interfaces {
+		count := summary.TotalOnInterface(n)
+		printer.Stderr.Infof("%15s %7d %5d %5d %5d\n",
+			n,
+			count.TCPPackets,
+			count.HTTPRequests,
+			count.HTTPResponses,
+			count.Unparsed,
+		)
+	}
+
 	printer.Stderr.Infof("%s 🎉\n\n", aurora.Green("Success!"))
 
 	return nil
