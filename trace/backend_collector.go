@@ -146,6 +146,7 @@ func NewBackendCollector(svc akid.ServiceID,
 		col.uploadWitnesses,
 		uploadBatchMaxSize,
 		uploadBatchFlushDuration)
+	go col.periodicFlush()
 	return col
 }
 
