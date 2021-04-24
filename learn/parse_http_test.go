@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	as "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/spec_util"
-	as "github.com/akitasoftware/akita-ir/go/api_spec"
 )
 
 const (
@@ -58,9 +58,9 @@ var testMultipartFormData = strings.Join([]string{
 
 func newTestBodySpec(statusCode int) *as.Data {
 	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, map[string]*as.Data{
-		"name":         dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
-		"number_teeth": dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
-		"dog":          dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
+		"name":                             dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
+		"number_teeth":                     dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
+		"dog":                              dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
 		"canadian_social_insurance_number": dataFromPrimitive(annotateIfSensitiveForTest(true, spec_util.NewPrimitiveInt64(378734493671000))),
 		"homes": dataFromList(
 			dataFromPrimitive(spec_util.NewPrimitiveString("burbank, ca")),
@@ -238,7 +238,7 @@ func TestParseHTTPRequest(t *testing.T) {
 			expectedMethod: newMethod(
 				nil,
 				[]*as.Data{newTestBodySpec(200)},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -262,7 +262,7 @@ func TestParseHTTPRequest(t *testing.T) {
 					newDataHeader("X-Codename", 500, spec_util.NewPrimitiveString("Operation Paperclip"), false),
 					newDataHeader("X-FullOfLampreys", 500, spec_util.NewPrimitiveString(fakePassword), true),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -287,7 +287,7 @@ func TestParseHTTPRequest(t *testing.T) {
 					newDataCookie("manufacture", 404, false, "high pressure extrusion"),
 					newDataCookie("concave", 404, true, fakePassword),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -314,7 +314,7 @@ func TestParseHTTPRequest(t *testing.T) {
 						},
 					),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -335,7 +335,7 @@ func TestParseHTTPRequest(t *testing.T) {
 						dataFromPrimitive(spec_util.NewPrimitiveBytes([]byte("prince is a good boy"))),
 					),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -365,7 +365,7 @@ prince:
 						},
 					),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -388,7 +388,7 @@ prince:
 						},
 					),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -412,7 +412,7 @@ prince:
 						},
 					),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -437,7 +437,7 @@ prince:
 						},
 					),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{
@@ -459,7 +459,7 @@ prince:
 				[]*as.Data{
 					newDataHeader("X-Charming-Level", 200, spec_util.NewPrimitiveString("extreme"), false),
 				},
-				unknownHTTPMethodMeta,
+				UnknownHTTPMethodMeta(),
 			),
 		},
 		&parseTest{

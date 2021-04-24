@@ -249,14 +249,14 @@ func TestMultipleInterfaces(t *testing.T) {
 	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
 
 	var wg sync.WaitGroup
-	fakeTrace := func(count int) {
+	fakeTrace := func(count int, start_seq int) {
 		for i := 0; i < count; i++ {
 			streamID := uuid.New()
 			// Re-using the example above
 			req := akinet.ParsedNetworkTraffic{
 				Content: akinet.HTTPRequest{
 					StreamID: streamID,
-					Seq:      1203,
+					Seq:      start_seq + count,
 					Method:   "POST",
 					URL: &url.URL{
 						Path: "/v1/doggos",
@@ -272,7 +272,7 @@ func TestMultipleInterfaces(t *testing.T) {
 			resp := akinet.ParsedNetworkTraffic{
 				Content: akinet.HTTPResponse{
 					StreamID:   streamID,
-					Seq:        1203,
+					Seq:        start_seq + count,
 					StatusCode: 200,
 					Header: map[string][]string{
 						"Content-Type": {"application/json"},
@@ -286,8 +286,8 @@ func TestMultipleInterfaces(t *testing.T) {
 	}
 
 	wg.Add(2)
-	go fakeTrace(100)
-	go fakeTrace(200)
+	go fakeTrace(100, 1000)
+	go fakeTrace(200, 2000)
 
 	wg.Wait()
 }

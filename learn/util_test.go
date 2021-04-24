@@ -8,11 +8,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 
+	as "github.com/akitasoftware/akita-ir/go/api_spec"
+	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/pbhash"
 	"github.com/akitasoftware/akita-libs/spec_util"
-	as "github.com/akitasoftware/akita-ir/go/api_spec"
-	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 )
 
 const (
@@ -99,7 +99,7 @@ func newTestHTTPResponse(
 }
 
 func newMethod(argsData []*pb.Data, responsesData []*pb.Data, meta *pb.MethodMeta) *pb.Method {
-	m := &pb.Method{Meta: meta, Id: unassignedHTTPID}
+	m := &pb.Method{Meta: meta, Id: UnassignedHTTPID()}
 	if argsData != nil {
 		m.Args = map[string]*pb.Data{}
 		for _, v := range argsData {
