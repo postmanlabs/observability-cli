@@ -400,7 +400,7 @@ func Run(args Args) error {
 			printer.Stderr.Infof( "https://docs.akita.software/docs/collect-client-side-traffic-2\n" )
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", aurora.Red("No inbound HTTP calls captured!"))
-		return errors.New( "incomping API trace is empty" )		
+		return errors.New( "incoming API trace is empty" )		
 	}
 	if totalCount.HTTPRequests == 0 {
 		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP requests, but not responses."))
