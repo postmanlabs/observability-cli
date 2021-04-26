@@ -76,6 +76,58 @@ type Args struct {
 	Plugins []plugin.AkitaPlugin
 }
 
+func DumpPacketCounters( interfaces map[string]interfaceInfo, inboundSummary *trace.PacketCountSummary, outboundSummary *trace.PacketCountSummary ) {
+	// Using a map gives inconsistent order when iterating (even on the same run!)
+	directions := []kgxapi.NetworkDirection{ kgxapi.Inbound, kgxapi.Outbound }
+	toReport := []*trace.PacketCountSummary{ inboundSummary }
+	if outboundSummary != nil {
+		toReport = append( toReport, outboundSummary )
+	}
+	
+	// Debugging info: packets per interface and prot
+	printer.Stderr.Debugf("==================================\n" )
+	printer.Stderr.Debugf("Packets per interface:\n")
+	printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
+	for n := range interfaces {
+		for i, summary := range toReport {
+			count := summary.TotalOnInterface(n)
+			printer.Stderr.Debugf("%15s %8s %7d %5d %5d %5d\n",
+				n,
+				directions[i],
+				count.TCPPackets,
+				count.HTTPRequests,
+				count.HTTPResponses,
+				count.Unparsed,
+			)
+		}
+	}
+
+	printer.Stderr.Debugf("==================================\n" )
+	printer.Stderr.Debugf("Packets per port:\n")
+	printer.Stderr.Debugf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
+	for i, summary := range toReport {
+		if directions[i] == kgxapi.Inbound {
+			printer.Stderr.Debugf( "--------- matching filter --------\n" )
+		} else {
+			printer.Stderr.Debugf( "------- not matching filter ------\n" )
+		}
+		byPort := summary.AllPorts()
+		// We don't really know what's in the BPF filter; we know every packet in inbound
+		// must have matched, but that could be multiple ports, or some other criteria.
+		for _, count := range byPort {
+			printer.Stderr.Debugf("%8d %7d %5d %5d %5d\n",
+				count.SrcPort,
+				count.TCPPackets,
+				count.HTTPRequests,
+				count.HTTPResponses,
+				count.Unparsed,
+			)
+		}
+	}
+	
+	printer.Stderr.Debugf("==================================\n")	
+}
+
 func Run(args Args) error {
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
@@ -170,7 +222,8 @@ func Run(args Args) error {
 	}
 
 	// Initialize packet counts
-	summary := trace.NewPacketCountSummary()
+	inboundSummary := trace.NewPacketCountSummary()
+	outboundSummary := trace.NewPacketCountSummary()
 
 	// Start collecting
 	var doneWG sync.WaitGroup
@@ -178,11 +231,14 @@ func Run(args Args) error {
 	errChan := make(chan error, len(inboundFilters)+len(outboundFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
 	for _, dir := range []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound} {
+		var summary *trace.PacketCountSummary
 		var filters map[string]string
 		if dir == kgxapi.Inbound {
 			filters = inboundFilters
+			summary = inboundSummary
 		} else {
 			filters = outboundFilters
+			summary = outboundSummary
 		}
 
 		for interfaceName, filter := range filters {
@@ -310,20 +366,34 @@ func Run(args Args) error {
 		return errors.Wrap(stopErr, "trace collection failed")
 	}
 
-	printer.Stderr.Infof("%15v %7v %5v %5v %5v\n", "interface", "packets", "req", "resp", "unk")
-	for n := range interfaces {
-		count := summary.TotalOnInterface(n)
-		printer.Stderr.Infof("%15s %7d %5d %5d %5d\n",
-			n,
-			count.TCPPackets,
-			count.HTTPRequests,
-			count.HTTPResponses,
-			count.Unparsed,
-		)
+	if len( outboundFilters ) == 0 {
+		DumpPacketCounters(interfaces, inboundSummary, nil)
+	} else {
+		DumpPacketCounters(interfaces, inboundSummary, outboundSummary)
 	}
-
+	
+	// Check summary to see if the inbound trace will have anything in it.
+	totalCount := inboundSummary.Total()
+	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
+		// TODO: recognize TLS handshakes and count them separately!
+		if totalCount.Unparsed > 0 {
+			printer.Stderr.Infof("Captured %d TCP packets total; %d unparsed TCP segments.\n",
+				totalCount.TCPPackets, totalCount.Unparsed )
+			printer.Stderr.Infof( "%s\n", aurora.Yellow( "This may mean you are trying to capture HTTPS traffic." ) )
+		}
+		printer.Stderr.Errorf("%s 🛑\n\n", aurora.Red("No inbound HTTP calls captured!"))
+		return errors.New( "inbound trace is empty" )		
+	}
+	if totalCount.HTTPRequests == 0 {
+		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP requests, but not responses."))
+		return nil
+	}
+	if totalCount.HTTPResponses == 0 {
+		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP responses, but not requests."))
+		return nil
+	}
+		
 	printer.Stderr.Infof("%s 🎉\n\n", aurora.Green("Success!"))
-
 	return nil
 }
 
