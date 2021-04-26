@@ -14,6 +14,7 @@ import (
 
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -23,7 +24,6 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
-
 	"github.com/akitasoftware/akita-cli/plugin"
 )
 
@@ -122,6 +122,9 @@ func DumpPacketCounters( interfaces map[string]interfaceInfo, inboundSummary *tr
 				count.HTTPResponses,
 				count.Unparsed,
 			)
+		}
+		if len( byPort ) == 0 {
+			printer.Stderr.Debugf( "       no packets captured        \n" )
 		}
 	}
 	
@@ -366,23 +369,38 @@ func Run(args Args) error {
 		return errors.Wrap(stopErr, "trace collection failed")
 	}
 
-	if len( outboundFilters ) == 0 {
-		DumpPacketCounters(interfaces, inboundSummary, nil)
-	} else {
-		DumpPacketCounters(interfaces, inboundSummary, outboundSummary)
+	if viper.GetBool( "debug" ) {
+		if len( outboundFilters ) == 0 {
+			DumpPacketCounters(interfaces, inboundSummary, nil)
+		} else {
+			DumpPacketCounters(interfaces, inboundSummary, outboundSummary)
+		}
 	}
 	
 	// Check summary to see if the inbound trace will have anything in it.
 	totalCount := inboundSummary.Total()
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
 		// TODO: recognize TLS handshakes and count them separately!
-		if totalCount.Unparsed > 0 {
+		if totalCount.TCPPackets == 0 {
+			if outboundSummary.Total().TCPPackets == 0 {
+				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n" )
+				printer.Stderr.Infof( "%s\n", aurora.Yellow( "This may mean the traffic is on a different interface, or that" ) )
+				printer.Stderr.Infof( "%s\n", aurora.Yellow( "there is a problem sending traffic to the API." ) )
+			} else {	
+				printer.Stderr.Infof("Did not capture any TCP packets matching the filter.\n" )
+				printer.Stderr.Infof( "%s\n", aurora.Yellow( "This may mean your filter is incorrect, such as the wrong TCP port." ) )
+			} 
+		} else if totalCount.Unparsed > 0 {
 			printer.Stderr.Infof("Captured %d TCP packets total; %d unparsed TCP segments.\n",
 				totalCount.TCPPackets, totalCount.Unparsed )
 			printer.Stderr.Infof( "%s\n", aurora.Yellow( "This may mean you are trying to capture HTTPS traffic." ) )
+			printer.Stderr.Infof( "See https://docs.akita.software/docs/proxy-for-encrypted-traffic\n" )
+			printer.Stderr.Infof( "for instructions on using a proxy, or generate a HAR file with\n" )
+			printer.Stderr.Infof( "your browser as described in\n" )
+			printer.Stderr.Infof( "https://docs.akita.software/docs/collect-client-side-traffic-2\n" )
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", aurora.Red("No inbound HTTP calls captured!"))
-		return errors.New( "inbound trace is empty" )		
+		return errors.New( "incomping API trace is empty" )		
 	}
 	if totalCount.HTTPRequests == 0 {
 		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP requests, but not responses."))
