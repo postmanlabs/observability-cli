@@ -76,6 +76,9 @@ type Args struct {
 	Plugins []plugin.AkitaPlugin
 }
 
+// DumpPacketCounters prints the accumulated packet counts per interface and per port,
+// at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
+// in the Run function below); all we really need are those names.
 func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *trace.PacketCountSummary, outboundSummary *trace.PacketCountSummary) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
 	directions := []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound}
@@ -84,8 +87,7 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		toReport = append(toReport, outboundSummary)
 	}
 
-	// Debugging info: packets per interface and prot
-	printer.Stderr.Debugf("==================================\n")
+	printer.Stderr.Debugf("===============================================\n")
 	printer.Stderr.Debugf("Packets per interface:\n")
 	printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
 	for n := range interfaces {
@@ -102,7 +104,7 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		}
 	}
 
-	printer.Stderr.Debugf("==================================\n")
+	printer.Stderr.Debugf("===============================================\n")
 	printer.Stderr.Debugf("Packets per port:\n")
 	printer.Stderr.Debugf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
 	for i, summary := range toReport {
@@ -128,7 +130,8 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		}
 	}
 
-	printer.Stderr.Debugf("==================================\n")
+	printer.Stderr.Debugf("===============================================\n")
+
 }
 
 func Run(args Args) error {
