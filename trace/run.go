@@ -8,20 +8,27 @@ import (
 	akihttp "github.com/akitasoftware/akita-libs/akinet/http"
 )
 
-func Collect(stop <-chan struct{}, intf, bpfFilter string, proc Collector) error {
+func Collect(stop <-chan struct{}, intf, bpfFilter string, proc Collector, packetCount PacketCountConsumer) error {
 	defer proc.Close()
 
 	facts := []akinet.TCPParserFactory{
 		akihttp.NewHTTPRequestParserFactory(),
 		akihttp.NewHTTPResponseParserFactory(),
 	}
+
 	parser := col.NewNetworkTrafficParser()
+
+	if packetCount != nil {
+		parser.InstallObserver(CountTcpPackets(intf, packetCount))
+	}
+
 	parsedChan, err := parser.ParseFromInterface(intf, bpfFilter, stop, facts...)
 	if err != nil {
 		return errors.Wrap(err, "couldn't start parsing from interface")
 	}
 
 	for t := range parsedChan {
+		t.Interface = intf
 		if err := proc.Process(t); err != nil {
 			return err
 		}

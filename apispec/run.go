@@ -411,8 +411,8 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 			return nil, errors.Wrap(err, "failed to create backend learn session")
 		}
 
-		inboundCol := trace.NewBackendCollector(svc, lrn, learnClient, kgxapi.Inbound, plugins)
-		outboundCol := trace.NewBackendCollector(svc, lrn, learnClient, kgxapi.Outbound, plugins)
+		inboundCol := trace.NewBackendCollector(svc, lrn, learnClient, kgxapi.Inbound, plugins, nil)
+		outboundCol := trace.NewBackendCollector(svc, lrn, learnClient, kgxapi.Outbound, plugins, nil)
 		if !includeTrackers {
 			inboundCol = trace.New3PTrackerFilterCollector(inboundCol)
 			outboundCol = trace.New3PTrackerFilterCollector(outboundCol)

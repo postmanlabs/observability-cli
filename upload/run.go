@@ -118,8 +118,8 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 	}
 
 	// Create collector for ingesting the trace events.
-	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Inbound, args.Plugins)
-	outboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Outbound, args.Plugins)
+	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Inbound, args.Plugins, nil)
+	outboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Outbound, args.Plugins, nil)
 	if !args.IncludeTrackers {
 		inboundCollector = trace.New3PTrackerFilterCollector(inboundCollector)
 		outboundCollector = trace.New3PTrackerFilterCollector(outboundCollector)

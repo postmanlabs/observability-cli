@@ -14,8 +14,10 @@ import (
 
 	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/trace"
@@ -23,8 +25,6 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
-
-	"github.com/akitasoftware/akita-cli/plugin"
 )
 
 // TODO(kku): make pcap timings more robust (e.g. inject a sentinel packet to
@@ -74,6 +74,64 @@ type Args struct {
 	ExecCommandUser string
 
 	Plugins []plugin.AkitaPlugin
+}
+
+// DumpPacketCounters prints the accumulated packet counts per interface and per port,
+// at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
+// in the Run function below); all we really need are those names.
+func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *trace.PacketCountSummary, outboundSummary *trace.PacketCountSummary) {
+	// Using a map gives inconsistent order when iterating (even on the same run!)
+	directions := []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound}
+	toReport := []*trace.PacketCountSummary{inboundSummary}
+	if outboundSummary != nil {
+		toReport = append(toReport, outboundSummary)
+	}
+
+	printer.Stderr.Debugf("===============================================\n")
+	printer.Stderr.Debugf("Packets per interface:\n")
+	printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
+	for n := range interfaces {
+		for i, summary := range toReport {
+			count := summary.TotalOnInterface(n)
+			printer.Stderr.Debugf("%15s %8s %7d %5d %5d %5d\n",
+				n,
+				directions[i],
+				count.TCPPackets,
+				count.HTTPRequests,
+				count.HTTPResponses,
+				count.Unparsed,
+			)
+		}
+	}
+
+	printer.Stderr.Debugf("===============================================\n")
+	printer.Stderr.Debugf("Packets per port:\n")
+	printer.Stderr.Debugf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
+	for i, summary := range toReport {
+		if directions[i] == kgxapi.Inbound {
+			printer.Stderr.Debugf("--------- matching filter --------\n")
+		} else {
+			printer.Stderr.Debugf("------- not matching filter ------\n")
+		}
+		byPort := summary.AllPorts()
+		// We don't really know what's in the BPF filter; we know every packet in inbound
+		// must have matched, but that could be multiple ports, or some other criteria.
+		for _, count := range byPort {
+			printer.Stderr.Debugf("%8d %7d %5d %5d %5d\n",
+				count.SrcPort,
+				count.TCPPackets,
+				count.HTTPRequests,
+				count.HTTPResponses,
+				count.Unparsed,
+			)
+		}
+		if len(byPort) == 0 {
+			printer.Stderr.Debugf("       no packets captured        \n")
+		}
+	}
+
+	printer.Stderr.Debugf("===============================================\n")
+
 }
 
 func Run(args Args) error {
@@ -169,17 +227,24 @@ func Run(args Args) error {
 		}
 	}
 
+	// Initialize packet counts
+	inboundSummary := trace.NewPacketCountSummary()
+	outboundSummary := trace.NewPacketCountSummary()
+
 	// Start collecting
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(inboundFilters) + len(outboundFilters))
 	errChan := make(chan error, len(inboundFilters)+len(outboundFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
 	for _, dir := range []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound} {
+		var summary *trace.PacketCountSummary
 		var filters map[string]string
 		if dir == kgxapi.Inbound {
 			filters = inboundFilters
+			summary = inboundSummary
 		} else {
 			filters = outboundFilters
+			summary = outboundSummary
 		}
 
 		for interfaceName, filter := range filters {
@@ -196,11 +261,11 @@ func Run(args Args) error {
 
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
 					collector = trace.TeeCollector{
-						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins),
+						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins, summary),
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins)
+					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins, summary)
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
 				} else {
@@ -220,7 +285,7 @@ func Run(args Args) error {
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := trace.Collect(stop, interfaceName, filter, collector); err != nil {
+				if err := trace.Collect(stop, interfaceName, filter, collector, summary); err != nil {
 					errChan <- errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName)
 				}
 			}(interfaceName, filter)
@@ -306,8 +371,50 @@ func Run(args Args) error {
 	if stopErr != nil {
 		return errors.Wrap(stopErr, "trace collection failed")
 	}
-	printer.Stderr.Infof("%s 🎉\n\n", aurora.Green("Success!"))
 
+	if viper.GetBool("debug") {
+		if len(outboundFilters) == 0 {
+			DumpPacketCounters(interfaces, inboundSummary, nil)
+		} else {
+			DumpPacketCounters(interfaces, inboundSummary, outboundSummary)
+		}
+	}
+
+	// Check summary to see if the inbound trace will have anything in it.
+	totalCount := inboundSummary.Total()
+	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
+		// TODO: recognize TLS handshakes and count them separately!
+		if totalCount.TCPPackets == 0 {
+			if outboundSummary.Total().TCPPackets == 0 {
+				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
+				printer.Stderr.Infof("%s\n", aurora.Yellow("This may mean the traffic is on a different interface, or that"))
+				printer.Stderr.Infof("%s\n", aurora.Yellow("there is a problem sending traffic to the API."))
+			} else {
+				printer.Stderr.Infof("Did not capture any TCP packets matching the filter.\n")
+				printer.Stderr.Infof("%s\n", aurora.Yellow("This may mean your filter is incorrect, such as the wrong TCP port."))
+			}
+		} else if totalCount.Unparsed > 0 {
+			printer.Stderr.Infof("Captured %d TCP packets total; %d unparsed TCP segments.\n",
+				totalCount.TCPPackets, totalCount.Unparsed)
+			printer.Stderr.Infof("%s\n", aurora.Yellow("This may mean you are trying to capture HTTPS traffic."))
+			printer.Stderr.Infof("See https://docs.akita.software/docs/proxy-for-encrypted-traffic\n")
+			printer.Stderr.Infof("for instructions on using a proxy, or generate a HAR file with\n")
+			printer.Stderr.Infof("your browser as described in\n")
+			printer.Stderr.Infof("https://docs.akita.software/docs/collect-client-side-traffic-2\n")
+		}
+		printer.Stderr.Errorf("%s 🛑\n\n", aurora.Red("No inbound HTTP calls captured!"))
+		return errors.New("incoming API trace is empty")
+	}
+	if totalCount.HTTPRequests == 0 {
+		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP responses, but not requests."))
+		return nil
+	}
+	if totalCount.HTTPResponses == 0 {
+		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP requests, but not responses."))
+		return nil
+	}
+
+	printer.Stderr.Infof("%s 🎉\n\n", aurora.Green("Success!"))
 	return nil
 }
 
