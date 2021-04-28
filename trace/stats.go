@@ -83,7 +83,7 @@ func (s *PacketCountSummary) Update(c PacketCounters) {
 		prev.Add(c)
 	} else {
 		// Use SrcPort as the identifier in the
-		// accumualted counter
+		// accumulated counter
 		new := &PacketCounters{
 			Interface: "*",
 			SrcPort:   c.DstPort,
