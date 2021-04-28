@@ -35,9 +35,6 @@ func (c *PacketCounters) Add(d PacketCounters) {
 type PacketCountConsumer interface {
 	// Add an additional measurement to the current count
 	Update(delta PacketCounters)
-
-	// Signal the end of the measurement interval
-	Close()
 }
 
 // Discard the count
@@ -45,9 +42,6 @@ type PacketCountDiscard struct {
 }
 
 func (d *PacketCountDiscard) Update(_ PacketCounters) {
-}
-
-func (d *PacketCountDiscard) Close() {
 }
 
 // A consumer that sums the count by (interface, port) pairs.
@@ -112,9 +106,6 @@ func (s *PacketCountSummary) Update(c PacketCounters) {
 	}
 
 	s.total.Add(c)
-}
-
-func (s *PacketCountSummary) Close() {
 }
 
 func (s *PacketCountSummary) Total() PacketCounters {
