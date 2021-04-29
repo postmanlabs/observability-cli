@@ -87,8 +87,9 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		toReport = append(toReport, outboundSummary)
 	}
 
-	printer.Stderr.Debugf("===============================================\n")
+	printer.Stderr.Debugf("==================================================\n")
 	printer.Stderr.Debugf("Packets per interface:\n")
+	printer.Stderr.Debugf("%15v %8v %7v %11v %5v\n", "", "", "TCP  ", "HTTP   ", "")
 	printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
 	for n := range interfaces {
 		for i, summary := range toReport {
@@ -104,8 +105,9 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		}
 	}
 
-	printer.Stderr.Debugf("===============================================\n")
+	printer.Stderr.Debugf("==================================================\n")
 	printer.Stderr.Debugf("Packets per port:\n")
+	printer.Stderr.Debugf("%8v %7v %11v %5v\n", "", "TCP  ", "HTTP   ", "")
 	printer.Stderr.Debugf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
 	for i, summary := range toReport {
 		if directions[i] == kgxapi.Inbound {
@@ -130,7 +132,7 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		}
 	}
 
-	printer.Stderr.Debugf("===============================================\n")
+	printer.Stderr.Debugf("==================================================\n")
 
 }
 
