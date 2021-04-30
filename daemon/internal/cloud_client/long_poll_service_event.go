@@ -32,7 +32,7 @@ func (event longPollServiceEvent) handle(client *cloudClient) {
 		activeTraceDiff, err := util.LongPollActiveTracesForService(frontClient, event.serviceID, currentTraces)
 		if err != nil {
 			// Log the error, wait a bit, and try again.
-			printer.Debugf("Error while polling service ID %s: %v\n", akid.String(event.serviceID), err)
+			printer.Warningf("Error while polling service ID %s: %v\n", akid.String(event.serviceID), err)
 			time.Sleep(LONG_POLL_INTERVAL)
 			client.eventChannel <- event
 			return

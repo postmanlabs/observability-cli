@@ -54,6 +54,8 @@ func Run(daemonName, host string, clientID akid.ClientID, plugins []plugin.Akita
 		for event := range client.eventChannel {
 			event.handle(client)
 		}
+
+		printer.Debugf("Main worker has shut down")
 	}()
 
 	// Start the heartbeat connection to the cloud.
@@ -124,7 +126,7 @@ func (client *cloudClient) getCurrentTraces(serviceID akid.ServiceID) []akid.Lea
 func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions) {
 	serviceInfo, traceInfo := client.getInfo(serviceID, loggingOptions.TraceID)
 	if serviceInfo == nil {
-		printer.Debugf("Got a new trace from the cloud for an unregistered service: %q\n", akid.String(serviceID))
+		printer.Warningf("Got a new trace from the cloud for an unregistered service: %q\n", akid.String(serviceID))
 		return
 	}
 
@@ -140,51 +142,51 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 	}
 
 	// Start a collector goroutine.
-	learnClient := serviceInfo.learnClient
-	filterThirdPartyTrackers := loggingOptions.FilterThirdPartyTrackers
 	traceEventChannel := make(chan *TraceEvent, TRACE_BUFFER_SIZE)
-	go func() {
-		// Create the collector.
-		collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, client.plugins, nil)
-		if filterThirdPartyTrackers {
-			collector = trace.New3PTrackerFilterCollector(collector)
-		}
-		defer collector.Close()
-
-		// Create a new stream ID for the trace events we are about to process.
-		streamID := uuid.New()
-
-		successfulEntries := 0
-		sampledErrs := sampled_err.Errors{SampleCount: 3}
-		for seqNum := 0; true; seqNum++ {
-			// Get the next trace event.
-			traceEvent, more := <-traceEventChannel
-			if !more {
-				break
-			}
-
-			// Pass the trace event to the collector.
-			if entrySuccess := apispec.ProcessHAREntry(collector, streamID, seqNum, *traceEvent, &sampledErrs); entrySuccess {
-				successfulEntries += 1
-			}
-		}
-
-		// Log successfulEntries and sampledErrs.
-		printer.Debugln("Collected %d entries for trace %q\n", successfulEntries, loggingOptions.TraceID)
-		if sampledErrs.TotalCount > 0 {
-			sampledErrsStr := ""
-			for _, e := range sampledErrs.Samples {
-				sampledErrsStr = fmt.Sprintf("%s\t- %s\n", sampledErrsStr, e)
-			}
-			printer.Stderr.Warningf(`Encountered errors with %d entries for trace %q.\n
-				Akita will ignore entries with errors and proceed with the %d entries successfully processed.\n
-				Sample errors:\n
-				%s`, sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
-		}
-	}()
+	go collectTraces(traceEventChannel, serviceInfo.learnClient, serviceID, loggingOptions, client.plugins)
 
 	// Register the newly discovered trace.
 	serviceInfo.traces[loggingOptions.TraceID] = newTraceInfo(loggingOptions, traceEventChannel)
+}
+
+func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnClient, serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions, plugins []plugin.AkitaPlugin) {
+	// Create the collector.
+	collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, plugins, nil)
+	if loggingOptions.FilterThirdPartyTrackers {
+		collector = trace.New3PTrackerFilterCollector(collector)
+	}
+	defer collector.Close()
+
+	// Create a new stream ID for the trace events we are about to process.
+	streamID := uuid.New()
+
+	successfulEntries := 0
+	sampledErrs := sampled_err.Errors{SampleCount: 3}
+	for seqNum := 0; true; seqNum++ {
+		// Get the next trace event.
+		traceEvent, more := <-traceEventChannel
+		if !more {
+			break
+		}
+
+		// Pass the trace event to the collector.
+		if entrySuccess := apispec.ProcessHAREntry(collector, streamID, seqNum, *traceEvent, &sampledErrs); entrySuccess {
+			successfulEntries += 1
+		}
+	}
+
+	// Log successfulEntries and sampledErrs.
+	printer.Infof("Collected %d entries for trace %q\n", successfulEntries, loggingOptions.TraceID)
+	if sampledErrs.TotalCount > 0 {
+		sampledErrsStr := ""
+		for _, e := range sampledErrs.Samples {
+			sampledErrsStr = fmt.Sprintf("%s\t- %s\n", sampledErrsStr, e)
+		}
+		printer.Stderr.Warningf(`Encountered errors with %d entries for trace %q.\n
+				Akita will ignore entries with errors and proceed with the %d entries successfully processed.\n
+				Sample errors:\n
+				%s`, sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
+	}
 }
 
 // This should only be called from within the main goroutine for the cloud

@@ -36,7 +36,7 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 
 	serviceInfo, ok := client.serviceInfoByID[event.serviceID]
 	if !ok {
-		printer.Debugf("Ignoring diff for unknown service: %s\n", akid.String(event.serviceID))
+		printer.Warningf("Ignoring diff for unknown service: %s\n", akid.String(event.serviceID))
 		return
 	}
 
