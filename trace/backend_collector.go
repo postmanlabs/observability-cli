@@ -273,6 +273,7 @@ func (c *BackendCollector) uploadWitnesses(in []interface{}) {
 	if err != nil {
 		printer.Warningf("Failed to upload witnesses: %v\n", err)
 	}
+	printer.Debugf("Uploaded %d witnesses\n", len(in))
 }
 
 func (c *BackendCollector) periodicFlush() {
