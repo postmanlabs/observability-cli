@@ -117,9 +117,15 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 		return errors.Errorf("trace %q already exists. Use \"--append\" if you wish to add events to the trace", traceName)
 	}
 
+	inboundCount := trace.NewPacketCountSummary()
+	outboundCount := trace.NewPacketCountSummary()
+
 	// Create collector for ingesting the trace events.
-	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Inbound, args.Plugins, nil)
-	outboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Outbound, args.Plugins, nil)
+	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Inbound, args.Plugins, inboundCount)
+	outboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Outbound, args.Plugins, outboundCount)
+	defer inboundCollector.Close()
+	defer outboundCollector.Close()
+
 	if !args.IncludeTrackers {
 		inboundCollector = trace.New3PTrackerFilterCollector(inboundCollector)
 		outboundCollector = trace.New3PTrackerFilterCollector(outboundCollector)
@@ -131,6 +137,14 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 			return errors.Wrapf(err, "failed to process HAR file %q", harFileName)
 		}
 	}
+
+	// Outbound is only used if the HAR file has an Akita extension to mark it as such.
+	totalRequests := inboundCount.Total().HTTPRequests + outboundCount.Total().HTTPRequests
+	totalResponses := inboundCount.Total().HTTPResponses + outboundCount.Total().HTTPResponses
+
+	// This is not entirely true because the last 0-9 won't be updated until
+	// Closed() is called, but we don't have stats on the upload portion.
+	printer.Stderr.Infof("Uploaded %d requests and %d responses.\n", totalRequests, totalResponses)
 
 	return nil
 }
