@@ -20,12 +20,13 @@ func newLongPollServiceEvent(serviceID akid.ServiceID) longPollServiceEvent {
 }
 
 func (event longPollServiceEvent) handle(client *cloudClient) {
+	printer.Debugf("Polling for new traces at service %s\n", akid.String(event.serviceID))
 	currentTraces := client.getCurrentTraces(event.serviceID)
 	frontClient := client.frontClient
 	go func() {
 		// Send a request to the cloud containing a list of the traces currently
 		// being logged. The response will be a list of new traces to log.
-		newTraces, err := util.LongPollActiveTracesForService(frontClient, event.serviceID, currentTraces)
+		activeTraceDiff, err := util.LongPollActiveTracesForService(frontClient, event.serviceID, currentTraces)
 		if err != nil {
 			// Log the error, wait a bit, and try again.
 			printer.Debugf("Error while polling service ID %s: %v\n", akid.String(event.serviceID), err)
@@ -35,6 +36,7 @@ func (event longPollServiceEvent) handle(client *cloudClient) {
 		}
 
 		// Enqueue a startTracesEvent for the main goroutine to handle.
-		client.eventChannel <- newStartTracesEvent(event.serviceID, newTraces)
+		printer.Debugf("Enqueuing start-traces event for service %s\n", akid.String(event.serviceID))
+		client.eventChannel <- newChangeActiveTracesEvent(event.serviceID, activeTraceDiff)
 	}()
 }

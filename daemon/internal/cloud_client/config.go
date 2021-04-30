@@ -2,6 +2,10 @@ package cloud_client
 
 import "time"
 
+// The number of events to buffer in the event channel in the daemon's main
+// goroutine
+const MAIN_GOROUTINE_BUFFER_SIZE = 50
+
 // The number of events to buffer for any given trace before dropping incoming
 // events.
 const TRACE_BUFFER_SIZE = 10_000

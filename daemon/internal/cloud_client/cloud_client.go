@@ -35,7 +35,7 @@ func newCloudClient(daemonName, host string, clientID akid.ClientID, plugins []p
 		plugins:         plugins,
 		frontClient:     rest.NewFrontClient(host, clientID),
 		serviceInfoByID: make(map[akid.ServiceID]*serviceInfo),
-		eventChannel:    make(chan Event),
+		eventChannel:    make(chan Event, MAIN_GOROUTINE_BUFFER_SIZE),
 	}
 }
 
@@ -97,7 +97,7 @@ func (client *cloudClient) ensureServiceRegistered(serviceID akid.ServiceID) *se
 // Determines which traces are being collected for the given service.
 func (client *cloudClient) getCurrentTraces(serviceID akid.ServiceID) []akid.LearnSessionID {
 	result := []akid.LearnSessionID{}
-	for traceID, _ := range client.serviceInfoByID[serviceID].traces {
+	for traceID := range client.serviceInfoByID[serviceID].traces {
 		result = append(result, traceID)
 	}
 	return result
@@ -117,8 +117,9 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 			printer.Debugf("Got an allegedly new trace from the cloud, but already collecting events for that trace: %q\n", akid.String(loggingOptions.TraceID))
 		}
 
-		// Reactivate the trace.
+		// Reactivate the trace and update its logging options.
 		traceInfo.active = true
+		traceInfo.loggingOptions = loggingOptions
 		return
 	}
 
@@ -128,10 +129,11 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 	traceEventChannel := make(chan *TraceEvent, TRACE_BUFFER_SIZE)
 	go func() {
 		// Create the collector.
-		collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, client.plugins)
+		collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, client.plugins, nil)
 		if filterThirdPartyTrackers {
 			collector = trace.New3PTrackerFilterCollector(collector)
 		}
+		defer collector.Close()
 
 		// Create a new stream ID for the trace events we are about to process.
 		streamID := uuid.New()

@@ -53,13 +53,10 @@ type FrontClient interface {
 	GetServices(context.Context) ([]Service, error)
 	DaemonHeartbeat(ctx context.Context, daemonName string) error
 
-	// Long-polls for additions to the set of active traces for a service.
+	// Long-polls for changes to the set of active traces for a service.
 	// Callers specify what they think the current set of active traces is. When
-	// the cloud has active traces not in this set, this method returns options
-	// for capturing those new traces. An error is returned if the connection is
-	// dropped (e.g., due to timing out).
-	LongPollActiveTracesForService(context context.Context, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error)
-
-	// Long-polls for the deactivation of a trace.
-	LongPollForTraceDeactivation(context context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error
+	// the cloud has a different set, this method returns options for capturing
+	// new traces and a set of deactivated traces. An error is returned if the
+	// connection is dropped (e.g., due to timing out).
+	LongPollActiveTracesForService(context context.Context, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error)
 }

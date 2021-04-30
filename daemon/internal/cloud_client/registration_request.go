@@ -1,6 +1,7 @@
 package cloud_client
 
 import (
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/daemon"
 )
@@ -17,10 +18,10 @@ type registrationRequest struct {
 	activeTraces []akid.LearnSessionID
 
 	// The channel on which to send the response to this request.
-	responseChannel chan<- []daemon.LoggingOptions
+	responseChannel chan<- daemon.ActiveTraceDiff
 }
 
-func NewRegistrationRequest(name string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID, responseChannel chan<- []daemon.LoggingOptions) registrationRequest {
+func NewRegistrationRequest(name string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID, responseChannel chan<- daemon.ActiveTraceDiff) registrationRequest {
 	return registrationRequest{
 		name:            name,
 		serviceID:       serviceID,
@@ -30,25 +31,21 @@ func NewRegistrationRequest(name string, serviceID akid.ServiceID, activeTraces 
 }
 
 func (req registrationRequest) handle(client *cloudClient) {
+	printer.Debugf("Handling poll request for service %q\n", akid.String(req.serviceID))
+
 	// Register the service if it's not already registered.
 	serviceInfo := client.ensureServiceRegistered(req.serviceID)
 
-	// Covert the request's list of active traces into a set.
+	// Convert the request's list of active traces into a set.
 	activeTraces := map[akid.LearnSessionID]struct{}{}
 	for _, traceID := range req.activeTraces {
 		activeTraces[traceID] = struct{}{}
 	}
 
-	// See if the daemon knows about traces that the client is missing.
-	missingTraces := []daemon.LoggingOptions{}
-	for traceID, traceInfo := range serviceInfo.traces {
-		if _, ok := activeTraces[traceID]; !ok {
-			missingTraces = append(missingTraces, traceInfo.loggingOptions)
-		}
-	}
-
-	// If the client is missing any traces, send them back.
-	if len(missingTraces) != 0 {
+	// See if the daemon already has a different set of traces than what the
+	// client has sent. If so, send back the diff.
+	missingTraces := serviceInfo.getActiveTraceDiff(activeTraces)
+	if missingTraces.Size() != 0 {
 		defer close(req.responseChannel)
 		req.responseChannel <- missingTraces
 		return

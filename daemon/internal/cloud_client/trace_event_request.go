@@ -54,14 +54,14 @@ func newTraceEventResponse(httpStatus int, message string, traceEventDetails *Tr
 
 // The body of a response to a TraceEventRequest.
 type traceEventResponseBody struct {
-	message           string             `json:"message,omitempty"`
-	traceEventDetails *TraceEventDetails `json:"trace_event_details,omitempty"`
+	Message           string             `json:"message,omitempty"`
+	TraceEventDetails *TraceEventDetails `json:"trace_event_details,omitempty"`
 }
 
 func newTraceEventBody(message string, traceEventDetails *TraceEventDetails) traceEventResponseBody {
 	return traceEventResponseBody{
-		message:           message,
-		traceEventDetails: traceEventDetails,
+		Message:           message,
+		TraceEventDetails: traceEventDetails,
 	}
 }
 

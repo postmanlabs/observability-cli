@@ -76,19 +76,11 @@ func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
 	return nil
 }
 
-// Long-polls the cloud for additions to the set of active traces for a
-// service.
-func LongPollActiveTracesForService(c rest.FrontClient, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
+// Long-polls the cloud for changes to the set of active traces for a service.
+func LongPollActiveTracesForService(c rest.FrontClient, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
 	defer cancel()
 	return c.LongPollActiveTracesForService(ctx, serviceID, currentTraces)
-}
-
-// Long-polls the cloud for the deactivation of a trace.
-func LongPollForTraceDeactivation(c rest.FrontClient, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
-	defer cancel()
-	return c.LongPollForTraceDeactivation(ctx, serviceID, traceID)
 }
 
 func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSessionID, error) {

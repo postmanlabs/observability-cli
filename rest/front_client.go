@@ -36,16 +36,14 @@ func (c *frontClientImpl) DaemonHeartbeat(ctx context.Context, daemonName string
 	return c.post(ctx, "/v1/daemon/heartbeat", body, &resp)
 }
 
-func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
-	var resp []daemon.LoggingOptions
+func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
+	body := struct {
+		ActiveTraceIDs []akid.LearnSessionID `json:"active_trace_ids"`
+	}{
+		ActiveTraceIDs: activeTraces,
+	}
+	var resp daemon.ActiveTraceDiff
 	path := path.Join("/v1/services", akid.String(serviceID), "daemon")
-	err := c.get(ctx, path, &resp)
+	err := c.post(ctx, path, body, &resp)
 	return resp, err
-}
-
-func (c *frontClientImpl) LongPollForTraceDeactivation(ctx context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
-	var resp struct{}
-	path := path.Join("/v1/services", akid.String(serviceID), "learn", akid.String(traceID), "daemon")
-	err := c.get(ctx, path, &resp)
-	return err
 }
