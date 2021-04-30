@@ -66,10 +66,8 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 
 	// Start a bunch of goroutines to send our responses.
 	for _, responseChannel := range channelsToSend {
-		go func(responseChannel chan<- daemon.ActiveTraceDiff) {
-			defer close(responseChannel)
-			responseChannel <- event.activeTraceDiff
-		}(responseChannel)
+		defer close(responseChannel)
+		responseChannel <- event.activeTraceDiff
 	}
 
 	// Resume long-polling for new traces.
