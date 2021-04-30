@@ -14,6 +14,7 @@ import (
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/daemon"
 )
 
 const TRACE_BUFFER_SIZE = 10_000
@@ -22,8 +23,9 @@ type TraceEvent = har_loader.CustomHAREntry
 
 type Args struct {
 	// Required args.
-	ClientID akid.ClientID
-	Domain   string
+	ClientID   akid.ClientID
+	Domain     string
+	DaemonName string
 
 	// Optional args.
 	PortNumber uint16
@@ -47,14 +49,17 @@ func httpHandler(requestHandler httpRequestHandler) http.Handler {
 
 func Run(args Args) error {
 	cmdArgs = args
-	eventChannel = cloud_client.Run(args.Domain, args.ClientID, args.Plugins)
+	eventChannel = cloud_client.Run(args.DaemonName, args.Domain, args.ClientID, args.Plugins)
 
 	router := mux.NewRouter().StrictSlash(true)
 
 	// Endpoint registration
 	{
-		// Used by middleware to long-poll for turning on/off logging.
-		router.Handle("/v1/services/{serviceName}/middleware", httpHandler(handleMiddleware)).Methods("POST")
+		// Used by middleware to long-poll for logging-start events for a service.
+		router.Handle("/v1/services/{serviceName}/middleware", httpHandler(handleMiddlewareRegistration)).Methods("POST")
+
+		// Used by middleware to long-poll for the deactivation of a trace.
+		router.Handle("/v1/services/{serviceName}/traces/{traceName}/middleware", httpHandler(handleTraceDeactivationPoll)).Methods("POST")
 
 		// Adds events to a trace. The request body is expected to be a stream of
 		// HAR entry objects to be added. Optionally, the body can be terminated
@@ -82,9 +87,28 @@ func getServiceID(requestVars map[string]string) (akid.ServiceID, *HTTPResponse)
 	return result, nil
 }
 
-// Waits for state changes to logging and sends the updated state as a response
-// to the request.
-func handleMiddleware(request *http.Request) HTTPResponse {
+// Obtains the service ID and trace ID for the service name and trace name
+// contained in the given HTTP request variables. If an error occurs, this is
+// formatted and returned as an HTTP response.
+func getTraceID(requestVars map[string]string) (akid.ServiceID, akid.LearnSessionID, *HTTPResponse) {
+	serviceID, httpErr := getServiceID(requestVars)
+	if httpErr != nil {
+		return serviceID, akid.LearnSessionID{}, httpErr
+	}
+
+	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
+	traceName := requestVars["traceName"]
+	traceID, err := util.GetLearnSessionIDByName(learnClient, traceName)
+	if err != nil {
+		httpErr := NewHTTPError(err, http.StatusNotFound, "Trace not found")
+		return serviceID, traceID, &httpErr
+	}
+	return serviceID, traceID, nil
+}
+
+// Waits for logging to start for a service and sends logging options as a
+// response to the request.
+func handleMiddlewareRegistration(request *http.Request) HTTPResponse {
 	vars := mux.Vars(request)
 
 	// Ensure the request body is JSON-encoded.
@@ -99,27 +123,42 @@ func handleMiddleware(request *http.Request) HTTPResponse {
 		return *httpErr
 	}
 
-	// Get the client's current logging state.
+	// Parse the request body.
 	var requestBody struct {
-		// Whether the client is currently logging events for the service
-		// identified in the request.
-		Logging bool `json:"logging"`
+		clientName string
+
+		// The IDs of the traces for which the client is currently logging.
+		activeTraceIDs []akid.LearnSessionID `json:"active_trace_ids"`
 	}
 	if err := jsonDecoder.Decode(&requestBody); err != nil {
 		return NewHTTPError(err, http.StatusBadRequest, "Invalid request body")
 	}
-	clientIsLogging := requestBody.Logging
 
-	// Wait for the logging state to differ from the client's state.
-	responseChannel := make(chan cloud_client.ClientLoggingState)
-	eventChannel <- cloud_client.RegistrationRequest{
-		ServiceID:          serviceID,
-		ClientLoggingState: clientIsLogging,
-		ResponseChannel:    responseChannel,
+	// Wait for logging to start on traces that the client doesn't already know
+	// about.
+	responseChannel := make(chan []daemon.LoggingOptions)
+	eventChannel <- cloud_client.NewRegistrationRequest(requestBody.clientName, serviceID, requestBody.activeTraceIDs, responseChannel)
+	newTraces := <-responseChannel
+
+	return NewHTTPResponse(http.StatusAccepted, newTraces)
+}
+
+// Waits for logging to end for a trace.
+func handleTraceDeactivationPoll(request *http.Request) HTTPResponse {
+	vars := mux.Vars(request)
+
+	// Get the service and trace IDs.
+	serviceID, traceID, httpErr := getTraceID(vars)
+	if httpErr != nil {
+		return *httpErr
 	}
-	newLoggingState := <-responseChannel
 
-	return NewHTTPResponse(http.StatusAccepted, newLoggingState)
+	// Wait for logging to end.
+	responseChannel := make(chan struct{})
+	eventChannel <- cloud_client.NewLongPollTraceRequest(serviceID, traceID, responseChannel)
+	<-responseChannel
+
+	return NewHTTPResponse(http.StatusAccepted, struct{}{})
 }
 
 // Adds a set of events to a trace in the Akita back end.
@@ -149,14 +188,23 @@ func addEvents(request *http.Request) HTTPResponse {
 		return NewHTTPError(err, http.StatusNotFound, "Trace not found")
 	}
 
+	// Get the request header.
+	jsonDecoder := json.NewDecoder(request.Body)
+	var requestHeader struct {
+		clientName string `json:"client_name"`
+	}
+	if err := jsonDecoder.Decode(&requestHeader); err != nil {
+		return NewHTTPError(err, http.StatusBadRequest, "Bad request body")
+	}
+
 	// Hand the request off to the cloud client.
 	responseChannel := make(chan cloud_client.TraceEventResponse)
-	eventChannel <- cloud_client.TraceEventRequest{
-		ServiceID:       serviceID,
-		TraceID:         traceID,
-		TraceEvents:     request.Body,
-		ResponseChannel: responseChannel,
-	}
+	eventChannel <- cloud_client.NewTraceEventRequest(
+		requestHeader.clientName,
+		serviceID,
+		traceID,
+		jsonDecoder,
+		responseChannel)
 	response := <-responseChannel
 
 	return NewHTTPResponse(response.HTTPStatus, response.Body)

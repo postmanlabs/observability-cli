@@ -66,10 +66,10 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	return akid.ServiceID{}, errors.Errorf("cannot determine service ID for %s", name)
 }
 
-func DaemonHeartbeat(c rest.FrontClient) error {
+func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err := c.DaemonHeartbeat(ctx)
+	err := c.DaemonHeartbeat(ctx, daemonName)
 	if err != nil {
 		return errors.Wrap(err, "failed to send daemon heartbeat")
 	}
@@ -101,10 +101,19 @@ func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error)
 	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
 }
 
-func LongPollServiceLoggingStatus(lc rest.LearnClient, serviceID akid.ServiceID, currentlyLogging bool) (*daemon.LoggingState, error) {
+// Long-polls the cloud for additions to the set of active traces for a
+// service.
+func LongPollActiveTracesForService(lc rest.LearnClient, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
 	defer cancel()
-	return lc.LongPollServiceLoggingStatus(ctx, serviceID, currentlyLogging)
+	return lc.LongPollActiveTracesForService(ctx, serviceID, currentTraces)
+}
+
+// Long-polls the cloud for the deactivation of a trace.
+func LongPollForTraceDeactivation(lc rest.LearnClient, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	defer cancel()
+	return lc.LongPollForTraceDeactivation(ctx, serviceID, traceID)
 }
 
 func randomName() string {

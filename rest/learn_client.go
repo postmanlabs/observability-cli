@@ -169,9 +169,16 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 	return &resp, err
 }
 
-func (c *learnClientImpl) LongPollServiceLoggingStatus(ctx context.Context, serviceID akid.ServiceID, currentlyLogging bool) (*daemon.LoggingState, error) {
-	var resp daemon.LoggingState
-	path := fmt.Sprintf("/v1/services/%s/daemon", akid.String(c.serviceID))
+func (c *learnClientImpl) LongPollActiveTracesForService(ctx context.Context, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error) {
+	var resp []daemon.LoggingOptions
+	path := path.Join("/v1/services", akid.String(c.serviceID), "daemon")
 	err := c.get(ctx, path, &resp)
-	return &resp, err
+	return resp, err
+}
+
+func (c *learnClientImpl) LongPollForTraceDeactivation(ctx context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error {
+	var resp struct{}
+	path := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(c.clientID), "daemon")
+	err := c.get(ctx, path, &resp)
+	return err
 }

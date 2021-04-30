@@ -12,6 +12,9 @@ import (
 )
 
 var (
+	// Required flags
+	nameFlag string
+
 	// Optional flags
 	portNumberFlag uint16
 
@@ -31,6 +34,7 @@ var Cmd = &cobra.Command{
 		args := daemon.Args{
 			ClientID:   akid.GenerateClientID(),
 			Domain:     akiflag.Domain,
+			DaemonName: nameFlag,
 			PortNumber: portNumberFlag,
 
 			Plugins: plugins,
@@ -44,6 +48,14 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
+	Cmd.Flags().StringVar(
+		&nameFlag,
+		"name",
+		"",
+		"The name of the daemon. Used to identify this daemon in Akita Cloud.",
+	)
+	cobra.MarkFlagRequired(Cmd.Flags(), "name")
+
 	Cmd.Flags().Uint16Var(
 		&portNumberFlag,
 		"port",

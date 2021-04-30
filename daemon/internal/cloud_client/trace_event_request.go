@@ -12,30 +12,57 @@ import (
 )
 
 // A request for sending trace events to the daemon.
-type TraceEventRequest struct {
+type traceEventRequest struct {
+	// The name of the client that made this request.
+	clientName string
+
 	// The service with which the client is associated.
-	ServiceID akid.ServiceID
+	serviceID akid.ServiceID
 
 	// The trace to which events are to be added.
-	TraceID akid.LearnSessionID
+	traceID akid.LearnSessionID
 
 	// The input stream on which to receive trace events.
-	TraceEvents io.ReadCloser
+	traceEvents *json.Decoder
 
 	// The channel on which to send the response to this request.
-	ResponseChannel chan<- TraceEventResponse
+	responseChannel chan<- TraceEventResponse
+}
+
+func NewTraceEventRequest(clientName string, serviceID akid.ServiceID, traceID akid.LearnSessionID, traceEvents *json.Decoder, responseChannel chan<- TraceEventResponse) traceEventRequest {
+	return traceEventRequest{
+		clientName:      clientName,
+		serviceID:       serviceID,
+		traceID:         traceID,
+		traceEvents:     traceEvents,
+		responseChannel: responseChannel,
+	}
 }
 
 // A response to a TraceEventRequest.
 type TraceEventResponse struct {
 	HTTPStatus int
-	Body       TraceEventResponseBody
+	Body       traceEventResponseBody
+}
+
+func newTraceEventResponse(httpStatus int, message string, traceEventDetails *TraceEventDetails) TraceEventResponse {
+	return TraceEventResponse{
+		HTTPStatus: httpStatus,
+		Body:       newTraceEventBody(message, traceEventDetails),
+	}
 }
 
 // The body of a response to a TraceEventRequest.
-type TraceEventResponseBody struct {
-	Message           string             `json:"message,omitempty"`
-	TraceEventDetails *TraceEventDetails `json:"traceEventDetails,omitempty"`
+type traceEventResponseBody struct {
+	message           string             `json:"message,omitempty"`
+	traceEventDetails *TraceEventDetails `json:"trace_event_details,omitempty"`
+}
+
+func newTraceEventBody(message string, traceEventDetails *TraceEventDetails) traceEventResponseBody {
+	return traceEventResponseBody{
+		message:           message,
+		traceEventDetails: traceEventDetails,
+	}
 }
 
 type TraceEvent = har_loader.CustomHAREntry
@@ -51,50 +78,36 @@ type TraceEventDetails struct {
 	Drops int `json:"drops"`
 }
 
-func (req TraceEventRequest) handle(client *cloudClient) {
-	// See if the service is one that is known by the daemon. If the daemon
-	// doesn't know about the service yet, either the client is misbehaving
-	// client or the daemon has restarted and lost its state. Either way, the
-	// daemon can't accept events until it learns about the trace's logging
+func (req traceEventRequest) handle(client *cloudClient) {
+	// See if the service and trace are known by the daemon. If the daemon
+	// doesn't know about the service or the trace yet, either the client is
+	// misbehaving or the daemon has restarted and lost its state. Either way,
+	// the daemon can't accept events until it learns about the trace's logging
 	// options from the cloud.
 	//
-	// If the daemon has been restarted, a proper client will retry its long-poll
-	// for logging-status updates. Things will normalize when that happens, and
-	// the client can then resume sending trace events. Until that happens, just
-	// reject the trace events.
-	if _, ok := client.serviceInfoByID[req.ServiceID]; !ok {
-		defer close(req.ResponseChannel)
-		req.ResponseChannel <- TraceEventResponse{
-			HTTPStatus: http.StatusBadRequest,
-			Body: TraceEventResponseBody{
-				Message: fmt.Sprintf("Service %q was not previously registered with this daemon", req.ServiceID),
-			},
+	// If the daemon has been restarted, things will normalize when the first
+	// round of polling occurs, and the client can then resume sending trace
+	// events. Until that happens, just reject the trace events.
+	serviceInfo, traceInfo := client.getInfo(req.serviceID, req.traceID)
+	if serviceInfo == nil || traceInfo == nil {
+		defer close(req.responseChannel)
+		var message string
+		if serviceInfo == nil {
+			message = fmt.Sprintf("Service %q was not previously registered with this daemon", akid.String(req.serviceID))
+		} else {
+			message = fmt.Sprintf("Trace %q was not previously registered with this daemon", akid.String(req.traceID))
 		}
-		return
-	}
 
-	// Ensure we have a collector for the trace.
-	traceInfo := client.ensureTraceEventCollector(req.ServiceID, req.TraceID)
-	if traceInfo == nil {
-		// Either the client is misbehaving or the daemon is still recovering its
-		// state from a restart. See above comment.
-		defer close(req.ResponseChannel)
-		req.ResponseChannel <- TraceEventResponse{
-			HTTPStatus: http.StatusBadRequest,
-			Body: TraceEventResponseBody{
-				Message: fmt.Sprintf("Logging has not started on this daemon for service %q", req.ServiceID),
-			},
-		}
+		req.responseChannel <- newTraceEventResponse(http.StatusBadRequest, message, nil)
 		return
 	}
 
 	// Register the client with the trace.
-	traceInfo.numClients++
+	traceInfo.clientNames[req.clientName] = struct{}{}
 
 	// Start a goroutine for relaying the incoming trace events to the collector.
 	traceEventChannel := traceInfo.traceEventChannel
 	go func() {
-		jsonDecoder := json.NewDecoder(req.TraceEvents)
 		noMoreEvents := false
 		numTraceEventsParsed := 0
 		numTraceEventsDropped := 0
@@ -103,7 +116,7 @@ func (req TraceEventRequest) handle(client *cloudClient) {
 		for {
 			// Deserialize the next trace event.
 			var traceEvent TraceEvent
-			if err = jsonDecoder.Decode(&traceEvent); err != nil {
+			if err = req.traceEvents.Decode(&traceEvent); err != nil {
 				if err == io.EOF {
 					// We've reached the end of the stream, which isn't really an error.
 					// However, until we receive an empty JSON object from the client, we
@@ -139,7 +152,7 @@ func (req TraceEventRequest) handle(client *cloudClient) {
 
 		// Send the result to the client.
 		{
-			defer close(req.ResponseChannel)
+			defer close(req.responseChannel)
 
 			status := http.StatusAccepted
 			message := ""
@@ -154,54 +167,49 @@ func (req TraceEventRequest) handle(client *cloudClient) {
 				message = "Not all trace events were processed"
 			}
 
-			req.ResponseChannel <- TraceEventResponse{
-				HTTPStatus: status,
-				Body: TraceEventResponseBody{
-					Message:           message,
-					TraceEventDetails: &eventDetails,
-				},
-			}
+			req.responseChannel <- newTraceEventResponse(status, message, &eventDetails)
 		}
 
 		// Unregister the client if it's signalled the end of the event stream.
 		if noMoreEvents {
-			client.eventChannel <- newUnregisterClientFromTrace(req.ServiceID, req.TraceID)
+			client.eventChannel <- newUnregisterClientFromTrace(req.clientName, req.serviceID, req.traceID)
 		}
 	}()
 }
 
 type unregisterClientFromTrace struct {
-	serviceID akid.ServiceID
-	traceID   akid.LearnSessionID
+	clientName string
+	serviceID  akid.ServiceID
+	traceID    akid.LearnSessionID
 }
 
-func newUnregisterClientFromTrace(serviceID akid.ServiceID, traceID akid.LearnSessionID) unregisterClientFromTrace {
+func newUnregisterClientFromTrace(clientName string, serviceID akid.ServiceID, traceID akid.LearnSessionID) unregisterClientFromTrace {
 	return unregisterClientFromTrace{
-		serviceID: serviceID,
-		traceID:   traceID,
+		clientName: clientName,
+		serviceID:  serviceID,
+		traceID:    traceID,
 	}
 }
 
 func (event unregisterClientFromTrace) handle(client *cloudClient) {
-	serviceInfo, ok := client.serviceInfoByID[event.serviceID]
-	if !ok {
-		printer.Debugf("Attempted to unregister client from unknown service %q", event.serviceID)
+	serviceInfo, traceInfo := client.getInfo(event.serviceID, event.traceID)
+	if serviceInfo == nil {
+		printer.Debugf("Attempted to unregister client from unknown service %q\n", akid.String(event.serviceID))
 		return
 	}
 
-	traceInfo, ok := serviceInfo.Traces[event.traceID]
-	if !ok {
-		printer.Debugf("Attempted to unregister client from unknown trace %q", event.traceID)
+	if traceInfo == nil {
+		printer.Debugf("Attempted to unregister client from unknown trace %q\n", akid.String(event.traceID))
 		return
 	}
 
-	traceInfo.numClients--
-	if traceInfo.numClients > 0 {
+	delete(traceInfo.clientNames, event.clientName)
+	if traceInfo.active || len(traceInfo.clientNames) > 0 {
 		return
 	}
 
-	// The last client has been unregistered from the trace. Unregister the
-	// trace itself and close the trace event channel.
-	defer close(traceInfo.traceEventChannel)
-	delete(serviceInfo.Traces, event.traceID)
+	// The trace has been deactivated and the last client has been unregistered
+	// from the trace. Unregister the trace itself and close the trace event
+	// channel.
+	client.unregisterTrace(event.serviceID, event.traceID)
 }

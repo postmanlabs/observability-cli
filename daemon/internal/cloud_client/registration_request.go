@@ -5,48 +5,55 @@ import (
 	"github.com/akitasoftware/akita-libs/daemon"
 )
 
-// A request for registering a client to the daemon.
-type RegistrationRequest struct {
-	// The service with which the client is associated.
-	ServiceID akid.ServiceID
+// A request for registering a client (middleware) to the daemon.
+type registrationRequest struct {
+	// The name of the client.
+	name string
 
-	// Indicates whether the client is currently logging trace events.
-	ClientLoggingState bool
+	// The service with which the client is associated.
+	serviceID akid.ServiceID
+
+	// The set of traces for which the client is actively logging.
+	activeTraces []akid.LearnSessionID
 
 	// The channel on which to send the response to this request.
-	ResponseChannel chan<- ClientLoggingState
+	responseChannel chan<- []daemon.LoggingOptions
 }
 
-// A response to RegistrationRequest.
-type ClientLoggingState struct {
-	// The updated logging state.
-	LoggingState bool `json:"logging"`
-
-	// Specifies how trace events should be logged by the client. Only populated
-	// when LoggingState is true.
-	LoggingOptions *daemon.LoggingOptions `json:"loggingOptions,omitempty"`
-}
-
-func NewClientLoggingState(LoggingOptions *daemon.LoggingOptions) ClientLoggingState {
-	return ClientLoggingState{
-		LoggingState:   LoggingOptions != nil,
-		LoggingOptions: LoggingOptions,
+func NewRegistrationRequest(name string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID, responseChannel chan<- []daemon.LoggingOptions) registrationRequest {
+	return registrationRequest{
+		name:            name,
+		serviceID:       serviceID,
+		activeTraces:    activeTraces,
+		responseChannel: responseChannel,
 	}
 }
 
-func (req RegistrationRequest) handle(client *cloudClient) {
+func (req registrationRequest) handle(client *cloudClient) {
 	// Register the service if it's not already registered.
-	serviceInfo := client.ensureServiceRegistered(req.ServiceID)
+	serviceInfo := client.ensureServiceRegistered(req.serviceID)
 
-	// If the logging state is different from what the client is reporting, then
-	// send back what we already have.
-	currentlyLogging := serviceInfo.LoggingOptions != nil
-	if currentlyLogging != req.ClientLoggingState {
-		defer close(req.ResponseChannel)
-		req.ResponseChannel <- NewClientLoggingState(serviceInfo.LoggingOptions)
+	// Covert the request's list of active traces into a set.
+	activeTraces := map[akid.LearnSessionID]struct{}{}
+	for _, traceID := range req.activeTraces {
+		activeTraces[traceID] = struct{}{}
+	}
+
+	// See if the daemon knows about traces that the client is missing.
+	missingTraces := []daemon.LoggingOptions{}
+	for traceID, traceInfo := range serviceInfo.traces {
+		if _, ok := activeTraces[traceID]; !ok {
+			missingTraces = append(missingTraces, traceInfo.loggingOptions)
+		}
+	}
+
+	// If the client is missing any traces, send them back.
+	if len(missingTraces) != 0 {
+		defer close(req.responseChannel)
+		req.responseChannel <- missingTraces
 		return
 	}
 
 	// Register the client for the eventual response.
-	serviceInfo.ResponseChannels = append(serviceInfo.ResponseChannels, req.ResponseChannel)
+	serviceInfo.responseChannels = append(serviceInfo.responseChannels, req.responseChannel)
 }

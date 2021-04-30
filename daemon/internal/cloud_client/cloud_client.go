@@ -1,14 +1,11 @@
 package cloud_client
 
 import (
-	"time"
-
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/trace"
-	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/daemon"
@@ -17,9 +14,11 @@ import (
 )
 
 type cloudClient struct {
-	host     string
-	clientID akid.ClientID
-	plugins  []plugin.AkitaPlugin
+	daemonName  string
+	host        string
+	clientID    akid.ClientID
+	plugins     []plugin.AkitaPlugin
+	frontClient rest.FrontClient
 
 	// Tracking for each registered service.
 	serviceInfoByID map[akid.ServiceID]*serviceInfo
@@ -28,142 +27,108 @@ type cloudClient struct {
 	eventChannel chan Event
 }
 
-func newCloudClient(host string, clientID akid.ClientID, plugins []plugin.AkitaPlugin) *cloudClient {
+func newCloudClient(daemonName, host string, clientID akid.ClientID, plugins []plugin.AkitaPlugin) *cloudClient {
 	return &cloudClient{
+		daemonName:      daemonName,
 		host:            host,
 		clientID:        clientID,
 		plugins:         plugins,
+		frontClient:     rest.NewFrontClient(host, clientID),
 		serviceInfoByID: make(map[akid.ServiceID]*serviceInfo),
 		eventChannel:    make(chan Event),
 	}
 }
 
-// Logging state for a single service.
-type serviceInfo struct {
-	// The learning client for this service.
-	LearnClient rest.LearnClient
-
-	// Only populated when logging is active for the service.
-	LoggingOptions *daemon.LoggingOptions
-
-	// Contains channels to clients awaiting a status change.
-	ResponseChannels []chan<- ClientLoggingState
-
-	// Contains an entry for each trace ID for which we are collecting events.
-	Traces map[akid.LearnSessionID]*traceInfo
-}
-
-func (client *cloudClient) newServiceInfo(serviceID akid.ServiceID) *serviceInfo {
-	return &serviceInfo{
-		LearnClient:      client.NewLearnClient(serviceID),
-		LoggingOptions:   nil,
-		ResponseChannels: []chan<- ClientLoggingState{},
-		Traces:           make(map[akid.LearnSessionID]*traceInfo),
-	}
-}
-
-// Registers the service with the daemon if needed. Upon registration, a
-// goroutine is started for long-polling the cloud for the service's state.
-func (client *cloudClient) ensureServiceRegistered(serviceID akid.ServiceID) *serviceInfo {
-	if serviceInfo, ok := client.serviceInfoByID[serviceID]; ok {
-		return serviceInfo
-	}
-
-	serviceInfo := client.newServiceInfo(serviceID)
-	client.serviceInfoByID[serviceID] = serviceInfo
-	client.longPollService(serviceID)
-	return serviceInfo
-}
-
-// Logging state for a single trace.
-type traceInfo struct {
-	// The number of clients from which we are receiving trace events.
-	numClients int
-
-	// The channel on which to send trace events to the trace collector.
-	traceEventChannel chan<- *TraceEvent
-}
-
-// An event that is handled by the main goroutine for the cloud client.
-type Event interface {
-	// Handles the event. Runs in the context of the main goroutine for the
-	// given cloud client.
-	handle(*cloudClient)
-}
-
 // Instantiates a cloud client and starts its main goroutine. Returns a
 // channel on which requests to the client can be made.
-func Run(host string, clientID akid.ClientID, plugins []plugin.AkitaPlugin) chan<- Event {
-	client := newCloudClient(host, clientID, plugins)
+func Run(daemonName, host string, clientID akid.ClientID, plugins []plugin.AkitaPlugin) chan<- Event {
+	client := newCloudClient(daemonName, host, clientID, plugins)
 
 	// Start the main goroutine for the cloud client.
 	//
 	// Accesses to anything inside client.serviceInfoByID must be done in this
 	// goroutine.
 	go func() {
-		// Start the heartbeat connection to the cloud.
-		go client.heartbeat()
-
 		for event := range client.eventChannel {
 			event.handle(client)
 		}
 	}()
 
+	// Start the heartbeat connection to the cloud.
+	client.eventChannel <- newHeartbeatEvent()
+
 	return client.eventChannel
 }
 
-func (client *cloudClient) NewLearnClient(serviceID akid.ServiceID) rest.LearnClient {
+func (client *cloudClient) newLearnClient(serviceID akid.ServiceID) rest.LearnClient {
 	return rest.NewLearnClient(client.host, client.clientID, serviceID)
 }
 
-// Determines whether trace events are being logged for the given service.
-func (client *cloudClient) isCurrentlyLogging(serviceID akid.ServiceID) bool {
-	return client.serviceInfoByID[serviceID].LoggingOptions != nil
+func (client *cloudClient) getInfo(serviceID akid.ServiceID, traceID akid.LearnSessionID) (*serviceInfo, *traceInfo) {
+	serviceInfo, ok := client.serviceInfoByID[serviceID]
+	if !ok {
+		return nil, nil
+	}
+
+	traceInfo, ok := serviceInfo.traces[traceID]
+	if !ok {
+		return serviceInfo, nil
+	}
+
+	return serviceInfo, traceInfo
 }
 
-// Starts a goroutine for long-polling the cloud for updates on the logging
-// status for the given service.
-func (client *cloudClient) longPollService(serviceID akid.ServiceID) {
-	currentlyLogging := client.isCurrentlyLogging(serviceID)
-	learnClient := client.serviceInfoByID[serviceID].LearnClient
-	go func() {
-		for {
-			loggingState, err := util.LongPollServiceLoggingStatus(learnClient, serviceID, currentlyLogging)
-			if err != nil {
-				printer.Debugf("Error while polling %s: %v", akid.String(serviceID), err)
-				time.Sleep(LONG_POLL_INTERVAL)
-				continue
-			}
+// Registers the service with the daemon if needed. Upon registration, a
+// longPollServiceEvent is scheduled for the service.
+func (client *cloudClient) ensureServiceRegistered(serviceID akid.ServiceID) *serviceInfo {
+	if serviceInfo, ok := client.serviceInfoByID[serviceID]; ok {
+		// Service already registered.
+		return serviceInfo
+	}
 
-			// Enqueue a LoggingStartStopEvent for the main goroutine to handle.
-			client.eventChannel <- NewLoggingStartStopEvent(serviceID, loggingState.LoggingOptions)
-			return
+	// Register the new service and schedule a longPollServiceEvent.
+	serviceInfo := client.newServiceInfo(serviceID)
+	client.serviceInfoByID[serviceID] = serviceInfo
+	client.eventChannel <- newLongPollServiceEvent(serviceID)
+
+	return serviceInfo
+}
+
+// Determines which traces are being collected for the given service.
+func (client *cloudClient) getCurrentTraces(serviceID akid.ServiceID) []akid.LearnSessionID {
+	result := []akid.LearnSessionID{}
+	for traceID, _ := range client.serviceInfoByID[serviceID].traces {
+		result = append(result, traceID)
+	}
+	return result
+}
+
+// Starts a goroutine for collecting trace events and sending them to the
+// cloud. Assumes the given service ID has been registered.
+func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions) {
+	serviceInfo, traceInfo := client.getInfo(serviceID, loggingOptions.TraceID)
+	if serviceInfo == nil {
+		printer.Debugf("Got a new trace from the cloud for an unregistered service: %q\n", akid.String(serviceID))
+		return
+	}
+
+	if traceInfo != nil {
+		if traceInfo.active {
+			printer.Debugf("Got an allegedly new trace from the cloud, but already collecting events for that trace: %q\n", akid.String(loggingOptions.TraceID))
 		}
-	}()
-}
 
-// Ensures we have a goroutine for collecting trace events and sending them to
-// the cloud. Assumes the given service ID has been registered. Returns nil if
-// there is no event collector for the given trace and the daemon's state
-// indicates that logging is stopped.
-func (client *cloudClient) ensureTraceEventCollector(serviceID akid.ServiceID, traceID akid.LearnSessionID) *traceInfo {
-	serviceInfo := client.serviceInfoByID[serviceID]
-	if traceInfo, ok := serviceInfo.Traces[traceID]; ok {
-		// Already collecting trace events.
-		return traceInfo
+		// Reactivate the trace.
+		traceInfo.active = true
+		return
 	}
 
-	if serviceInfo.LoggingOptions == nil {
-		return nil
-	}
-
-	// We've discovered a new trace. Start a collector goroutine.
-	learnClient := serviceInfo.LearnClient
-	filterThirdPartyTrackers := serviceInfo.LoggingOptions.FilterThirdPartyTrackers
+	// Start a collector goroutine.
+	learnClient := serviceInfo.learnClient
+	filterThirdPartyTrackers := loggingOptions.FilterThirdPartyTrackers
 	traceEventChannel := make(chan *TraceEvent, TRACE_BUFFER_SIZE)
 	go func() {
 		// Create the collector.
-		collector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Inbound, client.plugins)
+		collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, client.plugins)
 		if filterThirdPartyTrackers {
 			collector = trace.New3PTrackerFilterCollector(collector)
 		}
@@ -190,10 +155,30 @@ func (client *cloudClient) ensureTraceEventCollector(serviceID akid.ServiceID, t
 	}()
 
 	// Register the newly discovered trace.
-	traceInfo := &traceInfo{
-		numClients:        0,
-		traceEventChannel: traceEventChannel,
+	serviceInfo.traces[loggingOptions.TraceID] = newTraceInfo(loggingOptions, traceEventChannel)
+}
+
+func (client *cloudClient) unregisterTrace(serviceID akid.ServiceID, traceID akid.LearnSessionID) {
+	serviceInfo, traceInfo := client.getInfo(serviceID, traceID)
+	if serviceInfo == nil {
+		printer.Debugf("Tried to unregister a trace from an unknown service %q\n", akid.String(serviceID))
+		return
 	}
-	serviceInfo.Traces[traceID] = traceInfo
-	return traceInfo
+
+	if traceInfo == nil {
+		printer.Debugf("Tried to unregister an unknown trace %q\n", akid.String(traceID))
+		return
+	}
+
+	if traceInfo.active {
+		printer.Debugf("Tried to unregister an active trace %q; ignoring\n", akid.String(traceID))
+		return
+	}
+
+	if len(traceInfo.clientNames) > 0 {
+		printer.Debugf("Tried to unregister trace %q for which clients are still sending events; ignoring\n", akid.String(traceID))
+		return
+	}
+
+	delete(serviceInfo.traces, traceID)
 }

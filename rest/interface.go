@@ -48,15 +48,18 @@ type LearnClient interface {
 	// Spec diff
 	GetSpecDiffTrie(context.Context, akid.APISpecID, akid.APISpecID) (*path_trie.PathTrie, error)
 
-	// Long-polls for the logging status of a service. Callers specify what they
-	// think the current logging status is. When the state on the cloud differs,
-	// this method returns the updated state. If logging is started, options for
-	// logging are returned; if logging is stopped, nil is returned. An error is
-	// returned if the connection is dropped (e.g., due to timing out).
-	LongPollServiceLoggingStatus(context context.Context, serviceID akid.ServiceID, currentlyLogging bool) (*daemon.LoggingState, error)
+	// Long-polls for additions to the set of active traces for a service.
+	// Callers specify what they think the current set of active traces is. When
+	// the cloud has active traces not in this set, this method returns options
+	// for capturing those new traces. An error is returned if the connection is
+	// dropped (e.g., due to timing out).
+	LongPollActiveTracesForService(context context.Context, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) ([]daemon.LoggingOptions, error)
+
+	// Long-polls for the deactivation of a trace.
+	LongPollForTraceDeactivation(context context.Context, serviceID akid.ServiceID, traceID akid.LearnSessionID) error
 }
 
 type FrontClient interface {
 	GetServices(context.Context) ([]Service, error)
-	DaemonHeartbeat(context.Context) error
+	DaemonHeartbeat(ctx context.Context, daemonName string) error
 }
