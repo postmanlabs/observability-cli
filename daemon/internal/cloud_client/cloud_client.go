@@ -1,6 +1,8 @@
 package cloud_client
 
 import (
+	"fmt"
+
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -153,7 +155,18 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 			}
 		}
 
-		// TODO: Log successfulEntries and sampledErrs.
+		// Log successfulEntries and sampledErrs.
+		printer.Debugln("Collected %d entries for trace %q\n", successfulEntries, loggingOptions.TraceID)
+		if sampledErrs.TotalCount > 0 {
+			sampledErrsStr := ""
+			for _, e := range sampledErrs.Samples {
+				sampledErrsStr = fmt.Sprintf("%s\t- %s\n", sampledErrsStr, e)
+			}
+			printer.Stderr.Warningf(`Encountered errors with %d entries for trace %q.\n
+				Akita will ignore entries with errors and proceed with the %d entries successfully processed.\n
+				Sample errors:\n
+				%s`, sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
+		}
 	}()
 
 	// Register the newly discovered trace.
