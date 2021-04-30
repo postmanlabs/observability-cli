@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -48,13 +50,20 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = ""
+	}
+
 	Cmd.Flags().StringVar(
 		&nameFlag,
 		"name",
-		"",
-		"The name of the daemon. Used to identify this daemon in Akita Cloud.",
+		hostname,
+		"The name of the daemon. Used to identify this daemon in Akita Cloud. Only required if the CLI is unable to determine the hostname.",
 	)
-	cobra.MarkFlagRequired(Cmd.Flags(), "name")
+	if err != nil {
+		cobra.MarkFlagRequired(Cmd.Flags(), "name")
+	}
 
 	Cmd.Flags().Uint16Var(
 		&portNumberFlag,
