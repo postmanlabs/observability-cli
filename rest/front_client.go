@@ -23,3 +23,8 @@ func (c *frontClientImpl) GetServices(ctx context.Context) ([]Service, error) {
 	}
 	return resp, nil
 }
+
+func (c *frontClientImpl) DaemonHeartbeat(ctx context.Context) error {
+	resp := struct{}{}
+	return c.get(ctx, "/v1/daemon/heartbeat", &resp)
+}

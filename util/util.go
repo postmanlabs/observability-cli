@@ -14,6 +14,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/daemon"
 )
 
 var (
@@ -65,6 +66,16 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	return akid.ServiceID{}, errors.Errorf("cannot determine service ID for %s", name)
 }
 
+func DaemonHeartbeat(c rest.FrontClient) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := c.DaemonHeartbeat(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to send daemon heartbeat")
+	}
+	return nil
+}
+
 func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSessionID, error) {
 	if id, found := learnSessionNameCache.Get(name); found {
 		return id.(akid.LearnSessionID), nil
@@ -88,6 +99,12 @@ func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
+}
+
+func LongPollServiceLoggingStatus(lc rest.LearnClient, serviceID akid.ServiceID, currentlyLogging bool) (*daemon.LoggingState, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+	defer cancel()
+	return lc.LongPollServiceLoggingStatus(ctx, serviceID, currentlyLogging)
 }
 
 func randomName() string {

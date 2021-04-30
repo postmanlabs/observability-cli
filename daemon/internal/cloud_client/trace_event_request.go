@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/akitasoftware/akita-cli/har_loader"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-libs/akid"
 )
 
@@ -185,13 +185,13 @@ func newUnregisterClientFromTrace(serviceID akid.ServiceID, traceID akid.LearnSe
 func (event unregisterClientFromTrace) handle(client *cloudClient) {
 	serviceInfo, ok := client.serviceInfoByID[event.serviceID]
 	if !ok {
-		log.Printf("Attempted to unregister client from unknown service %q", event.serviceID)
+		printer.Debugf("Attempted to unregister client from unknown service %q", event.serviceID)
 		return
 	}
 
 	traceInfo, ok := serviceInfo.Traces[event.traceID]
 	if !ok {
-		log.Printf("Attempted to unregister client from unknown trace %q", event.traceID)
+		printer.Debugf("Attempted to unregister client from unknown trace %q", event.traceID)
 		return
 	}
 

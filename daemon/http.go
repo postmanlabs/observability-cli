@@ -6,9 +6,9 @@ package daemon
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/golang/gddo/httputil/header"
 )
@@ -63,7 +63,7 @@ func NewHTTPResponse(status int, body interface{}) HTTPResponse {
 
 	if body != nil {
 		if bodyJson, err = json.Marshal(body); err != nil {
-			log.Printf("An error occurred while serializing an HTTPResponse body: %v\n", err)
+			printer.Errorf("An error occurred while serializing an HTTPResponse body: %v\n", err)
 			return NewHTTPResponse(http.StatusInternalServerError, nil)
 		}
 	}

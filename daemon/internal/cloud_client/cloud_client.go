@@ -1,12 +1,17 @@
 package cloud_client
 
 import (
+	"time"
+
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/plugin"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/trace"
+	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/sampled_err"
 	"github.com/google/uuid"
 )
@@ -39,7 +44,7 @@ type serviceInfo struct {
 	LearnClient rest.LearnClient
 
 	// Only populated when logging is active for the service.
-	LoggingOptions *LoggingOptions
+	LoggingOptions *daemon.LoggingOptions
 
 	// Contains channels to clients awaiting a status change.
 	ResponseChannels []chan<- ClientLoggingState
@@ -77,18 +82,6 @@ type traceInfo struct {
 
 	// The channel on which to send trace events to the trace collector.
 	traceEventChannel chan<- *TraceEvent
-}
-
-type LoggingOptions struct {
-	// The trace to which logged events should be associated.
-	TraceName string
-
-	// A number in the range [0,1], indicating the fraction of events to log.
-	SamplingRate float32
-
-	// Whether third-party trackers should be filtered from the trace before
-	// being sent to the cloud.
-	FilterThirdPartyTrackers bool
 }
 
 // An event that is handled by the main goroutine for the cloud client.
@@ -132,9 +125,20 @@ func (client *cloudClient) isCurrentlyLogging(serviceID akid.ServiceID) bool {
 // status for the given service.
 func (client *cloudClient) longPollService(serviceID akid.ServiceID) {
 	currentlyLogging := client.isCurrentlyLogging(serviceID)
+	learnClient := client.serviceInfoByID[serviceID].LearnClient
 	go func() {
-		// TODO Send a request to the cloud. Retry the request on error/timeout. When we get a response, enqueue a LoggingStartStopEvent for the main goroutine to handle.
-		_ = currentlyLogging
+		for {
+			loggingState, err := util.LongPollServiceLoggingStatus(learnClient, serviceID, currentlyLogging)
+			if err != nil {
+				printer.Debugf("Error while polling %s: %v", akid.String(serviceID), err)
+				time.Sleep(LONG_POLL_INTERVAL)
+				continue
+			}
+
+			// Enqueue a LoggingStartStopEvent for the main goroutine to handle.
+			client.eventChannel <- NewLoggingStartStopEvent(serviceID, loggingState.LoggingOptions)
+			return
+		}
 	}()
 }
 

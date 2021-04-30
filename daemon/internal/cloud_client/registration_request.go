@@ -2,6 +2,7 @@ package cloud_client
 
 import (
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/daemon"
 )
 
 // A request for registering a client to the daemon.
@@ -23,10 +24,10 @@ type ClientLoggingState struct {
 
 	// Specifies how trace events should be logged by the client. Only populated
 	// when LoggingState is true.
-	LoggingOptions *LoggingOptions `json:"loggingOptions,omitempty"`
+	LoggingOptions *daemon.LoggingOptions `json:"loggingOptions,omitempty"`
 }
 
-func NewClientLoggingState(LoggingOptions *LoggingOptions) ClientLoggingState {
+func NewClientLoggingState(LoggingOptions *daemon.LoggingOptions) ClientLoggingState {
 	return ClientLoggingState{
 		LoggingState:   LoggingOptions != nil,
 		LoggingOptions: LoggingOptions,

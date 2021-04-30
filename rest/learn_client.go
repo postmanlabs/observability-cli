@@ -8,6 +8,7 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/path_trie"
 )
 
@@ -164,6 +165,13 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 	var resp path_trie.PathTrie
 	path := fmt.Sprintf("/v1/services/%s/specs/%s/diff/%s/trie",
 		akid.String(c.serviceID), akid.String(baseID), akid.String(newID))
+	err := c.get(ctx, path, &resp)
+	return &resp, err
+}
+
+func (c *learnClientImpl) LongPollServiceLoggingStatus(ctx context.Context, serviceID akid.ServiceID, currentlyLogging bool) (*daemon.LoggingState, error) {
+	var resp daemon.LoggingState
+	path := fmt.Sprintf("/v1/services/%s/daemon", akid.String(c.serviceID))
 	err := c.get(ctx, path, &resp)
 	return &resp, err
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
@@ -46,8 +47,16 @@ type LearnClient interface {
 
 	// Spec diff
 	GetSpecDiffTrie(context.Context, akid.APISpecID, akid.APISpecID) (*path_trie.PathTrie, error)
+
+	// Long-polls for the logging status of a service. Callers specify what they
+	// think the current logging status is. When the state on the cloud differs,
+	// this method returns the updated state. If logging is started, options for
+	// logging are returned; if logging is stopped, nil is returned. An error is
+	// returned if the connection is dropped (e.g., due to timing out).
+	LongPollServiceLoggingStatus(context context.Context, serviceID akid.ServiceID, currentlyLogging bool) (*daemon.LoggingState, error)
 }
 
 type FrontClient interface {
 	GetServices(context.Context) ([]Service, error)
+	DaemonHeartbeat(context.Context) error
 }
