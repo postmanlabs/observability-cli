@@ -7,6 +7,9 @@ import (
 )
 
 // Logging state for a single service.
+//
+// Instances should only be accessed from within the main goroutine for the
+// cloud client.
 type serviceInfo struct {
 	// The learning client for this service.
 	learnClient rest.LearnClient
@@ -46,6 +49,9 @@ func (info serviceInfo) getActiveTraceDiff(known_traces map[akid.LearnSessionID]
 }
 
 // Logging state for a single trace.
+//
+// Instances should only be accessed from within the main goroutine for the
+// cloud client.
 type traceInfo struct {
 	// Whether the trace is active. If this is false, then the daemon is just
 	// waiting for clients to finish sending their events.

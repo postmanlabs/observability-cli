@@ -78,6 +78,8 @@ type TraceEventDetails struct {
 	Drops int `json:"drops"`
 }
 
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (req traceEventRequest) handle(client *cloudClient) {
 	// See if the service and trace are known by the daemon. If the daemon
 	// doesn't know about the service or the trace yet, either the client is
@@ -191,6 +193,8 @@ func newUnregisterClientFromTrace(clientName string, serviceID akid.ServiceID, t
 	}
 }
 
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (event unregisterClientFromTrace) handle(client *cloudClient) {
 	serviceInfo, traceInfo := client.getInfo(event.serviceID, event.traceID)
 	if serviceInfo == nil {

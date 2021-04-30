@@ -30,6 +30,11 @@ func NewRegistrationRequest(name string, serviceID akid.ServiceID, activeTraces 
 	}
 }
 
+// Instances should only be accessed from within the main goroutine for the
+// cloud client.
+//
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (req registrationRequest) handle(client *cloudClient) {
 	printer.Debugf("Handling poll request for service %q\n", akid.String(req.serviceID))
 

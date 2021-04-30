@@ -25,6 +25,12 @@ func newChangeActiveTracesEvent(serviceID akid.ServiceID, activeTraceDiff daemon
 	}
 }
 
+// Handles a response from the cloud indicating a change in the set of active
+// traces for a service. This method is responsible for resuming long-polling
+// for further changes.
+//
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (event changedActiveTracesEvent) handle(client *cloudClient) {
 	printer.Debugf("Handling changed-traces event for service %s\n", akid.String(event.serviceID))
 
@@ -64,7 +70,7 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 	channelsToSend := serviceInfo.responseChannels
 	serviceInfo.responseChannels = []chan<- daemon.ActiveTraceDiff{}
 
-	// Start a bunch of goroutines to send our responses.
+	// Send our responses.
 	for _, responseChannel := range channelsToSend {
 		defer close(responseChannel)
 		responseChannel <- event.activeTraceDiff

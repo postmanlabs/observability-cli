@@ -19,6 +19,8 @@ func newLongPollServiceEvent(serviceID akid.ServiceID) longPollServiceEvent {
 	}
 }
 
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (event longPollServiceEvent) handle(client *cloudClient) {
 	printer.Debugf("Polling for changed traces at service %s\n", akid.String(event.serviceID))
 	currentTraces := client.getCurrentTraces(event.serviceID)
@@ -36,7 +38,9 @@ func (event longPollServiceEvent) handle(client *cloudClient) {
 			return
 		}
 
-		// Enqueue a changeActiveTracesEvent for the main goroutine to handle.
+		// Enqueue a changeActiveTracesEvent for the main goroutine to handle. The
+		// handler for this event is responsible for resuming long polling for
+		// further changes.
 		printer.Debugf("Enqueuing changed-traces event for service %s\n", akid.String(event.serviceID))
 		client.eventChannel <- newChangeActiveTracesEvent(event.serviceID, activeTraceDiff)
 	}()

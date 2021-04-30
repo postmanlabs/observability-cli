@@ -66,6 +66,11 @@ func (client *cloudClient) newLearnClient(serviceID akid.ServiceID) rest.LearnCl
 	return rest.NewLearnClient(client.host, client.clientID, serviceID)
 }
 
+// A helper for obtaining the service and trace info corresponding to a given
+// service and trace.
+//
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (client *cloudClient) getInfo(serviceID akid.ServiceID, traceID akid.LearnSessionID) (*serviceInfo, *traceInfo) {
 	serviceInfo, ok := client.serviceInfoByID[serviceID]
 	if !ok {
@@ -82,6 +87,9 @@ func (client *cloudClient) getInfo(serviceID akid.ServiceID, traceID akid.LearnS
 
 // Registers the service with the daemon if needed. Upon registration, a
 // longPollServiceEvent is scheduled for the service.
+//
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (client *cloudClient) ensureServiceRegistered(serviceID akid.ServiceID) *serviceInfo {
 	if serviceInfo, ok := client.serviceInfoByID[serviceID]; ok {
 		// Service already registered.
@@ -97,6 +105,9 @@ func (client *cloudClient) ensureServiceRegistered(serviceID akid.ServiceID) *se
 }
 
 // Determines which traces are being collected for the given service.
+//
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (client *cloudClient) getCurrentTraces(serviceID akid.ServiceID) []akid.LearnSessionID {
 	result := []akid.LearnSessionID{}
 	for traceID := range client.serviceInfoByID[serviceID].traces {
@@ -107,6 +118,9 @@ func (client *cloudClient) getCurrentTraces(serviceID akid.ServiceID) []akid.Lea
 
 // Starts a goroutine for collecting trace events and sending them to the
 // cloud. Assumes the given service ID has been registered.
+//
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions) {
 	serviceInfo, traceInfo := client.getInfo(serviceID, loggingOptions.TraceID)
 	if serviceInfo == nil {
@@ -173,6 +187,8 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 	serviceInfo.traces[loggingOptions.TraceID] = newTraceInfo(loggingOptions, traceEventChannel)
 }
 
+// This should only be called from within the main goroutine for the cloud
+// client.
 func (client *cloudClient) unregisterTrace(serviceID akid.ServiceID, traceID akid.LearnSessionID) {
 	serviceInfo, traceInfo := client.getInfo(serviceID, traceID)
 	if serviceInfo == nil {
