@@ -42,6 +42,7 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 
 	// Add activated traces.
 	for _, loggingOption := range event.activeTraceDiff.ActivatedTraces {
+		printer.Infof("Activating trace %s (%s)\n", loggingOption.TraceName, akid.String(loggingOption.TraceID))
 		client.startTraceEventCollector(event.serviceID, loggingOption)
 	}
 
@@ -52,6 +53,8 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 			printer.Debugf("Ignoring deactivation of unknown trace: %s\n", akid.String(deactivatedTraceID))
 			continue
 		}
+
+		printer.Infof("Deactivating trace %s (%s)\n", traceInfo.loggingOptions.TraceName, akid.String(traceInfo.loggingOptions.TraceID))
 
 		traceInfo.active = false
 

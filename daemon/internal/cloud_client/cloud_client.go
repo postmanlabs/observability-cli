@@ -192,6 +192,7 @@ func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnC
 // This should only be called from within the main goroutine for the cloud
 // client.
 func (client *cloudClient) unregisterTrace(serviceID akid.ServiceID, traceID akid.LearnSessionID) {
+	printer.Debugf("Unregistering trace %q\n", akid.String(traceID))
 	serviceInfo, traceInfo := client.getInfo(serviceID, traceID)
 	if serviceInfo == nil {
 		printer.Debugf("Tried to unregister a trace from an unknown service %q\n", akid.String(serviceID))

@@ -9,7 +9,7 @@ import (
 // A request for registering a client (middleware) to the daemon.
 type registrationRequest struct {
 	// The name of the client.
-	name string
+	clientName string
 
 	// The service with which the client is associated.
 	serviceID akid.ServiceID
@@ -21,9 +21,9 @@ type registrationRequest struct {
 	responseChannel chan<- daemon.ActiveTraceDiff
 }
 
-func NewRegistrationRequest(name string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID, responseChannel chan<- daemon.ActiveTraceDiff) registrationRequest {
+func NewRegistrationRequest(clientName string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID, responseChannel chan<- daemon.ActiveTraceDiff) registrationRequest {
 	return registrationRequest{
-		name:            name,
+		clientName:      clientName,
 		serviceID:       serviceID,
 		activeTraces:    activeTraces,
 		responseChannel: responseChannel,

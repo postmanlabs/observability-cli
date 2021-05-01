@@ -123,7 +123,7 @@ func handleMiddlewareRegistration(request *http.Request) HTTPResponse {
 
 	// Parse the request body.
 	var requestBody struct {
-		clientName string
+		ClientName string `json:"client_name"`
 
 		// The IDs of the traces for which the client is currently logging.
 		ActiveTraceIDs []akid.LearnSessionID `json:"active_trace_ids"`
@@ -134,7 +134,7 @@ func handleMiddlewareRegistration(request *http.Request) HTTPResponse {
 
 	// Wait for the set of active traces to change from what the client has sent.
 	responseChannel := make(chan daemon.ActiveTraceDiff)
-	eventChannel <- cloud_client.NewRegistrationRequest(requestBody.clientName, serviceID, requestBody.ActiveTraceIDs, responseChannel)
+	eventChannel <- cloud_client.NewRegistrationRequest(requestBody.ClientName, serviceID, requestBody.ActiveTraceIDs, responseChannel)
 	newTraces := <-responseChannel
 
 	return NewHTTPResponse(http.StatusAccepted, newTraces)
@@ -167,22 +167,25 @@ func addEvents(request *http.Request) HTTPResponse {
 		return NewHTTPError(err, http.StatusNotFound, "Trace not found")
 	}
 
-	// Get the request header.
-	jsonDecoder := json.NewDecoder(request.Body)
-	var requestHeader struct {
-		ClientName string `json:"client_name"`
+	// Parse the request body.
+	var requestBody struct {
+		ClientName   string       `json:"client_name"`
+		TraceEvents  []TraceEvent `json:"trace_events"`
+		NoMoreEvents bool         `json:"no_more_events"`
 	}
-	if err := jsonDecoder.Decode(&requestHeader); err != nil {
+	jsonDecoder := json.NewDecoder(request.Body)
+	if err := jsonDecoder.Decode(&requestBody); err != nil {
 		return NewHTTPError(err, http.StatusBadRequest, "Bad request body")
 	}
 
 	// Hand the request off to the cloud client.
 	responseChannel := make(chan cloud_client.TraceEventResponse)
 	eventChannel <- cloud_client.NewTraceEventRequest(
-		requestHeader.ClientName,
+		requestBody.ClientName,
 		serviceID,
 		traceID,
-		jsonDecoder,
+		requestBody.TraceEvents,
+		requestBody.NoMoreEvents,
 		responseChannel)
 	response := <-responseChannel
 
