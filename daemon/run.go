@@ -1,36 +1,31 @@
 package daemon
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
-	"github.com/akitasoftware/akita-cli/apispec"
+	"github.com/akitasoftware/akita-cli/daemon/internal/cloud_client"
 	"github.com/akitasoftware/akita-cli/har_loader"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/rest"
-	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
-	"github.com/akitasoftware/akita-libs/sampled_err"
+	"github.com/akitasoftware/akita-libs/daemon"
 )
 
-const WITNESS_BUFFER_SIZE = 10_000
+const TRACE_BUFFER_SIZE = 10_000
 
-type Witness = har_loader.CustomHAREntry
+type TraceEvent = har_loader.CustomHAREntry
 
 type Args struct {
 	// Required args.
-	ClientID akid.ClientID
-	Domain   string
+	ClientID   akid.ClientID
+	Domain     string
+	DaemonName string
 
 	// Optional args.
 	PortNumber uint16
@@ -39,6 +34,7 @@ type Args struct {
 }
 
 var cmdArgs Args
+var eventChannel chan<- cloud_client.Event
 
 // Produces an HTTPResponse from an *http.Request.
 type httpRequestHandler func(*http.Request) HTTPResponse
@@ -53,19 +49,22 @@ func httpHandler(requestHandler httpRequestHandler) http.Handler {
 
 func Run(args Args) error {
 	cmdArgs = args
+	eventChannel = cloud_client.Run(args.DaemonName, args.Domain, args.ClientID, args.Plugins)
+
 	router := mux.NewRouter().StrictSlash(true)
 
-	// Register an endpoint for creating a new learning session.
-	router.Handle("/v1/services/{serviceName}/learn/sessions", httpHandler(createLearnSession)).Methods("POST")
+	// Endpoint registration
+	{
+		// Used by middleware to long-poll for changes in the set of activated
+		// traces for a service.
+		router.Handle("/v1/services/{serviceName}/middleware", httpHandler(handleMiddlewareRegistration)).Methods("POST")
 
-	// Register an endpoint for adding witnesses to a learning session. The
-	// request body is expected to be a stream of HAR entry objects to be added.
-	router.Handle("/v1/services/{serviceName}/learn/sessions/{learnSessionName}/witnesses", httpHandler(addWitnesses)).Methods("POST")
-
-	// Register an endpoint for creating an API model out of a set of learning
-	// sessions. The request body is expected to be a JSON object specifying the
-	// names of the learning sessions.
-	router.Handle("/v1/services/{serviceName}/api-models", httpHandler(createModel)).Methods("POST")
+		// Adds events to a trace. The request body is expected to be a stream of
+		// HAR entry objects to be added. Optionally, the body can be terminated
+		// with a termination object. When this happens, this signals that the
+		// client has no more events to send for the trace.
+		router.Handle("/v1/services/{serviceName}/traces/{traceName}/events", httpHandler(addEvents)).Methods("POST")
+	}
 
 	listenSocket := fmt.Sprintf("127.0.0.1:%d", cmdArgs.PortNumber)
 	log.Fatal(http.ListenAndServe(listenSocket, router))
@@ -86,9 +85,35 @@ func getServiceID(requestVars map[string]string) (akid.ServiceID, *HTTPResponse)
 	return result, nil
 }
 
-// Creates a new learning session in the Akita back end.
-func createLearnSession(request *http.Request) HTTPResponse {
+// Obtains the service ID and trace ID for the service name and trace name
+// contained in the given HTTP request variables. If an error occurs, this is
+// formatted and returned as an HTTP response.
+func getTraceID(requestVars map[string]string) (akid.ServiceID, akid.LearnSessionID, *HTTPResponse) {
+	serviceID, httpErr := getServiceID(requestVars)
+	if httpErr != nil {
+		return serviceID, akid.LearnSessionID{}, httpErr
+	}
+
+	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
+	traceName := requestVars["traceName"]
+	traceID, err := util.GetLearnSessionIDByName(learnClient, traceName)
+	if err != nil {
+		httpErr := NewHTTPError(err, http.StatusNotFound, "Trace not found")
+		return serviceID, traceID, &httpErr
+	}
+	return serviceID, traceID, nil
+}
+
+// Waits for the set of active traces to change for a service and sends
+// a diff as a response to the request.
+func handleMiddlewareRegistration(request *http.Request) HTTPResponse {
 	vars := mux.Vars(request)
+
+	// Ensure the request body is JSON-encoded.
+	if httpErr := EnsureJSONEncodedRequestBody(request); httpErr != nil {
+		return *httpErr
+	}
+	jsonDecoder := json.NewDecoder(request.Body)
 
 	// Get the service ID.
 	serviceID, httpErr := getServiceID(vars)
@@ -96,49 +121,31 @@ func createLearnSession(request *http.Request) HTTPResponse {
 		return *httpErr
 	}
 
-	jsonDecoder := json.NewDecoder(request.Body)
+	// Parse the request body.
+	var requestBody struct {
+		clientName string
 
-	// Obtain arguments for the call, if any are provided.
-	callArgs := struct {
-		SessionName *string `json:"sessionName"`
-	}{
-		SessionName: nil,
+		// The IDs of the traces for which the client is currently logging.
+		ActiveTraceIDs []akid.LearnSessionID `json:"active_trace_ids"`
 	}
-	if err := jsonDecoder.Decode(&callArgs); err != nil && err != io.EOF {
-		return NewHTTPError(err, http.StatusBadRequest, "Malformed request body")
-	}
-
-	// Default to a random name if we were not given the name of the learning
-	// session being created.
-	if callArgs.SessionName == nil {
-		name := util.RandomLearnSessionName()
-		callArgs.SessionName = &name
+	if err := jsonDecoder.Decode(&requestBody); err != nil {
+		return NewHTTPError(err, http.StatusBadRequest, "Invalid request body")
 	}
 
-	// Create the learning session.
-	tags := map[string]string{}
-	learnSessionID, err := util.NewLearnSession(cmdArgs.Domain, cmdArgs.ClientID, serviceID, *callArgs.SessionName, tags, nil)
-	if err != nil {
-		return NewHTTPError(err, http.StatusInternalServerError, "Unable to start learning session")
-	}
+	// Wait for the set of active traces to change from what the client has sent.
+	responseChannel := make(chan daemon.ActiveTraceDiff)
+	eventChannel <- cloud_client.NewRegistrationRequest(requestBody.clientName, serviceID, requestBody.ActiveTraceIDs, responseChannel)
+	newTraces := <-responseChannel
 
-	// Return an HTTPResponse with the name of the new learning session.
-	return NewHTTPResponse(http.StatusOK,
-		struct {
-			LearnSessionName string `json:"learnSessionName"`
-			LearnSessionID   string `json:"learnSessionID"`
-		}{
-			LearnSessionName: *callArgs.SessionName,
-			LearnSessionID:   akid.String(learnSessionID),
-		})
+	return NewHTTPResponse(http.StatusAccepted, newTraces)
 }
 
-// Adds a set of witnesses to a learning session in the Akita back end.
+// Adds a set of events to a trace in the Akita back end.
 //
 // The request payload is expected to contain a sequence of HAR entries in
-// JSON-serialized format. This entry is added as a witness to the learning
-// session identified in the request.
-func addWitnesses(request *http.Request) HTTPResponse {
+// JSON-serialized format. These entries are added as events to the trace
+// identified in the request URL.
+func addEvents(request *http.Request) HTTPResponse {
 	vars := mux.Vars(request)
 
 	// Ensure the request body is JSON-encoded.
@@ -152,233 +159,32 @@ func addWitnesses(request *http.Request) HTTPResponse {
 		return *httpErr
 	}
 
-	// Get the learning session ID.
-	learnSessionName := vars["learnSessionName"]
+	// Get the trace ID.
+	traceName := vars["traceName"]
 	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
-	learnSessionID, err := util.GetLearnSessionIDByName(learnClient, learnSessionName)
+	traceID, err := util.GetLearnSessionIDByName(learnClient, traceName)
 	if err != nil {
-		return NewHTTPError(err, http.StatusNotFound, "Learning session not found")
+		return NewHTTPError(err, http.StatusNotFound, "Trace not found")
 	}
 
+	// Get the request header.
 	jsonDecoder := json.NewDecoder(request.Body)
-
-	// Obtain options for the call. We require the "filterThirdPartyTrackers"
-	// option to be specified. This prevents HAR entries from being interpreted as
-	// empty options objects.
-	var callOptions struct {
-		FilterThirdPartyTrackers *bool `json:"filterThirdPartyTrackers"`
+	var requestHeader struct {
+		ClientName string `json:"client_name"`
 	}
-	if err := jsonDecoder.Decode(&callOptions); err != nil || callOptions.FilterThirdPartyTrackers == nil {
-		return NewHTTPError(err, http.StatusBadRequest, "Error parsing call options")
+	if err := jsonDecoder.Decode(&requestHeader); err != nil {
+		return NewHTTPError(err, http.StatusBadRequest, "Bad request body")
 	}
 
-	successfulEntries := 0
-	sampledErrs := sampled_err.Errors{SampleCount: 3}
+	// Hand the request off to the cloud client.
+	responseChannel := make(chan cloud_client.TraceEventResponse)
+	eventChannel <- cloud_client.NewTraceEventRequest(
+		requestHeader.ClientName,
+		serviceID,
+		traceID,
+		jsonDecoder,
+		responseChannel)
+	response := <-responseChannel
 
-	// Start a consumer goroutine that will read witnesses from a channel and pass
-	// them on to a backend collector.
-	witnessChannel := make(chan *Witness, WITNESS_BUFFER_SIZE)
-	doneChannel := make(chan bool)
-	go func() {
-		defer func() { doneChannel <- true }()
-
-		// Create collector for ingesting the witnesses.
-		collector := trace.NewBackendCollector(serviceID, learnSessionID, learnClient, kgxapi.Inbound, cmdArgs.Plugins)
-		if *callOptions.FilterThirdPartyTrackers {
-			collector = trace.New3PTrackerFilterCollector(collector)
-		}
-
-		// Create a new stream ID for the witnesses we are about to process.
-		streamID := uuid.New()
-
-		for seqNum := 0; true; seqNum++ {
-			// Get the next witness.
-			witness, more := <-witnessChannel
-			if !more {
-				return
-			}
-
-			// Pass the witness to the collector.
-			entrySuccess := apispec.ProcessHAREntry(collector, streamID, seqNum, *witness, &sampledErrs)
-			if entrySuccess {
-				successfulEntries += 1
-			}
-		}
-	}()
-
-	// Process the witnesses in the request body.
-	numWitnessesParsed := 0
-	numWitnessesDropped := 0
-	numNotWitnesses := 0
-	for seqNum := 0; true; seqNum++ {
-		// Deserialize the next witness.
-		//
-		// XXX How to prevent client from giving us extremely large witnesses?
-		var witness Witness
-		if err := jsonDecoder.Decode(&witness); err != nil {
-			if err == io.EOF {
-				// We've reached the end of the stream, which isn't really an error.
-				err = nil
-			}
-			break
-		}
-
-		// Weed out anything that has neither a request nor a response as an invalid
-		// witness.
-		if witness.Request == nil && witness.Response == nil {
-			numNotWitnesses++
-			continue
-		}
-
-		numWitnessesParsed++
-
-		// Attempt to enqueue the witness.
-		select {
-		case witnessChannel <- &witness:
-		default:
-			numWitnessesDropped++
-		}
-	}
-
-	// Signal the end of the witness stream and wait for the witnesses to finish
-	// uploading.
-	close(witnessChannel)
-	<-doneChannel
-
-	// Log any errors that we encountered while processing the HAR entries.
-	if sampledErrs.TotalCount > 0 {
-		log.Printf("Encountered errors with %d HAR entries.\n", numWitnessesParsed-numWitnessesDropped-successfulEntries)
-		log.Printf("Sample errors:\n")
-		for _, e := range sampledErrs.Samples {
-			log.Printf("\t- %s\n", e)
-		}
-	}
-
-	type witnessDetails struct {
-		// How many were parsed as valid witnesses. Currently, we assume that a JSON
-		// object is a valid witness if it has either a "request" or a "response"
-		// field.
-		Parsed int `json:"parsed"`
-
-		// How many were parsed as valid JSON objects, but were not witnesses.
-		NotWitnesses int `json:"notWitnesses"`
-
-		// How many were dropped because the queue was full.
-		Drops int `json:"drops"`
-
-		// How many errors were encountered.
-		Errors int `json:"errors"`
-
-		// How many were processed successfully.
-		Successes int `json:"successes"`
-	}
-
-	type responseBody struct {
-		Message        string         `json:"message,omitempty"`
-		WitnessDetails witnessDetails `json:"witnessDetails,omitempty"`
-	}
-
-	witDetails := witnessDetails{
-		Parsed:       numWitnessesParsed,
-		NotWitnesses: numNotWitnesses,
-		Drops:        numWitnessesDropped,
-		Errors:       sampledErrs.TotalCount,
-		Successes:    successfulEntries,
-	}
-
-	// If we encountered malformed witnesses or there were errors processing
-	// witnesses, return a "Bad Request" status.
-	if err != nil || sampledErrs.TotalCount > 0 {
-		message := "Errors encountered while processing witnesses"
-		if err != nil {
-			message = "Malformed witness encountered"
-			witDetails.Errors++
-		}
-		return NewHTTPResponse(http.StatusBadRequest,
-			responseBody{
-				Message:        message,
-				WitnessDetails: witDetails,
-			})
-	}
-
-	// If we dropped witnesses, return a "Unprocessable Entity" status.
-	if numWitnessesDropped > 0 {
-		return NewHTTPResponse(http.StatusUnprocessableEntity,
-			responseBody{
-				Message:        "Not all witnesses were processed",
-				WitnessDetails: witDetails,
-			})
-	}
-
-	// Otherwise, everything went well, so return an "OK" status.
-	return NewHTTPResponse(http.StatusOK,
-		responseBody{
-			WitnessDetails: witDetails,
-		})
-}
-
-// Creates an API model from a learning session in the Akita back end.
-func createModel(request *http.Request) HTTPResponse {
-	vars := mux.Vars(request)
-
-	// Ensure the request body is JSON-encoded.
-	if httpErr := EnsureJSONEncodedRequestBody(request); httpErr != nil {
-		return *httpErr
-	}
-
-	// Get the service ID and instantiate a learning client.
-	serviceID, httpErr := getServiceID(vars)
-	if httpErr != nil {
-		return *httpErr
-	}
-	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
-
-	// Parse the request body for call arguments. Expect a JSON serialization of
-	// the following type.
-	var callArgs struct {
-		APIModelName      *string  `json:"apiModelName"`
-		LearnSessionNames []string `json:"learnSessions"`
-	}
-	jsonDecoder := json.NewDecoder(request.Body)
-	if err := jsonDecoder.Decode(&callArgs); err != nil {
-		return NewHTTPError(err, http.StatusBadRequest, "Malformed request body")
-	}
-
-	// Default to a random name if we were not given the name of the model being
-	// created.
-	if callArgs.APIModelName == nil {
-		name := util.RandomAPIModelName()
-		callArgs.APIModelName = &name
-	}
-
-	// Convert the learning session names into IDs.
-	learnSessionIDs := make([]akid.LearnSessionID, len(callArgs.LearnSessionNames))
-	for i, learnSessionName := range callArgs.LearnSessionNames {
-		var err error
-		learnSessionIDs[i], err = util.GetLearnSessionIDByName(learnClient, learnSessionName)
-		if err != nil {
-			return NewHTTPError(err, http.StatusNotFound, "Learning session not found: "+learnSessionName)
-		}
-	}
-
-	// Create the API model.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	outModelID, err := learnClient.CreateSpec(ctx, *callArgs.APIModelName, learnSessionIDs, rest.CreateSpecOptions{})
-	if err != nil {
-		return NewHTTPError(err, http.StatusInternalServerError, "Failed to create new spec")
-	}
-
-	modelURL := apispec.GetSpecURL(cmdArgs.Domain, serviceID, outModelID)
-
-	return NewHTTPResponse(http.StatusAccepted,
-		struct {
-			ModelName string `json:"modelName"`
-			ModelID   string `json:"modelID"`
-			ModelURL  string `json:"modelURL"`
-		}{
-			ModelName: *callArgs.APIModelName,
-			ModelID:   akid.String(outModelID),
-			ModelURL:  modelURL.String(),
-		})
+	return NewHTTPResponse(response.HTTPStatus, response.Body)
 }

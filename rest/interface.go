@@ -6,6 +6,7 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
@@ -50,4 +51,12 @@ type LearnClient interface {
 
 type FrontClient interface {
 	GetServices(context.Context) ([]Service, error)
+	DaemonHeartbeat(ctx context.Context, daemonName string) error
+
+	// Long-polls for changes to the set of active traces for a service.
+	// Callers specify what they think the current set of active traces is. When
+	// the cloud has a different set, this method returns options for capturing
+	// new traces and a set of deactivated traces. An error is returned if the
+	// connection is dropped (e.g., due to timing out).
+	LongPollActiveTracesForService(context context.Context, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error)
 }
