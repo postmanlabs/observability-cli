@@ -18,34 +18,57 @@ type serviceInfo struct {
 	// collecting events.
 	traces map[akid.LearnSessionID]*traceInfo
 
-	// Contains channels to clients waiting to hear about new traces.
-	responseChannels []chan<- daemon.ActiveTraceDiff
+	// Contains names of clients waiting to hear about new traces, paired with
+	// the channel on which to respond to the client.
+	responseChannels []namedResponseChannel
+}
+
+type namedResponseChannel struct {
+	clientName string
+	channel    chan<- daemon.ActiveTraceDiff
+}
+
+func newNamedResponseChannel(clientName string, responseChannel chan<- daemon.ActiveTraceDiff) *namedResponseChannel {
+	return &namedResponseChannel{
+		clientName: clientName,
+		channel:    responseChannel,
+	}
 }
 
 func (client *cloudClient) newServiceInfo(serviceID akid.ServiceID) *serviceInfo {
 	return &serviceInfo{
 		learnClient:      client.newLearnClient(serviceID),
 		traces:           map[akid.LearnSessionID]*traceInfo{},
-		responseChannels: []chan<- daemon.ActiveTraceDiff{},
+		responseChannels: []namedResponseChannel{},
 	}
 }
 
-func (info serviceInfo) getActiveTraceDiff(known_traces map[akid.LearnSessionID]struct{}) daemon.ActiveTraceDiff {
+// Returns a diff between the given set of traces and the set of traces known
+// to be active. Also returns a list of traceInfo objects for newly actived
+// traces.
+func (info serviceInfo) getActiveTraceDiff(known_traces map[akid.LearnSessionID]struct{}) (daemon.ActiveTraceDiff, []*traceInfo) {
 	activatedTraces := []daemon.LoggingOptions{}
+	activatedInfo := []*traceInfo{}
 	for traceID, traceInfo := range info.traces {
+		// Ignore any inactive traces.
+		if !traceInfo.active {
+			continue
+		}
+
 		if _, ok := known_traces[traceID]; !ok {
 			activatedTraces = append(activatedTraces, traceInfo.loggingOptions)
+			activatedInfo = append(activatedInfo, traceInfo)
 		}
 	}
 
 	deactivatedTraces := []akid.LearnSessionID{}
 	for traceID := range known_traces {
-		if _, ok := info.traces[traceID]; !ok {
+		if traceInfo, ok := info.traces[traceID]; !ok || !traceInfo.active {
 			deactivatedTraces = append(deactivatedTraces, traceID)
 		}
 	}
 
-	return *daemon.NewActiveTraceDiff(activatedTraces, deactivatedTraces)
+	return *daemon.NewActiveTraceDiff(activatedTraces, deactivatedTraces), activatedInfo
 }
 
 // Logging state for a single trace.
@@ -57,8 +80,10 @@ type traceInfo struct {
 	// waiting for clients to finish sending their events.
 	active bool
 
-	// The names of the clients from which we have received trace events and have
-	// not signalled the end of their event stream.
+	// The names of the clients from which we are expecting to receive more
+	// trace events. These are clients that are subscribed to the associated
+	// service and have not signalled the end of their event stream for this
+	// trace.
 	clientNames map[string]struct{}
 
 	// The trace's logging options.

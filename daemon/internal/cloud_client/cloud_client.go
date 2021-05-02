@@ -112,8 +112,10 @@ func (client *cloudClient) ensureServiceRegistered(serviceID akid.ServiceID) *se
 // client.
 func (client *cloudClient) getCurrentTraces(serviceID akid.ServiceID) []akid.LearnSessionID {
 	result := []akid.LearnSessionID{}
-	for traceID := range client.serviceInfoByID[serviceID].traces {
-		result = append(result, traceID)
+	for traceID, traceInfo := range client.serviceInfoByID[serviceID].traces {
+		if traceInfo.active {
+			result = append(result, traceID)
+		}
 	}
 	return result
 }
@@ -151,7 +153,8 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 
 func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnClient, serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions, plugins []plugin.AkitaPlugin) {
 	// Create the collector.
-	collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, plugins, nil)
+	packetCountSummary := trace.NewPacketCountSummary()
+	collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, api_schema.Inbound, plugins, packetCountSummary)
 	if loggingOptions.FilterThirdPartyTrackers {
 		collector = trace.New3PTrackerFilterCollector(collector)
 	}
@@ -176,16 +179,13 @@ func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnC
 	}
 
 	// Log successfulEntries and sampledErrs.
-	printer.Infof("Collected %d entries for trace %q\n", successfulEntries, loggingOptions.TraceID)
+	printer.Infof("Done collecting for trace %s. Collected %d entries; uploaded %d requests and %d responses.\n", akid.String(loggingOptions.TraceID), successfulEntries, packetCountSummary.Total().HTTPRequests, packetCountSummary.Total().HTTPResponses)
 	if sampledErrs.TotalCount > 0 {
 		sampledErrsStr := ""
 		for _, e := range sampledErrs.Samples {
 			sampledErrsStr = fmt.Sprintf("%s\t- %s\n", sampledErrsStr, e)
 		}
-		printer.Stderr.Warningf(`Encountered errors with %d entries for trace %q.\n
-				Akita will ignore entries with errors and proceed with the %d entries successfully processed.\n
-				Sample errors:\n
-				%s`, sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
+		printer.Stderr.Warningf("Encountered errors with %d entries for trace %s.\nAkita will ignore entries with errors and proceed with the %d entries successfully processed.\nSample errors: %s\n", sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
 	}
 }
 
@@ -214,5 +214,7 @@ func (client *cloudClient) unregisterTrace(serviceID akid.ServiceID, traceID aki
 		return
 	}
 
+	// Flush the trace event channel and unregister the trace.
+	defer close(traceInfo.traceEventChannel)
 	delete(serviceInfo.traces, traceID)
 }

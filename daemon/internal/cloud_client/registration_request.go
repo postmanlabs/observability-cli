@@ -48,14 +48,20 @@ func (req registrationRequest) handle(client *cloudClient) {
 	}
 
 	// See if the daemon already has a different set of traces than what the
-	// client has sent. If so, send back the diff.
-	missingTraces := serviceInfo.getActiveTraceDiff(activeTraces)
-	if missingTraces.Size() != 0 {
+	// client has sent. If so, send back the diff and register the client with
+	// the trace.
+	traceDiff, activatedInfo := serviceInfo.getActiveTraceDiff(activeTraces)
+	if traceDiff.Size() != 0 {
 		defer close(req.responseChannel)
-		req.responseChannel <- missingTraces
+		req.responseChannel <- traceDiff
+
+		// Register the client.
+		for _, traceInfo := range activatedInfo {
+			traceInfo.clientNames[req.clientName] = struct{}{}
+		}
 		return
 	}
 
 	// Register the client for the eventual response.
-	serviceInfo.responseChannels = append(serviceInfo.responseChannels, req.responseChannel)
+	serviceInfo.responseChannels = append(serviceInfo.responseChannels, *newNamedResponseChannel(req.clientName, req.responseChannel))
 }

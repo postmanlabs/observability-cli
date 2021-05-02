@@ -11,6 +11,7 @@ import (
 	"github.com/akitasoftware/akita-cli/daemon/internal/cloud_client"
 	"github.com/akitasoftware/akita-cli/har_loader"
 	"github.com/akitasoftware/akita-cli/plugin"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -153,18 +154,11 @@ func addEvents(request *http.Request) HTTPResponse {
 		return *httpErr
 	}
 
-	// Get the service ID.
-	serviceID, httpErr := getServiceID(vars)
+	// Get the service ID, trace ID, and traceName.
+	traceName := vars["traceName"]
+	serviceID, traceID, httpErr := getTraceID(vars)
 	if httpErr != nil {
 		return *httpErr
-	}
-
-	// Get the trace ID.
-	traceName := vars["traceName"]
-	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
-	traceID, err := util.GetLearnSessionIDByName(learnClient, traceName)
-	if err != nil {
-		return NewHTTPError(err, http.StatusNotFound, "Trace not found")
 	}
 
 	// Parse the request body.
@@ -176,6 +170,10 @@ func addEvents(request *http.Request) HTTPResponse {
 	jsonDecoder := json.NewDecoder(request.Body)
 	if err := jsonDecoder.Decode(&requestBody); err != nil {
 		return NewHTTPError(err, http.StatusBadRequest, "Bad request body")
+	}
+	printer.Infof("Got %d events from client %s for trace %s (%s)\n", len(requestBody.TraceEvents), requestBody.ClientName, traceName, akid.String(traceID))
+	if requestBody.NoMoreEvents {
+		printer.Infof("Client %s is signalling the end of its trace.\n", requestBody.ClientName)
 	}
 
 	// Hand the request off to the cloud client.
