@@ -11,6 +11,7 @@ import (
 	"github.com/akitasoftware/akita-cli/daemon/internal/cloud_client"
 	"github.com/akitasoftware/akita-cli/har_loader"
 	"github.com/akitasoftware/akita-cli/plugin"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -123,7 +124,7 @@ func handleMiddlewareRegistration(request *http.Request) HTTPResponse {
 
 	// Parse the request body.
 	var requestBody struct {
-		clientName string
+		ClientName string `json:"client_name"`
 
 		// The IDs of the traces for which the client is currently logging.
 		ActiveTraceIDs []akid.LearnSessionID `json:"active_trace_ids"`
@@ -134,7 +135,7 @@ func handleMiddlewareRegistration(request *http.Request) HTTPResponse {
 
 	// Wait for the set of active traces to change from what the client has sent.
 	responseChannel := make(chan daemon.ActiveTraceDiff)
-	eventChannel <- cloud_client.NewRegistrationRequest(requestBody.clientName, serviceID, requestBody.ActiveTraceIDs, responseChannel)
+	eventChannel <- cloud_client.NewRegistrationRequest(requestBody.ClientName, serviceID, requestBody.ActiveTraceIDs, responseChannel)
 	newTraces := <-responseChannel
 
 	return NewHTTPResponse(http.StatusAccepted, newTraces)
@@ -153,36 +154,36 @@ func addEvents(request *http.Request) HTTPResponse {
 		return *httpErr
 	}
 
-	// Get the service ID.
-	serviceID, httpErr := getServiceID(vars)
+	// Get the service ID, trace ID, and traceName.
+	traceName := vars["traceName"]
+	serviceID, traceID, httpErr := getTraceID(vars)
 	if httpErr != nil {
 		return *httpErr
 	}
 
-	// Get the trace ID.
-	traceName := vars["traceName"]
-	learnClient := rest.NewLearnClient(cmdArgs.Domain, cmdArgs.ClientID, serviceID)
-	traceID, err := util.GetLearnSessionIDByName(learnClient, traceName)
-	if err != nil {
-		return NewHTTPError(err, http.StatusNotFound, "Trace not found")
+	// Parse the request body.
+	var requestBody struct {
+		ClientName   string       `json:"client_name"`
+		TraceEvents  []TraceEvent `json:"trace_events"`
+		NoMoreEvents bool         `json:"no_more_events"`
 	}
-
-	// Get the request header.
 	jsonDecoder := json.NewDecoder(request.Body)
-	var requestHeader struct {
-		ClientName string `json:"client_name"`
-	}
-	if err := jsonDecoder.Decode(&requestHeader); err != nil {
+	if err := jsonDecoder.Decode(&requestBody); err != nil {
 		return NewHTTPError(err, http.StatusBadRequest, "Bad request body")
+	}
+	printer.Infof("Got %d events from client %s for trace %s (%s)\n", len(requestBody.TraceEvents), requestBody.ClientName, traceName, akid.String(traceID))
+	if requestBody.NoMoreEvents {
+		printer.Infof("Client %s is signalling the end of its trace.\n", requestBody.ClientName)
 	}
 
 	// Hand the request off to the cloud client.
 	responseChannel := make(chan cloud_client.TraceEventResponse)
 	eventChannel <- cloud_client.NewTraceEventRequest(
-		requestHeader.ClientName,
+		requestBody.ClientName,
 		serviceID,
 		traceID,
-		jsonDecoder,
+		requestBody.TraceEvents,
+		requestBody.NoMoreEvents,
 		responseChannel)
 	response := <-responseChannel
 

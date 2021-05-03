@@ -42,6 +42,7 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 
 	// Add activated traces.
 	for _, loggingOption := range event.activeTraceDiff.ActivatedTraces {
+		printer.Infof("Activating trace %s (%s)\n", loggingOption.TraceName, akid.String(loggingOption.TraceID))
 		client.startTraceEventCollector(event.serviceID, loggingOption)
 	}
 
@@ -52,6 +53,8 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 			printer.Debugf("Ignoring deactivation of unknown trace: %s\n", akid.String(deactivatedTraceID))
 			continue
 		}
+
+		printer.Infof("Deactivating trace %s (%s)\n", traceInfo.loggingOptions.TraceName, akid.String(traceInfo.loggingOptions.TraceID))
 
 		traceInfo.active = false
 
@@ -68,12 +71,21 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 	// state, and clear out the channel list. Any future registration requests
 	// will be against the newly updated state.
 	channelsToSend := serviceInfo.responseChannels
-	serviceInfo.responseChannels = []chan<- daemon.ActiveTraceDiff{}
+	serviceInfo.responseChannels = []namedResponseChannel{}
 
-	// Send our responses.
-	for _, responseChannel := range channelsToSend {
+	// Send our responses and register the clients to any activated traces.
+	for _, namedChannel := range channelsToSend {
+		clientName := namedChannel.clientName
+		responseChannel := namedChannel.channel
+
 		defer close(responseChannel)
 		responseChannel <- event.activeTraceDiff
+
+		for _, loggingOption := range event.activeTraceDiff.ActivatedTraces {
+			serviceInfo := client.serviceInfoByID[loggingOption.ServiceID]
+			traceInfo := serviceInfo.traces[loggingOption.TraceID]
+			traceInfo.clientNames[clientName] = struct{}{}
+		}
 	}
 
 	// Resume long-polling for new traces.
