@@ -77,10 +77,10 @@ func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
 }
 
 // Long-polls the cloud for changes to the set of active traces for a service.
-func LongPollActiveTracesForService(c rest.FrontClient, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
+func LongPollActiveTracesForService(c rest.FrontClient, daemonName string, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
 	defer cancel()
-	return c.LongPollActiveTracesForService(ctx, serviceID, currentTraces)
+	return c.LongPollActiveTracesForService(ctx, daemonName, serviceID, currentTraces)
 }
 
 func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSessionID, error) {

@@ -36,10 +36,12 @@ func (c *frontClientImpl) DaemonHeartbeat(ctx context.Context, daemonName string
 	return c.post(ctx, "/v1/daemon/heartbeat", body, &resp)
 }
 
-func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
+func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, daemonName string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
 	body := struct {
+		DaemonName     string                `json:"daemon_name"`
 		ActiveTraceIDs []akid.LearnSessionID `json:"active_trace_ids"`
 	}{
+		DaemonName:     daemonName,
 		ActiveTraceIDs: activeTraces,
 	}
 	var resp daemon.ActiveTraceDiff
