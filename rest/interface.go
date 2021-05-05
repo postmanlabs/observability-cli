@@ -58,5 +58,5 @@ type FrontClient interface {
 	// the cloud has a different set, this method returns options for capturing
 	// new traces and a set of deactivated traces. An error is returned if the
 	// connection is dropped (e.g., due to timing out).
-	LongPollActiveTracesForService(context context.Context, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error)
+	LongPollActiveTracesForService(context context.Context, daemonName string, serviceID akid.ServiceID, currentTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error)
 }

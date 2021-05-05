@@ -29,7 +29,7 @@ func (event longPollServiceEvent) handle(client *cloudClient) {
 		// Send a request to the cloud containing a list of the traces currently
 		// being logged. The response will be a list of new traces to log and a
 		// list of traces that should finish logging.
-		activeTraceDiff, err := util.LongPollActiveTracesForService(frontClient, event.serviceID, currentTraces)
+		activeTraceDiff, err := util.LongPollActiveTracesForService(frontClient, client.daemonName, event.serviceID, currentTraces)
 		if err != nil {
 			// Log the error, wait a bit, and try again.
 			printer.Warningf("Error while polling service ID %s: %v\n", akid.String(event.serviceID), err)
