@@ -17,6 +17,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
@@ -89,7 +90,7 @@ func TestObfuscate(t *testing.T) {
 		},
 	}
 
-	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil, nil)
 	assert.NoError(t, col.Process(req))
 	assert.NoError(t, col.Process(resp))
 	assert.NoError(t, col.Close())
@@ -224,7 +225,7 @@ func TestTiming(t *testing.T) {
 		FinalPacketTime: startTime.Add(13 * time.Millisecond),
 	}
 
-	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil, nil)
 	assert.NoError(t, col.Process(req))
 	assert.NoError(t, col.Process(resp))
 	assert.NoError(t, col.Close())
@@ -246,7 +247,7 @@ func TestMultipleInterfaces(t *testing.T) {
 		AnyTimes().
 		Return(nil)
 
-	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil, nil)
 
 	var wg sync.WaitGroup
 	fakeTrace := func(count int, start_seq int) {
@@ -290,4 +291,18 @@ func TestMultipleInterfaces(t *testing.T) {
 	go fakeTrace(200, 2000)
 
 	wg.Wait()
+}
+
+// Demonstrate that periodic flush exits
+func TestFlushExit(t *testing.T) {
+	b := &BackendCollector{}
+	b.uploadBatch = batcher.NewInMemory(
+		func(_ []interface{}) {},
+		uploadBatchMaxSize,
+		uploadBatchFlushDuration,
+	)
+	b.flushDone = make(chan struct{})
+	close(b.flushDone)
+	b.periodicFlush()
+	// Test should exit immediately
 }
