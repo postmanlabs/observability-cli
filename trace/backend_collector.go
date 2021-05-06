@@ -285,7 +285,7 @@ func (c *BackendCollector) periodicFlush() {
 			c.flushPairCache(time.Now().Add(-1 * pairCacheExpiration))
 		case <-c.flushDone:
 			ticker.Stop()
-			break
+			return
 		}
 	}
 }
