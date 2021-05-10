@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Install mockgen
           command: |
-            go install github.com/golang/mock/mockgen@v1.5.0
+            go get github.com/golang/mock/mockgen@v1.5.0
       - save_cache:
           key: go-mod-v4-{{ checksum "go.sum" }}
           paths:
