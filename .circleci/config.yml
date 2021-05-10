@@ -13,6 +13,9 @@ jobs:
       - run:
           name: Install Dependencies
           command: go mod download
+      - run:
+          name: Install pcap
+          command: apt-get install libpcap-dev
       - save_cache:
           key: go-mod-v4-{{ checksum "go.sum" }}
           paths:
