@@ -21,7 +21,7 @@ type traceEventRequest struct {
 	traceID akid.LearnSessionID
 
 	// The set of trace events received.
-	traceEvents []TraceEvent
+	traceEvents []*TraceEvent
 
 	// Indicates whether this is the last trace-event request for the trace.
 	noMoreEvents bool
@@ -30,7 +30,7 @@ type traceEventRequest struct {
 	responseChannel chan<- TraceEventResponse
 }
 
-func NewTraceEventRequest(clientName string, serviceID akid.ServiceID, traceID akid.LearnSessionID, traceEvents []TraceEvent, noMoreEvents bool, responseChannel chan<- TraceEventResponse) traceEventRequest {
+func NewTraceEventRequest(clientName string, serviceID akid.ServiceID, traceID akid.LearnSessionID, traceEvents []*TraceEvent, noMoreEvents bool, responseChannel chan<- TraceEventResponse) traceEventRequest {
 	return traceEventRequest{
 		clientName:      clientName,
 		serviceID:       serviceID,
@@ -121,7 +121,7 @@ func uploadTraceEvents(client *cloudClient, req traceEventRequest, traceEventCha
 	for _, traceEvent := range req.traceEvents {
 		// Attempt to enqueue the trace event.
 		select {
-		case traceEventChannel <- &traceEvent:
+		case traceEventChannel <- traceEvent:
 		default:
 			numTraceEventsDropped++
 		}
