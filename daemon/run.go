@@ -163,9 +163,9 @@ func addEvents(request *http.Request) HTTPResponse {
 
 	// Parse the request body.
 	var requestBody struct {
-		ClientName   string       `json:"client_name"`
-		TraceEvents  []TraceEvent `json:"trace_events"`
-		NoMoreEvents bool         `json:"no_more_events"`
+		ClientName   string        `json:"client_name"`
+		TraceEvents  []*TraceEvent `json:"trace_events"`
+		NoMoreEvents bool          `json:"no_more_events"`
 	}
 	jsonDecoder := json.NewDecoder(request.Body)
 	if err := jsonDecoder.Decode(&requestBody); err != nil {
