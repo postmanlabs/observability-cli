@@ -1,4 +1,4 @@
-.PHONY: clean build test
+.PHONY: clean build test mock
 
 export GO111MODULE = on
 
@@ -8,6 +8,8 @@ build: clean
 clean:
 	go clean
 
-test:
+mock:
 	mockgen -source ./rest/interface.go -destination ./rest/mock/interface.mock.go -package mock
+
+test: mock
 	go test ./...
