@@ -5,35 +5,35 @@ import (
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-libs/spec_util"
-	"github.com/akitasoftware/akita-libs/visitors/go_ast"
+	. "github.com/akitasoftware/akita-libs/visitors"
 	vis "github.com/akitasoftware/akita-libs/visitors/http_rest"
 )
 
 func obfuscate(m *pb.Method) {
 	var ov obfuscationVisitor
-	vis.Apply(go_ast.PREORDER, &ov, m)
+	vis.Apply(&ov, m)
 }
 
 type obfuscationVisitor struct {
 	vis.DefaultHttpRestSpecVisitor
 }
 
-func (ov *obfuscationVisitor) VisitData(
+func (ov *obfuscationVisitor) EnterData(
 	ctx vis.HttpRestSpecVisitorContext,
 	d *pb.Data,
-) bool {
+) Cont {
 	dp, isPrimitive := d.GetValue().(*pb.Data_Primitive)
 	if !isPrimitive {
-		return true
+		return Continue
 	}
 
 	pv, err := spec_util.PrimitiveValueFromProto(dp.Primitive)
 	if err != nil {
 		printer.Warningf("failed to obfuscate raw value, dropping\n")
 		d.Value = nil
-		return true
+		return Continue
 	}
 
 	dp.Primitive.Value = pv.Obfuscate().ToProto().Value
-	return true
+	return Continue
 }
