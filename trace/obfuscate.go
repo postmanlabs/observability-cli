@@ -15,13 +15,12 @@ func obfuscate(m *pb.Method) {
 }
 
 type obfuscationVisitor struct {
-	vis.DefaultHttpRestSpecVisitor
+	vis.DefaultSpecVisitor
 }
 
-func (ov *obfuscationVisitor) EnterData(
-	ctx vis.HttpRestSpecVisitorContext,
-	d *pb.Data,
-) Cont {
+var _ vis.DefaultSpecVisitor = (*obfuscationVisitor)(nil)
+
+func (*obfuscationVisitor) EnterData(self interface{}, ctx vis.SpecVisitorContext, d *pb.Data) Cont {
 	dp, isPrimitive := d.GetValue().(*pb.Data_Primitive)
 	if !isPrimitive {
 		return Continue
