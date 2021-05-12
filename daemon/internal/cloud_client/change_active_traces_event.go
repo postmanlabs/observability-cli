@@ -83,8 +83,14 @@ func (event changedActiveTracesEvent) handle(client *cloudClient) {
 
 		for _, loggingOption := range event.activeTraceDiff.ActivatedTraces {
 			serviceInfo := client.serviceInfoByID[loggingOption.ServiceID]
-			traceInfo := serviceInfo.traces[loggingOption.TraceID]
-			traceInfo.clientNames[clientName] = struct{}{}
+			// Be robust against activating and deactivating in the same diff
+			traceInfo, ok := serviceInfo.traces[loggingOption.TraceID]
+			if ok {
+				traceInfo.clientNames[clientName] = struct{}{}
+			} else {
+				printer.Warningf("Deactivated a trace that was also activated: %s\n",
+					akid.String(loggingOption.TraceID))
+			}
 		}
 	}
 
