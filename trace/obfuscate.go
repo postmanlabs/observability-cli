@@ -15,7 +15,7 @@ func obfuscate(m *pb.Method) {
 }
 
 type obfuscationVisitor struct {
-	vis.DefaultSpecVisitor
+	vis.DefaultSpecVisitorImpl
 }
 
 var _ vis.DefaultSpecVisitor = (*obfuscationVisitor)(nil)
