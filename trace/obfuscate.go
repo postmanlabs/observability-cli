@@ -9,6 +9,10 @@ import (
 	vis "github.com/akitasoftware/akita-libs/visitors/http_rest"
 )
 
+func Obfuscate(m *pb.Method) {
+	obfuscate(m)
+}
+
 func obfuscate(m *pb.Method) {
 	var ov obfuscationVisitor
 	vis.Apply(&ov, m)

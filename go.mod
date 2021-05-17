@@ -10,6 +10,7 @@ require (
 	github.com/akitasoftware/akita-libs v0.0.0-20210510235630-bfab96423222
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
+	github.com/confluentinc/confluent-kafka-go v1.7.0 // indirect
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f // indirect

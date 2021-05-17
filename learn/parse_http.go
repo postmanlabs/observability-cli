@@ -245,6 +245,10 @@ func decodeBody(headers http.Header, body []byte, bodyDecompressed bool) ([]byte
 	return body, nil
 }
 
+func ParseBody(contentType string, body []byte, statusCode int) (*pb.Data, error) {
+	return parseBody(contentType, body, statusCode)
+}
+
 // Possible to return nil for both the data and error values. The data will be nil
 // if the passed in body is length 0 or nil. This is not considered an error.
 func parseBody(contentType string, body []byte, statusCode int) (*pb.Data, error) {
