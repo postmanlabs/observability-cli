@@ -61,7 +61,7 @@ func newTestBodySpec(statusCode int) *as.Data {
 		"name":                             dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
 		"number_teeth":                     dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
 		"dog":                              dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
-		"canadian_social_insurance_number": dataFromPrimitive(annotateIfSensitiveForTest(true, spec_util.NewPrimitiveInt64(378734493671000))),
+		"canadian_social_insurance_number": dataFromPrimitive(annotateIfSensitiveForTest(true, spec_util.NewPrimitiveString("378734493671000"))),
 		"homes": dataFromList(
 			dataFromPrimitive(spec_util.NewPrimitiveString("burbank, ca")),
 			dataFromPrimitive(spec_util.NewPrimitiveString("jeuno, ak")),
@@ -89,7 +89,7 @@ func newTestMultipartFormData(statusCode int) *as.Data {
 
 	return &as.Data{
 		Value: &as.Data_Struct{
-			&as.Struct{
+			Struct: &as.Struct{
 				Fields: map[string]*as.Data{
 					"field1": newTestBodySpecFromData(statusCode, as.HTTPBody_TEXT_PLAIN, f1),
 					"field2": newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, map[string]*as.Data{
