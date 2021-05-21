@@ -287,13 +287,18 @@ func parseBody(contentType string, body []byte, statusCode int) (*pb.Data, error
 				m[k] = mvs
 			}
 		}
-		bodyData = parseElem(m)
+
+		// In URL-encoded data, everything is represented as a string, so let's try
+		// to be smart about re-interpreting values.
+		bodyData = parseElem(m, spec_util.INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_FORM_URL_ENCODED
 	case "application/octet-stream":
-		bodyData = parseElem(body)
+		// Whether we interpret strings here doesn't matter, since the body is just
+		// a bitstring.
+		bodyData = parseElem(body, spec_util.NO_INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_OCTET_STREAM
 	case "text/plain":
-		bodyData = parseElem(string(body))
+		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_TEXT_PLAIN
 	case "application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml":
 		bodyData, err = parseHTTPBodyYAML(body)
@@ -525,7 +530,9 @@ func parseHTTPBodyJSON(raw []byte) (*pb.Data, error) {
 		return nil, errors.Wrapf(err, "couldn't parse JSON")
 	}
 
-	return parseElem(top), nil
+	// JSON already distingishes string values from non-string values, so don't
+	// interpret strings.
+	return parseElem(top, spec_util.NO_INTERPRET_STRINGS), nil
 }
 
 func parseHTTPBodyYAML(raw []byte) (*pb.Data, error) {
@@ -534,10 +541,13 @@ func parseHTTPBodyYAML(raw []byte) (*pb.Data, error) {
 	if err := decoder.Decode(&top); err != nil {
 		return nil, errors.Wrapf(err, "couldn't parse YAML")
 	}
-	return parseElem(top), nil
+
+	// Everything in YAML is a string, so let's be smart about re-interpreting
+	// them as numbers and bools.
+	return parseElem(top, spec_util.INTERPRET_STRINGS), nil
 }
 
-func parseElem(top interface{}) *pb.Data {
+func parseElem(top interface{}, interpretStrings spec_util.InterpretStrings) *pb.Data {
 	switch typedValue := top.(type) {
 	case map[interface{}]interface{}:
 		// YAML decoder uses interface{} as map keys, but we only support string
@@ -546,11 +556,11 @@ func parseElem(top interface{}) *pb.Data {
 		for k, v := range typedValue {
 			m[fmt.Sprintf("%v", k)] = v
 		}
-		return &pb.Data{Value: parseDataStruct(m)}
+		return &pb.Data{Value: parseDataStruct(m, interpretStrings)}
 	case map[string]interface{}:
-		return &pb.Data{Value: parseDataStruct(typedValue)}
+		return &pb.Data{Value: parseDataStruct(typedValue, interpretStrings)}
 	case []interface{}:
-		return &pb.Data{Value: parseDataList(typedValue)}
+		return &pb.Data{Value: parseDataList(typedValue, interpretStrings)}
 	case json.Number:
 		if v, err := typedValue.Int64(); err == nil {
 			top = v
@@ -563,7 +573,7 @@ func parseElem(top interface{}) *pb.Data {
 	}
 
 	// The switch statement above should have handled all non-primitive values.
-	pv, err := spec_util.ToPrimitiveValue(top)
+	pv, err := spec_util.ToPrimitiveValue(top, interpretStrings)
 	if err != nil {
 		printer.Debugf("Unhandled non-primitive value of type %T, treating as none\n", top)
 		return &pb.Data{
@@ -577,10 +587,10 @@ func parseElem(top interface{}) *pb.Data {
 	return &pb.Data{Value: newDataPrimitive(pv.ToProto())}
 }
 
-func parseDataStruct(elems map[string]interface{}) *pb.Data_Struct {
+func parseDataStruct(elems map[string]interface{}, interpretStrings spec_util.InterpretStrings) *pb.Data_Struct {
 	dataMap := make(map[string]*pb.Data)
 	for k, v := range elems {
-		dataMap[k] = parseElem(v)
+		dataMap[k] = parseElem(v, interpretStrings)
 	}
 	return &pb.Data_Struct{
 		Struct: &pb.Struct{
@@ -589,10 +599,10 @@ func parseDataStruct(elems map[string]interface{}) *pb.Data_Struct {
 	}
 }
 
-func parseDataList(elems []interface{}) *pb.Data_List {
+func parseDataList(elems []interface{}, interpretStrings spec_util.InterpretStrings) *pb.Data_List {
 	dataList := []*pb.Data{}
 	for _, v := range elems {
-		dataList = append(dataList, parseElem(v))
+		dataList = append(dataList, parseElem(v, interpretStrings))
 	}
 	return &pb.Data_List{
 		List: &pb.List{
