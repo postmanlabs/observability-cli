@@ -36,6 +36,9 @@ func initCreds() {
 	creds.AddConfigPath(cfgDir)
 	creds.SetConfigName(credsFileName)
 
+	// Reload config file on change.
+	creds.WatchConfig()
+
 	// Allow credentials to be set via the environment.
 	// API keys from env are implicitly in the "default" profile.
 	creds.AutomaticEnv()
