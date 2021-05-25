@@ -3,6 +3,7 @@ package login
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -29,7 +30,9 @@ API key information will be stored in ` + cfg.GetCredentialsConfigPath(),
 			APIKeySecret string
 		}{}
 
-		if !checkCreds {
+		if checkCreds {
+			return testCredentials()
+		} else {
 			// Interactive prompt.
 			qs := []*survey.Question{
 				{
@@ -51,22 +54,38 @@ API key information will be stored in ` + cfg.GetCredentialsConfigPath(),
 			}
 
 			fmt.Println("API keys stored in", cfg.GetCredentialsConfigPath())
-		}
 
-		// Print credentials, if --show-creds is true.
-		if showCreds {
-			apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
-			fmt.Printf("Using the following credentials:\n")
-			fmt.Printf("  Akita API key ID: %s\n", apiKeyID)
-			fmt.Printf("  Akita API key secret: %s\n", apiKeySecret)
-		}
+			// Test credentials.  If authentication fails, prints an error message.
+			err := testCredentials()
 
-		// Test credentials.  If authentication fails, prints an error message.
-		return testCredentials()
+			// Warn the user if the login credentials are going to be overridden by creds
+			// in the environment.  We do this after testing credentials to make it clear
+			// that the newly-entered credentials were checked; we only warn about shadowing
+			// if the new creds are valid.
+			if err == nil {
+				envId := os.Getenv("AKITA_API_KEY_ID")
+				envSecret := os.Getenv("AKITA_API_KEY_SECRET")
+				idIsOverridden := envId != "" && envId != ans.APIKeyID
+				secretIsOverridden := envSecret != "" && envSecret != ans.APIKeySecret
+				if idIsOverridden || secretIsOverridden {
+					fmt.Printf("[WARNING] Login credentials are currently overridden by the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables.\n")
+				}
+			}
+
+			return err
+		}
 	},
 }
 
 func testCredentials() error {
+	// Print credentials, if --show-creds is true.
+	if showCreds {
+		apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
+		fmt.Printf("Using the following credentials:\n")
+		fmt.Printf("  Akita API key ID: %s\n", apiKeyID)
+		fmt.Printf("  Akita API key secret: %s\n", apiKeySecret)
+	}
+
 	// First, make sure the API key ID and secret aren't empty.
 	{
 		apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
