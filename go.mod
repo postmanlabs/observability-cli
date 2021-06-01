@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20210406221235-f036dc848087
-	github.com/akitasoftware/akita-libs v0.0.0-20210522000334-18114ff4754c
+	github.com/akitasoftware/akita-libs v0.0.0-20210601201612-d76a5b4e91fe
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
 	github.com/gdamore/tcell/v2 v2.1.0
