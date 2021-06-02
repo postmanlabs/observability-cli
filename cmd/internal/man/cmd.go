@@ -54,6 +54,10 @@ var (
 			content: addBackticks(learnPage),
 		},
 		{
+			command: "setversion",
+			content: addBackticks(setversionPage),
+		},
+		{
 			command: "upload",
 			content: addBackticks(uploadPage),
 		},

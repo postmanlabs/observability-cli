@@ -19,6 +19,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
 	"github.com/akitasoftware/akita-cli/cmd/internal/login"
 	"github.com/akitasoftware/akita-cli/cmd/internal/man"
+	"github.com/akitasoftware/akita-cli/cmd/internal/setversion"
 	"github.com/akitasoftware/akita-cli/cmd/internal/upload"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/util"
@@ -130,6 +131,7 @@ func init() {
 	rootCmd.AddCommand(learn.Cmd)
 	rootCmd.AddCommand(login.Cmd)
 	rootCmd.AddCommand(man.Cmd)
+	rootCmd.AddCommand(setversion.Cmd)
 	rootCmd.AddCommand(upload.Cmd)
 
 	// Legacy commands, included for backward compatibility but are hidden.

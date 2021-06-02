@@ -167,3 +167,15 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 	err := c.get(ctx, path, &resp)
 	return &resp, err
 }
+
+func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpecID, versionName string) error {
+	resp := struct {
+	}{}
+	path := fmt.Sprintf("/v1/services/%s/spec-versions/%s",
+		akid.String(c.serviceID), versionName)
+	req := kgxapi.SetSpecVersionRequest{
+		APISpecID: specID,
+	}
+
+	return c.post(ctx, path, req, &resp)
+}
