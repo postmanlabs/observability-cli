@@ -263,17 +263,26 @@ func Run(args Args) error {
 
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
 					collector = trace.TeeCollector{
-						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins, summary),
+						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins),
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins, summary)
+					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins)
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
 				} else {
 					return errors.Errorf("invalid output location")
 				}
 			}
+
+			// Count packets that have *passed* filtering (so that we know whether the
+			// trace is empty or not.)  In the future we could add columns for both
+			// pre- and post-filtering.
+			collector = &trace.PacketCountCollector{
+				PacketCounts: summary,
+				Collector:    collector,
+			}
+
 			collector = &trace.UserTrafficCollector{
 				Collector: &trace.SamplingCollector{
 					SampleRate: args.SampleRate,

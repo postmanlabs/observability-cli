@@ -127,16 +127,12 @@ type BackendCollector struct {
 	// Channel controlling periodic cache flush
 	flushDone chan struct{}
 
-	// Consumer for packet counts
-	packetCounts PacketCountConsumer
-
 	plugins []plugin.AkitaPlugin
 }
 
 func NewBackendCollector(svc akid.ServiceID,
 	lrn akid.LearnSessionID, lc rest.LearnClient, dir kgxapi.NetworkDirection,
-	plugins []plugin.AkitaPlugin,
-	packetCounts PacketCountConsumer) Collector {
+	plugins []plugin.AkitaPlugin) Collector {
 	col := &BackendCollector{
 		serviceID:      svc,
 		learnSessionID: lrn,
@@ -144,11 +140,6 @@ func NewBackendCollector(svc akid.ServiceID,
 		dir:            dir,
 		flushDone:      make(chan struct{}),
 		plugins:        plugins,
-		packetCounts:   packetCounts,
-	}
-
-	if packetCounts == nil {
-		col.packetCounts = &PacketCountDiscard{}
 	}
 
 	col.uploadBatch = batcher.NewInMemory(
@@ -167,28 +158,10 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	case akinet.HTTPRequest:
 		isRequest = true
 		partial, parseHTTPErr = learn.ParseHTTP(content)
-		c.packetCounts.Update(PacketCounters{
-			Interface:    t.Interface,
-			SrcPort:      t.SrcPort,
-			DstPort:      t.DstPort,
-			HTTPRequests: 1,
-		})
 	case akinet.HTTPResponse:
 		partial, parseHTTPErr = learn.ParseHTTP(content)
-		c.packetCounts.Update(PacketCounters{
-			Interface:     t.Interface,
-			SrcPort:       t.SrcPort,
-			DstPort:       t.DstPort,
-			HTTPResponses: 1,
-		})
 	default:
 		// Non-HTTP traffic not handled
-		c.packetCounts.Update(PacketCounters{
-			Interface: t.Interface,
-			SrcPort:   t.SrcPort,
-			DstPort:   t.DstPort,
-			Unparsed:  1,
-		})
 		return nil
 	}
 

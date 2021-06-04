@@ -72,3 +72,40 @@ func (sc *UserTrafficCollector) Process(t akinet.ParsedNetworkTraffic) error {
 func (sc *UserTrafficCollector) Close() error {
 	return sc.Collector.Close()
 }
+
+// This is a shim to add packet counts based on payload type.
+type PacketCountCollector struct {
+	PacketCounts PacketCountConsumer
+	Collector    Collector
+}
+
+func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
+	switch t.Content.(type) {
+	case akinet.HTTPRequest:
+		pc.PacketCounts.Update(PacketCounters{
+			Interface:    t.Interface,
+			SrcPort:      t.SrcPort,
+			DstPort:      t.DstPort,
+			HTTPRequests: 1,
+		})
+	case akinet.HTTPResponse:
+		pc.PacketCounts.Update(PacketCounters{
+			Interface:     t.Interface,
+			SrcPort:       t.SrcPort,
+			DstPort:       t.DstPort,
+			HTTPResponses: 1,
+		})
+	default:
+		pc.PacketCounts.Update(PacketCounters{
+			Interface: t.Interface,
+			SrcPort:   t.SrcPort,
+			DstPort:   t.DstPort,
+			Unparsed:  1,
+		})
+	}
+	return pc.Collector.Process(t)
+}
+
+func (pc *PacketCountCollector) Close() error {
+	return pc.Collector.Close()
+}
