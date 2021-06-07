@@ -14,8 +14,9 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/akid"
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 func printViewSpecMessage(svc akid.ServiceID, spec akid.APISpecID) {
@@ -70,7 +71,7 @@ func getServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	return serviceID, nil
 }
 
-func startLearnSession(c rest.LearnClient, baseSpecRef *kgxapi.APISpecReference, tags map[string]string) (akid.LearnSessionID, error) {
+func startLearnSession(c rest.LearnClient, baseSpecRef *kgxapi.APISpecReference, tags map[tags.Key]string) (akid.LearnSessionID, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// Session name not supported in old CLI.

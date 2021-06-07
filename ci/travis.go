@@ -6,13 +6,14 @@ import (
 	"path"
 
 	"github.com/akitasoftware/akita-libs/github"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 // Travis environment doesn't specify whether the repo or PR is on GitHub or
 // some other provider (e.g. BitBucket). For now, we assume everything is on
 // GitHub.
 // https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
-func travisCIInfo() (*github.PullRequest, map[string]string) {
+func travisCIInfo() (*github.PullRequest, map[tags.Key]string) {
 	prURL := url.URL{
 		Scheme: "https",
 		Host:   "github.com",
@@ -25,9 +26,9 @@ func travisCIInfo() (*github.PullRequest, map[string]string) {
 		pr.Commit = os.Getenv("TRAVIS_COMMIT")
 	}
 
-	return pr, map[string]string{
-		"x-akita-ci":                   Travis.String(),
-		"x-akita-travis-build-web-url": os.Getenv("TRAVIS_BUILD_WEB_URL"),
-		"x-akita-travis-job-web-url":   os.Getenv("TRAVIS_JOB_WEB_URL"),
+	return pr, map[tags.Key]string{
+		tags.XAkitaCI:                Travis.String(),
+		tags.XAkitaTravisBuildWebURL: os.Getenv("TRAVIS_BUILD_WEB_URL"),
+		tags.XAkitaTravisJobWebURL:   os.Getenv("TRAVIS_JOB_WEB_URL"),
 	}
 }

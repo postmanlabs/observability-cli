@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 type CI int
@@ -48,7 +50,7 @@ func (c *CI) UnmarshalText(s []byte) error {
 // Currently, we support:
 // - CircleCI
 // - TravisCI
-func GetCITagsForLearnSession() (CI, map[string]string) {
+func GetCITagsForLearnSession() (CI, map[tags.Key]string) {
 	if inCI, err := strconv.ParseBool(os.Getenv("CI")); err != nil || !inCI {
 		return UnknownCI, nil
 	}
@@ -64,14 +66,14 @@ func GetCITagsForLearnSession() (CI, map[string]string) {
 }
 
 // https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
-func circleCITags() map[string]string {
-	return map[string]string{
-		"x-akita-ci":                 CircleCI.String(),
-		"x-akita-git-repo-url":       os.Getenv("CIRCLE_REPOSITORY_URL"),
-		"x-akita-git-branch":         os.Getenv("CIRCLE_BRANCH"),
-		"x-akita-git-commit":         os.Getenv("CIRCLE_SHA1"),
-		"x-akita-github-pr-url":      os.Getenv("CIRCLE_PULL_REQUEST"),
-		"x-akita-circleci-build-url": os.Getenv("CIRCLE_BUILD_URL"),
+func circleCITags() map[tags.Key]string {
+	return map[tags.Key]string{
+		tags.XAkitaCI:               CircleCI.String(),
+		tags.XAkitaGitRepoURL:       os.Getenv("CIRCLE_REPOSITORY_URL"),
+		tags.XAkitaGitBranch:        os.Getenv("CIRCLE_BRANCH"),
+		tags.XAkitaGitCommit:        os.Getenv("CIRCLE_SHA1"),
+		tags.XAkitaGitHubPRURL:      os.Getenv("CIRCLE_PULL_REQUEST"),
+		tags.XAkitaCircleCIBuildURL: os.Getenv("CIRCLE_BUILD_URL"),
 	}
 }
 
@@ -79,7 +81,7 @@ func circleCITags() map[string]string {
 // some other provider (e.g. BitBucket). For now, we assume everything is on
 // GitHub.
 // https://docs.travis-ci.com/user/environment-variables/#default-environment-variables
-func travisCITags() map[string]string {
+func travisCITags() map[tags.Key]string {
 	repoURL := url.URL{
 		Scheme: "https",
 		Host:   "github.com",
@@ -91,13 +93,13 @@ func travisCITags() map[string]string {
 		Path:   path.Join(os.Getenv("TRAVIS_REPO_SLUG"), "pull", os.Getenv("TRAVIS_PULL_REQUEST")),
 	}
 
-	return map[string]string{
-		"x-akita-ci":                   TravisCI.String(),
-		"x-akita-git-repo-url":         repoURL.String(),
-		"x-akita-git-branch":           os.Getenv("TRAVIS_BRANCH"),
-		"x-akita-git-commit":           os.Getenv("TRAVIS_COMMIT"),
-		"x-akita-github-pr-url":        prURL.String(),
-		"x-akita-travis-build-web-url": os.Getenv("TRAVIS_BUILD_WEB_URL"),
-		"x-akita-travis-job-web-url":   os.Getenv("TRAVIS_JOB_WEB_URL"),
+	return map[tags.Key]string{
+		tags.XAkitaCI:                TravisCI.String(),
+		tags.XAkitaGitRepoURL:        repoURL.String(),
+		tags.XAkitaGitBranch:         os.Getenv("TRAVIS_BRANCH"),
+		tags.XAkitaGitCommit:         os.Getenv("TRAVIS_COMMIT"),
+		tags.XAkitaGitHubPRURL:       prURL.String(),
+		tags.XAkitaTravisBuildWebURL: os.Getenv("TRAVIS_BUILD_WEB_URL"),
+		tags.XAkitaTravisJobWebURL:   os.Getenv("TRAVIS_JOB_WEB_URL"),
 	}
 }

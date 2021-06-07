@@ -11,6 +11,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -107,7 +108,7 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 
 		// Attempt to create the trace.
 		printer.Stderr.Infof("Creating trace...\n")
-		tags := map[string]string{}
+		tags := map[tags.Key]string{}
 		traceID, err = util.NewLearnSession(args.Domain, args.ClientID, serviceID, traceName, tags, nil)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create trace %q", traceName)

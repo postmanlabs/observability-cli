@@ -13,6 +13,7 @@ import (
 	"github.com/akitasoftware/akita-cli/version"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 type HARCollector struct {
@@ -21,10 +22,10 @@ type HARCollector struct {
 	outDir        string
 
 	isOutbound bool
-	tags       map[string]string
+	tags       map[tags.Key]string
 }
 
-func NewHARCollector(interfaceName, outDir string, isOutbound bool, tags map[string]string) *HARCollector {
+func NewHARCollector(interfaceName, outDir string, isOutbound bool, tags map[tags.Key]string) *HARCollector {
 	return &HARCollector{
 		logger:        har.NewLogger(),
 		interfaceName: interfaceName,

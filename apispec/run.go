@@ -32,6 +32,7 @@ import (
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
+	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/plugin"
 )
@@ -49,7 +50,7 @@ type Args struct {
 
 	Service                    string
 	Format                     string
-	Tags                       map[string]string
+	Tags                       map[tags.Key]string
 	GetSpecEnableRelatedFields bool
 	IncludeTrackers            bool
 	PathParams                 []string
@@ -142,9 +143,9 @@ func Run(args Args) error {
 		}
 	}
 
-	tags := args.Tags
-	if tags == nil {
-		tags = map[string]string{}
+	specTags := args.Tags
+	if specTags == nil {
+		specTags = map[tags.Key]string{}
 	}
 
 	var githubPR *github.PRInfo
@@ -155,13 +156,10 @@ func Run(args Args) error {
 		}
 
 		// Add tags to store commit information.
-		if tags == nil {
-			tags = map[string]string{}
-		}
-		tags["x-akita-github-repo"] = args.GitHubRepo
-		tags["x-akita-github-pr"] = strconv.Itoa(args.GitHubPR)
-		tags["x-akita-git-branch"] = args.GitHubBranch
-		tags["x-akita-git-commit"] = args.GitHubCommit
+		specTags[tags.XAkitaGitHubRepo] = args.GitHubRepo
+		specTags[tags.XAkitaGitHubPR] = strconv.Itoa(args.GitHubPR)
+		specTags[tags.XAkitaGitBranch] = args.GitHubBranch
+		specTags[tags.XAkitaGitCommit] = args.GitHubCommit
 
 		githubPR = &github.PRInfo{
 			RepoOwner: parts[0],
@@ -171,13 +169,10 @@ func Run(args Args) error {
 	}
 	if args.GitLabMR != nil {
 		// Add tags to store commit information.
-		if tags == nil {
-			tags = map[string]string{}
-		}
-		tags["x-akita-gitlab-project"] = args.GitLabMR.Project
-		tags["x-akita-gitlab-mr-iid"] = args.GitLabMR.IID
-		tags["x-akita-git-branch"] = args.GitLabMR.Branch
-		tags["x-akita-git-commit"] = args.GitLabMR.Commit
+		specTags[tags.XAkitaGitLabProject] = args.GitLabMR.Project
+		specTags[tags.XAkitaGitLabMRIID] = args.GitLabMR.IID
+		specTags[tags.XAkitaGitBranch] = args.GitLabMR.Branch
+		specTags[tags.XAkitaGitCommit] = args.GitLabMR.Commit
 	}
 
 	// Process input.
@@ -220,7 +215,7 @@ func Run(args Args) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	outSpecID, err := learnClient.CreateSpec(ctx, outSpecName, learnSessions, rest.CreateSpecOptions{
-		Tags:           tags,
+		Tags:           specTags,
 		PathPatterns:   pathPatternsFromStrings(args.PathParams),
 		PathExclusions: pathExclusions,
 		GitHubPR:       githubPR,
@@ -378,8 +373,8 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 	lrns := make([]akid.LearnSessionID, 0, len(localPaths))
 	for _, p := range localPaths {
 		// Include the original path in the tags for ease of debugging.
-		tags := map[string]string{
-			"x-akita-trace-local-path": p,
+		traceTags := map[tags.Key]string{
+			tags.XAkitaTraceLocalPath: p,
 		}
 
 		// The learn session representing the trace is named by the sha256 sum of
@@ -406,7 +401,7 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 		}
 
 		// Learn session does not exist, create a new learn session.
-		lrn, err := util.NewLearnSession(domain, clientID, svc, checksumStr, tags, nil)
+		lrn, err := util.NewLearnSession(domain, clientID, svc, checksumStr, traceTags, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create backend learn session")
 		}
