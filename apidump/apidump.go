@@ -160,10 +160,10 @@ func Run(args Args) error {
 	// Store the current packet capture flags so we can reuse them in active
 	// learning.
 	if len(args.Interfaces) > 0 {
-		traceTags["x-akita-dump-interfaces-flag"] = strings.Join(args.Interfaces, ",")
+		traceTags[tags.XAkitaDumpInterfacesFlag] = strings.Join(args.Interfaces, ",")
 	}
 	if args.Filter != "" {
-		traceTags["x-akita-dump-filter-flag"] = args.Filter
+		traceTags[tags.XAkitaDumpFilterFlag] = args.Filter
 	}
 
 	// Build path filters.

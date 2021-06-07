@@ -157,7 +157,7 @@ func runLearnMode() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to parse github URL flag")
 		}
-		tagsMap["x-akita-github-pr-url"] = path.Join(githubURL.Path, "pull", strconv.Itoa(githubPRFlag))
+		tagsMap[tags.XAkitaGitHubPRURL] = path.Join(githubURL.Path, "pull", strconv.Itoa(githubPRFlag))
 	}
 
 	traceURI, err := runAPIDump(clientID, serviceName, tagsMap, plugins)
