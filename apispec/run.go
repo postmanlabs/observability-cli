@@ -67,6 +67,11 @@ type Args struct {
 }
 
 func Run(args Args) error {
+	// Set source to user by default.
+	if _, ok := args.Tags[tags.XAkitaSource]; !ok {
+		args.Tags[tags.XAkitaSource] = tags.UserSource
+	}
+
 	// Auto detect CI environment.
 	{
 		ciType, pr, ciTags := ci.GetCIInfo()
@@ -74,6 +79,8 @@ func Run(args Args) error {
 			for k, v := range ciTags {
 				args.Tags[k] = v
 			}
+
+			args.Tags[tags.XAkitaSource] = tags.CISource
 
 			if pr != nil {
 				if args.GitHubBranch == "" {
@@ -156,6 +163,7 @@ func Run(args Args) error {
 		}
 
 		// Add tags to store commit information.
+		specTags[tags.XAkitaSource] = tags.CISource
 		specTags[tags.XAkitaGitHubRepo] = args.GitHubRepo
 		specTags[tags.XAkitaGitHubPR] = strconv.Itoa(args.GitHubPR)
 		specTags[tags.XAkitaGitBranch] = args.GitHubBranch
@@ -169,6 +177,7 @@ func Run(args Args) error {
 	}
 	if args.GitLabMR != nil {
 		// Add tags to store commit information.
+		specTags[tags.XAkitaSource] = tags.CISource
 		specTags[tags.XAkitaGitLabProject] = args.GitLabMR.Project
 		specTags[tags.XAkitaGitLabMRIID] = args.GitLabMR.IID
 		specTags[tags.XAkitaGitBranch] = args.GitLabMR.Branch
@@ -372,9 +381,11 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 	learnClient := rest.NewLearnClient(domain, clientID, svc)
 	lrns := make([]akid.LearnSessionID, 0, len(localPaths))
 	for _, p := range localPaths {
-		// Include the original path in the tags for ease of debugging.
+		// Include the original path in the tags for ease of debugging, and tag the
+		// trace as being uploaded.
 		traceTags := map[tags.Key]string{
 			tags.XAkitaTraceLocalPath: p,
+			tags.XAkitaSource:         tags.UploadedSource,
 		}
 
 		// The learn session representing the trace is named by the sha256 sum of

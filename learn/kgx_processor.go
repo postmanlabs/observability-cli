@@ -8,8 +8,9 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-libs/akid"
-	"github.com/akitasoftware/akita-libs/batcher"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/batcher"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 const (
@@ -33,7 +34,7 @@ type KGXWitnessProcessor struct {
 	dir            kgxapi.NetworkDirection
 
 	witnessTagsLock sync.RWMutex
-	witnessTags     map[string]string
+	witnessTags     map[tags.Key]string
 }
 
 func NewKGXWitnessProcessor(lrn akid.LearnSessionID, client rest.LearnClient, bufferSize int, flushDuration time.Duration, dir kgxapi.NetworkDirection) *KGXWitnessProcessor {
@@ -71,7 +72,7 @@ func (w *KGXWitnessProcessor) ProcessWitness(r *witnessResult) error {
 }
 
 // Sets the tags for all witnesses going forward.
-func (w *KGXWitnessProcessor) SetWitnessTags(tags map[string]string) {
+func (w *KGXWitnessProcessor) SetWitnessTags(tags map[tags.Key]string) {
 	w.witnessTagsLock.Lock()
 	defer w.witnessTagsLock.Unlock()
 	w.witnessTags = tags

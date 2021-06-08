@@ -35,7 +35,7 @@ var Cmd = &cobra.Command{
 	Long:         "Capture and store a sequence of requests/responses to a service by observing network traffic.",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		tags, err := tags.FromPairs(tagsFlag)
+		traceTags, err := tags.FromPairs(tagsFlag)
 		if err != nil {
 			return errors.Wrap(err, "failed to parse tags")
 		}
@@ -59,11 +59,14 @@ var Cmd = &cobra.Command{
 			outFlag.AkitaURI = &uri
 		}
 
+		// Tag the trace as being manually created by the user.
+		traceTags[tags.XAkitaSource] = tags.UserSource
+
 		args := apidump.Args{
 			ClientID:        akid.GenerateClientID(),
 			Domain:          akiflag.Domain,
 			Out:             outFlag,
-			Tags:            tags,
+			Tags:            traceTags,
 			SampleRate:      sampleRateFlag,
 			Interfaces:      interfacesFlag,
 			Filter:          filterFlag,

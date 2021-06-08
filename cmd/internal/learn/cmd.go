@@ -158,6 +158,12 @@ func runLearnMode() error {
 			return errors.Wrap(err, "failed to parse github URL flag")
 		}
 		tagsMap[tags.XAkitaGitHubPRURL] = path.Join(githubURL.Path, "pull", strconv.Itoa(githubPRFlag))
+
+		// Tag as coming from CI.
+		tagsMap[tags.XAkitaSource] = tags.CISource
+	} else {
+		// Tag as coming from the user.
+		tagsMap[tags.XAkitaSource] = tags.UserSource
 	}
 
 	traceURI, err := runAPIDump(clientID, serviceName, tagsMap, plugins)
@@ -172,6 +178,11 @@ func runLearnMode() error {
 	return nil
 }
 
+// Captures packets from the network and adds them to a trace.
+//
+// The give tagsMap is expected to already contain information about how the
+// trace is captured (e.g., whether the capture was user-initiated or is from
+// CI, and any applicable information from CI).
 func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key]string, plugins []plugin.AkitaPlugin) (*akiuri.URI, error) {
 	// Determing packet filter.
 	var packetFilter string

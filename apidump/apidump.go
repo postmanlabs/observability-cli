@@ -137,6 +137,12 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 
 }
 
+// Captures packets from the network and adds them to a trace. The trace is
+// created if it doesn't already exist.
+//
+// The args.Tags is expected to already contain information about how the trace
+// is captured (e.g., whether the capture was user-initiated or is from CI, and
+// any applicable information from CI).
 func Run(args Args) error {
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
