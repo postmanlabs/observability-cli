@@ -6,21 +6,29 @@ import (
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/spf13/viper"
 )
 
 const (
 	// One sample is collected per epoch
-	RateLimitEpochTime = 5 * time.Minute
+	RateLimitEpochTime = "rate-limit-epoch-time"
 
 	// Maximum time to remember a request which we selected, but haven't seen a reaponse.
-	RateLimitMaxDuration = 10 * time.Minute
+	RateLimitMaxDuration = "rate-limit-max-duration"
 
 	// Channel size for packets coming in to collector
-	RateLimitQueueDepth = 1000
+	RateLimitQueueDepth = "rate-limit-queue-depth"
 
 	// Parameter controlling exponential moving average
-	RateLimitExponentialAlpha = 0.3
+	RateLimitExponentialAlpha = "rate-limit-exponential-alpha"
 )
+
+func init() {
+	viper.SetDefault(RateLimitEpochTime, 5*time.Minute)
+	viper.SetDefault(RateLimitMaxDuration, 10*time.Minute)
+	viper.SetDefault(RateLimitQueueDepth, 1000)
+	viper.SetDefault(RateLimitExponentialAlpha, 0.3)
+}
 
 type requestKey struct {
 	StreamID       string
@@ -76,7 +84,7 @@ func (r *rateLimitCollector) Close() error {
 
 func (r *rateLimitCollector) Run() {
 	// Start the first epoch
-	r.EpochTicker = time.NewTicker(RateLimitEpochTime)
+	r.EpochTicker = time.NewTicker(viper.GetDuration(RateLimitEpochTime))
 	defer r.EpochTicker.Stop()
 
 	r.CurrentEpochStart = time.Now()
@@ -120,13 +128,13 @@ func (r *rateLimitCollector) startNewEpoch(epochStart time.Time) {
 		// Didn't get a new estimate, just keep collecting everything.
 		r.IntervalTimer.Reset(0)
 	} else {
-		upperBound := RateLimitEpochTime - r.EstimatedSampleInterval
+		upperBound := viper.GetDuration(RateLimitEpochTime) - r.EstimatedSampleInterval
 		randomOffset := time.Duration(rand.Int63n(int64(upperBound)))
 		r.IntervalTimer.Reset(randomOffset)
 	}
 
 	// Check for old requests in map
-	threshold := epochStart.Add(-1 * RateLimitMaxDuration)
+	threshold := epochStart.Add(-1 * viper.GetDuration(RateLimitMaxDuration))
 	expired := 0
 	for k, v := range r.RequestArrivalTimes {
 		if v.Before(threshold) {
@@ -156,7 +164,7 @@ func (r *rateLimitCollector) endInterval(end time.Time) {
 		r.EstimatedSampleInterval = intervalLength
 		r.FirstEstimate = false
 	} else {
-		alpha := RateLimitExponentialAlpha
+		alpha := viper.GetFloat64(RateLimitExponentialAlpha)
 		exponentialMovingAverage :=
 			(1-alpha)*float64(r.EstimatedSampleInterval) + alpha*float64(intervalLength)
 		printer.Debugln("New estimate:", exponentialMovingAverage)
@@ -199,7 +207,7 @@ func (r *rateLimitCollector) handlePacket(pnt akinet.ParsedNetworkTraffic) {
 }
 
 func NewRateLimiter(witnessesPerMinute float64, collector Collector) Collector {
-	witnessLimit := witnessesPerMinute * RateLimitEpochTime.Minutes()
+	witnessLimit := witnessesPerMinute * viper.GetDuration(RateLimitEpochTime).Minutes()
 	if witnessLimit < 1 {
 		printer.Warningln("Witnesses per minute rate is too low, rounding up to 1.")
 		witnessLimit = 1
@@ -209,7 +217,7 @@ func NewRateLimiter(witnessesPerMinute float64, collector Collector) Collector {
 		WitnessesPerMinute:  witnessesPerMinute,
 		WitnessesPerEpoch:   int(witnessLimit),
 		FirstEstimate:       true,
-		Incoming:            make(chan akinet.ParsedNetworkTraffic, RateLimitQueueDepth),
+		Incoming:            make(chan akinet.ParsedNetworkTraffic, viper.GetInt(RateLimitQueueDepth)),
 		RequestArrivalTimes: make(map[requestKey]time.Time),
 		Done:                make(chan struct{}),
 		Running:             make(chan struct{}),
