@@ -11,11 +11,11 @@ import (
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/akitasoftware/akita-cli/cmd/internal/tags"
 	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var createSessionCmd = &cobra.Command{

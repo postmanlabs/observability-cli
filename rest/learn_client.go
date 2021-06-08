@@ -9,6 +9,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var (
@@ -29,7 +30,7 @@ func NewLearnClient(host string, cli akid.ClientID, svc akid.ServiceID) *learnCl
 	}
 }
 
-func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[string]string) ([]*kgxapi.LearnSession, error) {
+func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string) ([]*kgxapi.LearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
 	q := url.Values{}
 	for k, v := range tags {
@@ -54,7 +55,7 @@ func (c *learnClientImpl) GetLearnSession(ctx context.Context, svc akid.ServiceI
 	return &resp, nil
 }
 
-func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *kgxapi.APISpecReference, name string, tags map[string]string) (akid.LearnSessionID, error) {
+func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *kgxapi.APISpecReference, name string, tags map[tags.Key]string) (akid.LearnSessionID, error) {
 	req := kgxapi.CreateLearnSessionRequest{BaseAPISpecRef: baseSpecRef, Tags: tags, Name: name}
 	var resp kgxapi.LearnSession
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")

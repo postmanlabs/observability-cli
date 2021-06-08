@@ -25,6 +25,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 // TODO(kku): make pcap timings more robust (e.g. inject a sentinel packet to
@@ -58,7 +59,7 @@ type Args struct {
 
 	Interfaces     []string
 	Filter         string
-	Tags           map[string]string
+	Tags           map[tags.Key]string
 	PathExclusions []string
 	HostExclusions []string
 	SampleRate     float64
@@ -136,6 +137,12 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 
 }
 
+// Captures packets from the network and adds them to a trace. The trace is
+// created if it doesn't already exist.
+//
+// The args.Tags is expected to already contain information about how the trace
+// is captured (e.g., whether the capture was user-initiated or is from CI, and
+// any applicable information from CI).
 func Run(args Args) error {
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
@@ -152,17 +159,17 @@ func Run(args Args) error {
 	printer.Debugln("Outbound BPF filters:", outboundFilters)
 
 	// Build tags.
-	tags := args.Tags
-	if tags == nil {
-		tags = map[string]string{}
+	traceTags := args.Tags
+	if traceTags == nil {
+		traceTags = map[tags.Key]string{}
 	}
 	// Store the current packet capture flags so we can reuse them in active
 	// learning.
 	if len(args.Interfaces) > 0 {
-		tags["x-akita-dump-interfaces-flag"] = strings.Join(args.Interfaces, ",")
+		traceTags[tags.XAkitaDumpInterfacesFlag] = strings.Join(args.Interfaces, ",")
 	}
 	if args.Filter != "" {
-		tags["x-akita-dump-filter-flag"] = args.Filter
+		traceTags[tags.XAkitaDumpFilterFlag] = args.Filter
 	}
 
 	// Build path filters.
@@ -212,7 +219,7 @@ func Run(args Args) error {
 		}
 		learnClient = rest.NewLearnClient(args.Domain, args.ClientID, backendSvc)
 
-		backendLrn, err = util.NewLearnSession(args.Domain, args.ClientID, backendSvc, uri.ObjectName, tags, nil)
+		backendLrn, err = util.NewLearnSession(args.Domain, args.ClientID, backendSvc, uri.ObjectName, traceTags, nil)
 		if err == nil {
 			printer.Infof("Created new trace on Akita Cloud: %s\n", uri)
 		} else {
@@ -254,7 +261,7 @@ func Run(args Args) error {
 			{
 				var localCollector trace.Collector
 				if args.Out.LocalPath != nil {
-					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, dir, tags); err == nil {
+					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, dir, traceTags); err == nil {
 						localCollector = lc
 					} else {
 						return err
@@ -429,7 +436,7 @@ func Run(args Args) error {
 	return nil
 }
 
-func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDirection, tags map[string]string) (trace.Collector, error) {
+func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDirection, tags map[tags.Key]string) (trace.Collector, error) {
 	if fi, err := os.Stat(outDir); err == nil {
 		// File exists, check if it's a directory.
 		if !fi.IsDir() {
