@@ -11,6 +11,7 @@ import (
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
 	"github.com/akitasoftware/akita-libs/path_trie"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 type GetSpecOptions struct {
@@ -18,7 +19,7 @@ type GetSpecOptions struct {
 }
 
 type CreateSpecOptions struct {
-	Tags           map[string]string
+	Tags           map[tags.Key]string
 	PathPatterns   []pp.Pattern
 	PathExclusions []*regexp.Regexp
 	GitHubPR       *github.PRInfo
@@ -26,9 +27,9 @@ type CreateSpecOptions struct {
 }
 
 type LearnClient interface {
-	ListLearnSessions(context.Context, akid.ServiceID, map[string]string) ([]*kgxapi.LearnSession, error)
+	ListLearnSessions(context.Context, akid.ServiceID, map[tags.Key]string) ([]*kgxapi.LearnSession, error)
 	GetLearnSession(context.Context, akid.ServiceID, akid.LearnSessionID) (*kgxapi.LearnSession, error)
-	CreateLearnSession(context.Context, *kgxapi.APISpecReference, string, map[string]string) (akid.LearnSessionID, error)
+	CreateLearnSession(context.Context, *kgxapi.APISpecReference, string, map[tags.Key]string) (akid.LearnSessionID, error)
 	ReportWitnesses(context.Context, akid.LearnSessionID, []*kgxapi.WitnessReport) error
 
 	// Deprecated: old way of creating a spec from a single learn session.

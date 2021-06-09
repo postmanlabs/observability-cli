@@ -15,6 +15,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/daemon"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var (
@@ -25,7 +26,7 @@ var (
 	learnSessionNameCache = cache.New(30*time.Second, 5*time.Minute)
 )
 
-func NewLearnSession(domain string, clientID akid.ClientID, svc akid.ServiceID, sessionName string, tags map[string]string, baseSpecRef *kgxapi.APISpecReference) (akid.LearnSessionID, error) {
+func NewLearnSession(domain string, clientID akid.ClientID, svc akid.ServiceID, sessionName string, tags map[tags.Key]string, baseSpecRef *kgxapi.APISpecReference) (akid.LearnSessionID, error) {
 	learnClient := rest.NewLearnClient(domain, clientID, svc)
 
 	// Create a new learn session.

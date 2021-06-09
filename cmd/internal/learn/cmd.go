@@ -19,7 +19,6 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
-	"github.com/akitasoftware/akita-cli/cmd/internal/tags"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -27,6 +26,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/gitlab"
+	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/plugin"
 )
@@ -157,7 +157,13 @@ func runLearnMode() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to parse github URL flag")
 		}
-		tagsMap["x-akita-github-pr-url"] = path.Join(githubURL.Path, "pull", strconv.Itoa(githubPRFlag))
+		tagsMap[tags.XAkitaGitHubPRURL] = path.Join(githubURL.Path, "pull", strconv.Itoa(githubPRFlag))
+
+		// Tag as coming from CI.
+		tagsMap[tags.XAkitaSource] = tags.CISource
+	} else {
+		// Tag as coming from the user.
+		tagsMap[tags.XAkitaSource] = tags.UserSource
 	}
 
 	traceURI, err := runAPIDump(clientID, serviceName, tagsMap, plugins)
@@ -172,7 +178,12 @@ func runLearnMode() error {
 	return nil
 }
 
-func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[string]string, plugins []plugin.AkitaPlugin) (*akiuri.URI, error) {
+// Captures packets from the network and adds them to a trace.
+//
+// The give tagsMap is expected to already contain information about how the
+// trace is captured (e.g., whether the capture was user-initiated or is from
+// CI, and any applicable information from CI).
+func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key]string, plugins []plugin.AkitaPlugin) (*akiuri.URI, error) {
 	// Determing packet filter.
 	var packetFilter string
 	{
@@ -275,7 +286,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[string]s
 	return traceOut.AkitaURI, apidump.Run(args)
 }
 
-func runAPISpec(clientID akid.ClientID, serviceName string, traceURI *akiuri.URI, tagsMap map[string]string, legacyExtendTraces []*akiuri.URI, plugins []plugin.AkitaPlugin) error {
+func runAPISpec(clientID akid.ClientID, serviceName string, traceURI *akiuri.URI, tagsMap map[tags.Key]string, legacyExtendTraces []*akiuri.URI, plugins []plugin.AkitaPlugin) error {
 	githubRepo, err := getGitHubRepo()
 	if err != nil {
 		return err

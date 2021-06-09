@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/akitasoftware/akita-libs/github"
+	"github.com/akitasoftware/akita-libs/tags"
 )
 
 type CI int
@@ -44,7 +45,7 @@ func (c *CI) UnmarshalText(s []byte) error {
 	return nil
 }
 
-func GetCIInfo() (CI, *github.PullRequest, map[string]string) {
+func GetCIInfo() (CI, *github.PullRequest, map[tags.Key]string) {
 	if inCI, err := strconv.ParseBool(os.Getenv("CI")); err != nil || !inCI {
 		return Unknown, nil, nil
 	}
