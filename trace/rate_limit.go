@@ -71,6 +71,12 @@ func (r *SharedRateLimit) startInterval(start time.Time) {
 	r.SampleIntervalActive = true
 }
 
+func (r *SharedRateLimit) IntervalStarted() bool {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.SampleIntervalActive
+}
+
 func (r *SharedRateLimit) endInterval(end time.Time) {
 	printer.Debugln("End of sample interval:", end)
 	intervalLength := end.Sub(r.SampleIntervalStart)

@@ -67,6 +67,11 @@ func TestRateLimit_FirstSample(t *testing.T) {
 		}
 	}
 
+	// Wait for interval to start
+	for !rl.IntervalStarted() {
+		time.Sleep(1 * time.Millisecond)
+	}
+
 	for i := 0; i < 10; i++ {
 		c.Process(makeRequest(i))
 	}
