@@ -77,6 +77,8 @@ func (r *SharedRateLimit) IntervalStarted() bool {
 	return r.SampleIntervalActive
 }
 
+// End the current interval and update the estimate; should be called with
+// r.Lock already held.
 func (r *SharedRateLimit) endInterval(end time.Time) {
 	printer.Debugln("End of sample interval:", end)
 	intervalLength := end.Sub(r.SampleIntervalStart)
@@ -95,12 +97,13 @@ func (r *SharedRateLimit) endInterval(end time.Time) {
 	}
 }
 
+// Run should immediately starts a measurement interval for the first epoch;
+// without an estimate we should start capturing right away on the assumption we'll stay
+// below the limit.
 func (r *SharedRateLimit) run() {
 	r.epochTicker = time.NewTicker(viper.GetDuration(RateLimitEpochTime))
 	defer r.epochTicker.Stop()
 
-	// Set up the timer so it's non-nil, but it'll immediately fire
-	// (This only resets the counters, in case a packet has already arrived.)
 	r.intervalTimer = time.NewTimer(0)
 	defer r.intervalTimer.Stop()
 
@@ -276,7 +279,7 @@ func (r *rateLimitCollector) expireRequests(threshold time.Time) {
 func NewRateLimit(witnessesPerMinute float64) *SharedRateLimit {
 	witnessLimit := witnessesPerMinute * viper.GetDuration(RateLimitEpochTime).Minutes()
 	if witnessLimit < 1 {
-		printer.Warningln("Witnesses per minute rate is too low, rounding up to 1 per 5 minutes.")
+		printer.Warningln("Witnesses per minute rate is too low; rounding up to 1 per 5 minutes.")
 		witnessLimit = 1
 	}
 	r := &SharedRateLimit{
