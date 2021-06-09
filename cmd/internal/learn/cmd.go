@@ -268,18 +268,19 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 
 	// Create a trace on the cloud.
 	args := apidump.Args{
-		ClientID:        clientID,
-		Domain:          akiflag.Domain,
-		Out:             traceOut,
-		Interfaces:      interfacesFlag,
-		Filter:          packetFilter,
-		Tags:            tagsMap,
-		SampleRate:      sampleRate,
-		PathExclusions:  pathExclusionsFlag,
-		HostExclusions:  hostExclusionsFlag,
-		ExecCommand:     execCommandFlag,
-		ExecCommandUser: execCommandUserFlag,
-		Plugins:         plugins,
+		ClientID:           clientID,
+		Domain:             akiflag.Domain,
+		Out:                traceOut,
+		Interfaces:         interfacesFlag,
+		Filter:             packetFilter,
+		Tags:               tagsMap,
+		SampleRate:         sampleRate,
+		WitnessesPerMinute: rateLimitFlag,
+		PathExclusions:     pathExclusionsFlag,
+		HostExclusions:     hostExclusionsFlag,
+		ExecCommand:        execCommandFlag,
+		ExecCommandUser:    execCommandUserFlag,
+		Plugins:            plugins,
 	}
 
 	return traceOut.AkitaURI, apidump.Run(args)

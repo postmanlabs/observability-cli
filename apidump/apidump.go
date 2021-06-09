@@ -62,7 +62,10 @@ type Args struct {
 	Tags           map[tags.Key]string
 	PathExclusions []string
 	HostExclusions []string
-	SampleRate     float64
+
+	// Rate-limiting parameters -- only one should be set to a non-default value.
+	SampleRate         float64
+	WitnessesPerMinute float64
 
 	// If set, apidump will run the command in a subshell and terminate
 	// automatically when the subcommand terminates.
@@ -240,6 +243,13 @@ func Run(args Args) error {
 	inboundSummary := trace.NewPacketCountSummary()
 	outboundSummary := trace.NewPacketCountSummary()
 
+	// Initialized shared rate object, if we are configured with a rate limit
+	var rateLimit *trace.SharedRateLimit
+	if args.WitnessesPerMinute != 0.0 {
+		rateLimit = trace.NewRateLimit(args.WitnessesPerMinute)
+		defer rateLimit.Stop()
+	}
+
 	// Start collecting
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(inboundFilters) + len(outboundFilters))
@@ -290,14 +300,24 @@ func Run(args Args) error {
 				Collector:    collector,
 			}
 
-			collector = &trace.UserTrafficCollector{
-				Collector: &trace.SamplingCollector{
+			if args.SampleRate != 1.0 {
+				// This is a change from previous behavior: now we sample after filtering
+				// instead of before.
+				collector = &trace.SamplingCollector{
 					SampleRate: args.SampleRate,
-					Collector: trace.NewHTTPPathFilterCollector(
-						pathExclusions,
-						trace.NewHTTPHostFilterCollector(hostExclusions, collector),
-					),
-				},
+					Collector:  collector,
+				}
+			}
+			if rateLimit != nil {
+				collector = rateLimit.NewCollector(collector)
+			}
+
+			// Add filters
+			collector = &trace.UserTrafficCollector{
+				Collector: trace.NewHTTPPathFilterCollector(
+					pathExclusions,
+					trace.NewHTTPHostFilterCollector(hostExclusions, collector),
+				),
 			}
 
 			go func(interfaceName, filter string) {
