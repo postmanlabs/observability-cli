@@ -15,6 +15,7 @@ var (
 	interfacesFlag []string
 	tagsFlag       []string
 	sampleRateFlag float64
+	rateLimitFlag  float64
 
 	pathParamsFlag     []string
 	pathExclusionsFlag []string
@@ -108,7 +109,14 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		&sampleRateFlag,
 		"sample-rate",
 		1.0,
-		"A number between [0.0, 1.0] to control sampling.",
+		"A number between [0.0, 1.0] to control sampling. DEPRECATED, prefer --rate-limit.",
+	)
+
+	Cmd.Flags().Float64Var(
+		&rateLimitFlag,
+		"rate-limit",
+		0.0,
+		"Number of requests per minute to capture. Defaults to unlimited.",
 	)
 
 	Cmd.Flags().StringSliceVar(

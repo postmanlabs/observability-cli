@@ -2,6 +2,7 @@ package trace
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/akitasoftware/akita-cli/printer"
@@ -30,14 +31,16 @@ func init() {
 	viper.SetDefault(RateLimitExponentialAlpha, 0.3)
 }
 
-type requestKey struct {
-	StreamID       string
-	SequenceNumber int
-}
+type SharedRateLimit struct {
+	// Current epoch: start time, sampling start time, count of witnesses captured
+	CurrentEpochStart    time.Time
+	SampleIntervalStart  time.Time
+	SampleIntervalActive bool
+	SampleIntervalCount  int
 
-type rateLimitCollector struct {
-	// Next collector in stack
-	NextCollector Collector
+	// Time for epoch and interval
+	epochTicker   *time.Ticker
+	intervalTimer *time.Timer
 
 	// Witnesses per minute (configured value) and per epoch (derived value)
 	WitnessesPerMinute float64
@@ -47,114 +50,28 @@ type rateLimitCollector struct {
 	EstimatedSampleInterval time.Duration
 	FirstEstimate           bool
 
-	// Current epoch: start time, sampling start time, count of witnesses captured
-	CurrentEpochStart    time.Time
-	SampleIntervalStart  time.Time
-	SampleIntervalActive bool
-	SampleIntervalCount  int
-
-	// Time for epoch and interval
-	EpochTicker   *time.Ticker
-	IntervalTimer *time.Timer
-
-	// Channel for incoming captures
-	Incoming chan akinet.ParsedNetworkTraffic
-
-	// Map of unmatched request arrival times
-	RequestArrivalTimes map[requestKey]time.Time
-
 	// Channel for signaling goroutine to exit
-	Done chan struct{}
+	done chan struct{}
 
-	// Channle for signaling that the main loop is running
-	Running chan struct{}
+	// Child collectors
+	children []*rateLimitCollector
+
+	lock sync.Mutex
 }
 
-func (r *rateLimitCollector) Process(pnt akinet.ParsedNetworkTraffic) error {
-	r.Incoming <- pnt
-	return nil
-}
-
-func (r *rateLimitCollector) Close() error {
-	// TODO: do we need to wait for the worker goroutine to exit?
-	close(r.Done)
-	r.NextCollector.Close()
-	return nil
-}
-
-func (r *rateLimitCollector) Run() {
-	// Start the first epoch
-	r.EpochTicker = time.NewTicker(viper.GetDuration(RateLimitEpochTime))
-	defer r.EpochTicker.Stop()
-
-	r.CurrentEpochStart = time.Now()
-	r.startInterval(time.Now())
-
-	// Set up the timer so it's non-nil, but immediately stop it
-	r.IntervalTimer = time.NewTimer(0)
-	stopTimer := func() {
-		if !r.IntervalTimer.Stop() {
-			<-r.IntervalTimer.C
-		}
-	}
-	stopTimer()
-	defer stopTimer()
-
-	// Main loop: handle events as they come in, exit when Done
-	for true {
-		select {
-		case <-r.Done:
-			close(r.Running)
-			return
-		case epochStart := <-r.EpochTicker.C:
-			stopTimer()
-			r.startNewEpoch(epochStart)
-		case intervalStart := <-r.IntervalTimer.C:
-			r.startInterval(intervalStart)
-		case r.Running <- struct{}{}:
-			break
-		case pnt := <-r.Incoming:
-			r.handlePacket(pnt)
-		}
-	}
-}
-
-func (r *rateLimitCollector) startNewEpoch(epochStart time.Time) {
-	r.CurrentEpochStart = time.Now()
-	printer.Debugln("New collection epoch:", r.CurrentEpochStart)
-
-	// Pick a time for the next sampling interval to start within this epoch.
-	if r.FirstEstimate {
-		// Didn't get a new estimate, just keep collecting everything.
-		r.IntervalTimer.Reset(0)
-	} else {
-		upperBound := viper.GetDuration(RateLimitEpochTime) - r.EstimatedSampleInterval
-		randomOffset := time.Duration(rand.Int63n(int64(upperBound)))
-		r.IntervalTimer.Reset(randomOffset)
-	}
-
-	// Check for old requests in map
-	threshold := epochStart.Add(-1 * viper.GetDuration(RateLimitMaxDuration))
-	expired := 0
-	for k, v := range r.RequestArrivalTimes {
-		if v.Before(threshold) {
-			delete(r.RequestArrivalTimes, k)
-			expired += 1
-		}
-	}
-	printer.Debugf("Expired %v old requests\n", expired)
-}
-
-func (r *rateLimitCollector) startInterval(start time.Time) {
+func (r *SharedRateLimit) startInterval(start time.Time) {
 	// If we're in the current interval, just reset and keeping going.
 	// We don't get an updated interval that way, but that's OK.
 	printer.Debugln("New sample interval started:", start)
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
 	r.SampleIntervalStart = start
 	r.SampleIntervalCount = 0
 	r.SampleIntervalActive = true
 }
 
-func (r *rateLimitCollector) endInterval(end time.Time) {
+func (r *SharedRateLimit) endInterval(end time.Time) {
 	printer.Debugln("End of sample interval:", end)
 	intervalLength := end.Sub(r.SampleIntervalStart)
 	r.SampleIntervalActive = false
@@ -172,19 +89,140 @@ func (r *rateLimitCollector) endInterval(end time.Time) {
 	}
 }
 
-func (r *rateLimitCollector) handlePacket(pnt akinet.ParsedNetworkTraffic) {
+func (r *SharedRateLimit) run() {
+	r.epochTicker = time.NewTicker(viper.GetDuration(RateLimitEpochTime))
+	defer r.epochTicker.Stop()
+
+	// Set up the timer so it's non-nil, but it'll immediately fire
+	// (This only resets the counters, in case a packet has already arrived.)
+	r.intervalTimer = time.NewTimer(0)
+	defer r.intervalTimer.Stop()
+
+	// Main loop: handle time events or shutdown
+	for true {
+		select {
+		case <-r.done:
+			return
+		case epochStart := <-r.epochTicker.C:
+			r.startNewEpoch(epochStart)
+		case intervalStart := <-r.intervalTimer.C:
+			r.startInterval(intervalStart)
+		}
+	}
+}
+
+func (r *SharedRateLimit) Stop() {
+	close(r.done)
+}
+
+func (r *SharedRateLimit) startNewEpoch(epochStart time.Time) {
+	printer.Debugln("New collection epoch:", epochStart)
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.CurrentEpochStart = time.Now()
+
+	// Ensure timer is stopped before reset
+	// I *think* we don't need to drain the channel here (which would require
+	// extra state to do reliably anyway.)
+	r.intervalTimer.Stop()
+
+	// Pick a time for the next sampling interval to start within this epoch.
+	if r.FirstEstimate {
+		// Didn't get a new estimate, just keep collecting everything.
+		r.intervalTimer.Reset(0)
+	} else {
+		upperBound := viper.GetDuration(RateLimitEpochTime) - r.EstimatedSampleInterval
+		randomOffset := time.Duration(rand.Int63n(int64(upperBound)))
+		r.intervalTimer.Reset(randomOffset)
+	}
+
+	// Trigger request expiration for all collectors
+	threshold := epochStart.Add(-1 * viper.GetDuration(RateLimitMaxDuration))
+	for _, child := range r.children {
+		child.epochCh <- threshold
+	}
+}
+
+// Check if request should be sampled; increase the count by one.
+func (r *SharedRateLimit) AllowHTTPRequest() bool {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if !r.SampleIntervalActive {
+		return false
+	}
+
+	r.SampleIntervalCount += 1
+	if r.SampleIntervalCount >= r.WitnessesPerEpoch {
+		r.endInterval(time.Now())
+	}
+	return true
+}
+
+// Check if a non-HTTP packet should be sampled.
+// All non-HTTP requests are passed through so they can
+// be counted, if we're in an interval, but don't (yet) count
+// against the witness budget.
+// (For example, we might want to start counting source/dest pairs
+// for HTTPS, or otherwise recording unparsable network traffic.)func (r *SharedRateLimit) AllowOther() bool {
+func (r *SharedRateLimit) AllowOther() bool {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	return r.SampleIntervalActive
+}
+
+type requestKey struct {
+	StreamID       string
+	SequenceNumber int
+}
+
+type rateLimitCollector struct {
+	// Shared rate limit across all collectors
+	// (typically one is created per interface, and for outgoing vs. incoming)
+	RateLimit *SharedRateLimit
+
+	// Next collector in stack
+	NextCollector Collector
+
+	// Map of unmatched request arrival times
+	RequestArrivalTimes map[requestKey]time.Time
+
+	// Channel from RateLimit for epoch starts
+	epochCh chan time.Time
+}
+
+func (r *SharedRateLimit) NewCollector(next Collector) Collector {
+	c := &rateLimitCollector{
+		RateLimit:           r,
+		NextCollector:       next,
+		RequestArrivalTimes: make(map[requestKey]time.Time),
+		epochCh:             make(chan time.Time, 1),
+	}
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	r.children = append(r.children, c)
+	return c
+}
+
+func (r *SharedRateLimit) onCollectorClose(closed *rateLimitCollector) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	for i, c := range r.children {
+		if c == closed {
+			r.children = append(r.children[:i], r.children[i+1:]...)
+			return
+		}
+	}
+}
+
+func (r *rateLimitCollector) Process(pnt akinet.ParsedNetworkTraffic) error {
 	switch c := pnt.Content.(type) {
 	case akinet.HTTPRequest:
-		if r.SampleIntervalActive {
+		if r.RateLimit.AllowHTTPRequest() {
 			// Collect request and the matching response as well.
 			r.NextCollector.Process(pnt)
 			key := requestKey{c.StreamID.String(), c.Seq}
 			r.RequestArrivalTimes[key] = pnt.ObservationTime
-			// Bump count and see if we've hit our budget
-			r.SampleIntervalCount += 1
-			if r.SampleIntervalCount >= r.WitnessesPerEpoch {
-				r.endInterval(pnt.FinalPacketTime)
-			}
 		}
 	case akinet.HTTPResponse:
 		// Collect iff the request is in our map. (This means responses to calls
@@ -195,33 +233,56 @@ func (r *rateLimitCollector) handlePacket(pnt akinet.ParsedNetworkTraffic) {
 			r.NextCollector.Process(pnt)
 		}
 	default:
-		// All non-HTTP requests are passed through so they can
-		// be counted, if we're in an interval, but don't (yet) count
-		// against the witness budget.
-		// (For example, we might want to start counting source/dest pairs
-		// for HTTPS, or otherwise recording unparsable network traffic.)
-		if r.SampleIntervalActive {
+		if r.RateLimit.AllowOther() {
 			r.NextCollector.Process(pnt)
 		}
 	}
+
+	// Check for new epoch, in a nonblocking way
+	select {
+	case epochStart := <-r.epochCh:
+		r.expireRequests(epochStart)
+	default:
+		break
+	}
+
+	return nil
 }
 
-func NewRateLimiter(witnessesPerMinute float64, collector Collector) Collector {
+func (r *rateLimitCollector) Close() error {
+	// Remove self from future epoch updates
+	r.RateLimit.onCollectorClose(r)
+	return r.NextCollector.Close()
+}
+
+// expire requests that came in before the threshold value
+func (r *rateLimitCollector) expireRequests(threshold time.Time) {
+	expired := 0
+	for k, v := range r.RequestArrivalTimes {
+		if v.Before(threshold) {
+			delete(r.RequestArrivalTimes, k)
+			expired += 1
+		}
+	}
+	printer.Debugf("Expired %v old requests\n", expired)
+}
+
+func NewRateLimit(witnessesPerMinute float64) *SharedRateLimit {
 	witnessLimit := witnessesPerMinute * viper.GetDuration(RateLimitEpochTime).Minutes()
 	if witnessLimit < 1 {
-		printer.Warningln("Witnesses per minute rate is too low, rounding up to 1.")
+		printer.Warningln("Witnesses per minute rate is too low, rounding up to 1 per 5 minutes.")
 		witnessLimit = 1
 	}
-	c := &rateLimitCollector{
-		NextCollector:       collector,
-		WitnessesPerMinute:  witnessesPerMinute,
-		WitnessesPerEpoch:   int(witnessLimit),
-		FirstEstimate:       true,
-		Incoming:            make(chan akinet.ParsedNetworkTraffic, viper.GetInt(RateLimitQueueDepth)),
-		RequestArrivalTimes: make(map[requestKey]time.Time),
-		Done:                make(chan struct{}),
-		Running:             make(chan struct{}),
+	r := &SharedRateLimit{
+		WitnessesPerMinute: witnessesPerMinute,
+		WitnessesPerEpoch:  int(witnessLimit),
+		FirstEstimate:      true,
+		done:               make(chan struct{}),
 	}
-	go c.Run()
-	return c
+
+	// Start the first epoch.
+	// run() will start an interval immediately.
+	r.CurrentEpochStart = time.Now()
+	go r.run()
+	return r
 }

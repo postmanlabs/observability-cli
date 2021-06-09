@@ -42,46 +42,43 @@ func TestRateLimit_FirstSample(t *testing.T) {
 
 	start := time.Now()
 	cc := &countingCollector{}
-	rl := NewRateLimiter(1.0, cc).(*rateLimitCollector)
-
-	// Wait for main goroutine to start
-	_ = <-rl.Running
+	rl := NewRateLimit(1.0)
+	c := rl.NewCollector(cc).(*rateLimitCollector)
 
 	// Sample packet from another test
 	streamID := uuid.New()
-	req := akinet.ParsedNetworkTraffic{
-		Content: akinet.HTTPRequest{
-			StreamID: streamID,
-			Seq:      1203,
-			Method:   "POST",
-			URL: &url.URL{
-				Path: "/v1/doggos",
+	makeRequest := func(i int) akinet.ParsedNetworkTraffic {
+		return akinet.ParsedNetworkTraffic{
+			Content: akinet.HTTPRequest{
+				StreamID: streamID,
+				Seq:      1203 + i,
+				Method:   "POST",
+				URL: &url.URL{
+					Path: "/v1/doggos",
+				},
+				Host: "example.com",
+				Header: map[string][]string{
+					"Content-Type": {"application/json"},
+				},
+				Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
 			},
-			Host: "example.com",
-			Header: map[string][]string{
-				"Content-Type": {"application/json"},
-			},
-			Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
-		},
+			ObservationTime: time.Now(),
+			FinalPacketTime: time.Now(),
+		}
 	}
 
 	for i := 0; i < 10; i++ {
-		req.ObservationTime = time.Now()
-		req.FinalPacketTime = time.Now()
-		rl.Process(req)
+		c.Process(makeRequest(i))
 	}
 
-	// If we read from rateLimitCollector, the race checker will yell at us.
+	// If we read from the collector directly, the race checker will yell at us.
 	// So, we'll ensure that at least 5 packets have been delivered before closing.
 	ticker := time.NewTicker(10 * time.Millisecond)
 	for cc.GetNumPackets() < 5 {
 		<-ticker.C
 	}
 
-	rl.Close()
-
-	// Wait for main goroutine to exit
-	_ = <-rl.Running
+	c.Close()
 
 	end := time.Now()
 	fullDuration := end.Sub(start)
@@ -95,7 +92,13 @@ func TestRateLimit_FirstSample(t *testing.T) {
 	if rl.FirstEstimate {
 		t.Errorf("Expected FirstEstimate to be false")
 	}
-	if rl.EstimatedSampleInterval > fullDuration {
+	if rl.EstimatedSampleInterval > fullDuration || rl.EstimatedSampleInterval == 0.0 {
 		t.Errorf("Expected estimate to be less than %v, got %v", fullDuration, rl.EstimatedSampleInterval)
+	}
+	if len(c.RequestArrivalTimes) != 5 {
+		t.Errorf("Expected 5 requests in ArrivalTimes, got %v", len(c.RequestArrivalTimes))
+	}
+	if len(rl.children) != 0 {
+		t.Errorf("Expected empty child list after close.")
 	}
 }

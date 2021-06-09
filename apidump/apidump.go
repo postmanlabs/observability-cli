@@ -236,6 +236,13 @@ func Run(args Args) error {
 	inboundSummary := trace.NewPacketCountSummary()
 	outboundSummary := trace.NewPacketCountSummary()
 
+	// Initialized shared rate object, if we are configured with a rate limit
+	var rateLimit *trace.SharedRateLimit
+	if args.WitnessesPerMinute != 0.0 {
+		rateLimit = trace.NewRateLimit(args.WitnessesPerMinute)
+		defer rateLimit.Stop()
+	}
+
 	// Start collecting
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(inboundFilters) + len(outboundFilters))
@@ -294,8 +301,8 @@ func Run(args Args) error {
 					Collector:  collector,
 				}
 			}
-			if args.WitnessesPerMinute != 0.0 {
-				collector = trace.NewRateLimiter(args.WitnessesPerMinute, collector)
+			if rateLimit != nil {
+				collector = rateLimit.NewCollector(collector)
 			}
 
 			// Add filters

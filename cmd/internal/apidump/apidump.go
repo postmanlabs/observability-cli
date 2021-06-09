@@ -21,6 +21,7 @@ var (
 	interfacesFlag      []string
 	filterFlag          string
 	sampleRateFlag      float64
+	rateLimitFlag       float64
 	tagsFlag            []string
 	pathExclusionsFlag  []string
 	hostExclusionsFlag  []string
@@ -60,18 +61,19 @@ var Cmd = &cobra.Command{
 		}
 
 		args := apidump.Args{
-			ClientID:        akid.GenerateClientID(),
-			Domain:          akiflag.Domain,
-			Out:             outFlag,
-			Tags:            tags,
-			SampleRate:      sampleRateFlag,
-			Interfaces:      interfacesFlag,
-			Filter:          filterFlag,
-			PathExclusions:  pathExclusionsFlag,
-			HostExclusions:  hostExclusionsFlag,
-			ExecCommand:     execCommandFlag,
-			ExecCommandUser: execCommandUserFlag,
-			Plugins:         plugins,
+			ClientID:           akid.GenerateClientID(),
+			Domain:             akiflag.Domain,
+			Out:                outFlag,
+			Tags:               tags,
+			SampleRate:         sampleRateFlag,
+			WitnessesPerMinute: rateLimitFlag,
+			Interfaces:         interfacesFlag,
+			Filter:             filterFlag,
+			PathExclusions:     pathExclusionsFlag,
+			HostExclusions:     hostExclusionsFlag,
+			ExecCommand:        execCommandFlag,
+			ExecCommandUser:    execCommandUserFlag,
+			Plugins:            plugins,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -108,7 +110,14 @@ func init() {
 		&sampleRateFlag,
 		"sample-rate",
 		1.0,
-		"A number between [0.0, 1.0] to control sampling.",
+		"A number between [0.0, 1.0] to control sampling. DEPRECATED, prefer --rate-limit.",
+	)
+
+	Cmd.Flags().Float64Var(
+		&rateLimitFlag,
+		"rate-limit",
+		0.0,
+		"Number of requests per minute to capture. Defaults to unlimited.",
 	)
 
 	Cmd.Flags().StringSliceVar(
