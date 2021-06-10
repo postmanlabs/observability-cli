@@ -17,6 +17,10 @@ func circleCIInfo() (*github.PullRequest, map[tags.Key]string) {
 
 	tags := map[tags.Key]string{
 		tags.XAkitaCI:               CircleCI.String(),
+		tags.XAkitaGitRepoURL:       os.Getenv("CIRCLE_REPOSITORY_URL"),
+		tags.XAkitaGitBranch:        os.Getenv("CIRCLE_BRANCH"),
+		tags.XAkitaGitCommit:        os.Getenv("CIRCLE_SHA1"),
+		tags.XAkitaGitHubPRURL:      os.Getenv("CIRCLE_PULL_REQUEST"),
 		tags.XAkitaCircleCIBuildURL: os.Getenv("CIRCLE_BUILD_URL"),
 	}
 	return pr, tags
