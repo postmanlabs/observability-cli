@@ -30,7 +30,7 @@ func NewLearnClient(host string, cli akid.ClientID, svc akid.ServiceID) *learnCl
 	}
 }
 
-func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string) ([]*kgxapi.LearnSession, error) {
+func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string) ([]*kgxapi.ListedLearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
 	q := url.Values{}
 	for k, v := range tags {
