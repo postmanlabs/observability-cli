@@ -27,7 +27,7 @@ type CreateSpecOptions struct {
 }
 
 type LearnClient interface {
-	ListLearnSessions(context.Context, akid.ServiceID, map[tags.Key]string) ([]*kgxapi.LearnSession, error)
+	ListLearnSessions(context.Context, akid.ServiceID, map[tags.Key]string) ([]*kgxapi.ListedLearnSession, error)
 	GetLearnSession(context.Context, akid.ServiceID, akid.LearnSessionID) (*kgxapi.LearnSession, error)
 	CreateLearnSession(context.Context, *kgxapi.APISpecReference, string, map[tags.Key]string) (akid.LearnSessionID, error)
 	ReportWitnesses(context.Context, akid.LearnSessionID, []*kgxapi.WitnessReport) error
