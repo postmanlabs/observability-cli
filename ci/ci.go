@@ -45,6 +45,10 @@ func (c *CI) UnmarshalText(s []byte) error {
 	return nil
 }
 
+// Returns learn session tags for common CI environments.
+// Currently, we support:
+// - CircleCI
+// - TravisCI
 func GetCIInfo() (CI, *github.PullRequest, map[tags.Key]string) {
 	if inCI, err := strconv.ParseBool(os.Getenv("CI")); err != nil || !inCI {
 		return Unknown, nil, nil
