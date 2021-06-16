@@ -10,7 +10,6 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/daemon"
-	"github.com/akitasoftware/akita-libs/akid"
 )
 
 var (
@@ -34,7 +33,7 @@ var Cmd = &cobra.Command{
 		}
 
 		args := daemon.Args{
-			ClientID:   akid.GenerateClientID(),
+			ClientID:   akiflag.ClientID,
 			Domain:     akiflag.Domain,
 			DaemonName: nameFlag,
 			PortNumber: portNumberFlag,

@@ -4,7 +4,6 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/setversion"
-	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -26,7 +25,7 @@ var Cmd = &cobra.Command{
 		}
 
 		setversionArgs := setversion.Args{
-			ClientID:    akid.GenerateClientID(),
+			ClientID:    akiflag.ClientID,
 			Domain:      akiflag.Domain,
 			ModelURI:    modelURI,
 			VersionName: args[0],

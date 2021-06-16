@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -103,7 +102,7 @@ func testCredentials() error {
 
 	// Next, test the creds by trying to get the user's services.
 	{
-		clientID := akid.GenerateClientID()
+		clientID := akiflag.ClientID
 		frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

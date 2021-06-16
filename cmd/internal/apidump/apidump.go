@@ -9,7 +9,6 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
-	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/tags"
 )
@@ -64,7 +63,7 @@ var Cmd = &cobra.Command{
 		traceTags[tags.XAkitaSource] = tags.UserSource
 
 		args := apidump.Args{
-			ClientID:           akid.GenerateClientID(),
+			ClientID:           akiflag.ClientID,
 			Domain:             akiflag.Domain,
 			Out:                outFlag,
 			Tags:               traceTags,

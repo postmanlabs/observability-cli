@@ -4,7 +4,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
@@ -73,7 +72,7 @@ var Cmd = &cobra.Command{
 		}
 
 		uploadArgs := upload.Args{
-			ClientID:      akid.GenerateClientID(),
+			ClientID:      akiflag.ClientID,
 			Domain:        akiflag.Domain,
 			DestURI:       destURI,
 			FilePaths:     args,
