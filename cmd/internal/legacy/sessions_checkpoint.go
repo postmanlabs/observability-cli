@@ -9,6 +9,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/rest"
 )
@@ -34,7 +35,7 @@ var (
 )
 
 func init() {
-	SessionsCmd.AddCommand(checkpointSessionCmd)
+	SessionsCmd.AddCommand(ci_guard.GuardCommand(checkpointSessionCmd))
 
 	checkpointSessionCmd.Flags().DurationVar(
 		&checkpointSessionTimeoutFlag,

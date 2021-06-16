@@ -11,6 +11,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -38,7 +39,7 @@ var (
 )
 
 func init() {
-	SessionsCmd.AddCommand(createSessionCmd)
+	SessionsCmd.AddCommand(ci_guard.GuardCommand(createSessionCmd))
 
 	createSessionCmd.Flags().StringSliceVar(
 		&createSessionTagsFlag,

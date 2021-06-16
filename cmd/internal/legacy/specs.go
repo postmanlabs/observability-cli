@@ -13,6 +13,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/rest"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
@@ -57,7 +58,7 @@ var (
 )
 
 func init() {
-	SpecsCmd.AddCommand(getSpecCmd)
+	SpecsCmd.AddCommand(ci_guard.GuardCommand(getSpecCmd))
 
 	getSpecCmd.Flags().StringVar(
 		&getSpecServiceFlag,
