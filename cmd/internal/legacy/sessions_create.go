@@ -9,9 +9,9 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 
+	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
@@ -76,9 +76,9 @@ func runCreateSession() error {
 		return err
 	}
 
-	ci, ciTags := env.GetCITagsForLearnSession()
-	if ci != env.UnknownCI {
-		printer.Stderr.Infof("Detected CI environment: %s\n", ci)
+	ciEnv, _, ciTags := ci.GetCIInfo()
+	if ciEnv != ci.Unknown {
+		printer.Stderr.Infof("Detected CI environment: %s\n", ciEnv)
 		for k, v := range ciTags {
 			tags[k] = v
 		}
