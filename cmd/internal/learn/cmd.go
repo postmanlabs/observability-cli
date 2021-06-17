@@ -45,7 +45,7 @@ var Cmd = &cobra.Command{
 }
 
 func runLearnMode() error {
-	clientID := akid.GenerateClientID()
+	clientID := akiflag.GetClientID()
 
 	plugins, err := pluginloader.Load(pluginsFlag)
 	if err != nil {

@@ -50,7 +50,7 @@ func runCheckpointSession(rawSessionID string) error {
 		return errors.Wrapf(err, "failed to parse learn session ID %s", rawSessionID)
 	}
 
-	clientID := akid.GenerateClientID()
+	clientID := akiflag.GetClientID()
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
 
 	serviceID, err := getServiceIDByName(frontClient, sessionsServiceFlag)
