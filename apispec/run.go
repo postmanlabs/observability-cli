@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/ci"
+	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -96,6 +97,21 @@ func Run(args Args) error {
 					args.GitHubPR = pr.Num
 				}
 			}
+		}
+	}
+
+	// Import information about production or staging environment
+	{
+		deploymentType, deploymentTags := deployment.GetDeploymentInfo()
+
+		// Override user type, but not CI.
+		if deploymentType != deployment.None &&
+			args.Tags[tags.XAkitaSource] == tags.UserSource {
+			args.Tags[tags.XAkitaSource] = tags.DeploymentSource
+		}
+
+		for k, v := range deploymentTags {
+			args.Tags[k] = v
 		}
 	}
 
