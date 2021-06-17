@@ -27,7 +27,7 @@ func GuardCommand(cmd *cobra.Command) *cobra.Command {
 			}
 
 			if !enabled {
-				printer.Warningf("The GitHub PR %s/%s#%d is not Akita-enabled: the user that opened PR is not a member of the GitHub team %s/%s. The CLI will now exit without doing anything.", gitHubPR.Repo.Owner, gitHubPR.Repo.Name, gitHubPR.Num, gitHubPR.Repo.Owner, AkitaGitHubUsersTeamSlug)
+				printer.Warningf("The GitHub PR %s/%s#%d is not Akita-enabled: the user that opened the PR is not a member of the GitHub team %s/%s. The CLI will now exit without doing anything.", gitHubPR.Repo.Owner, gitHubPR.Repo.Name, gitHubPR.Num, gitHubPR.Repo.Owner, AkitaGitHubUsersTeamSlug)
 				return nil
 			}
 		}
