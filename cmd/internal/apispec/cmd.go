@@ -43,7 +43,7 @@ var Cmd = &cobra.Command{
 		}
 
 		args := apispec.Args{
-			ClientID:       akiflag.ClientID,
+			ClientID:       akiflag.GetClientID(),
 			Domain:         akiflag.Domain,
 			Traces:         traces,
 			Out:            outFlag,

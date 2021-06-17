@@ -25,7 +25,7 @@ var Cmd = &cobra.Command{
 		}
 
 		setversionArgs := setversion.Args{
-			ClientID:    akiflag.ClientID,
+			ClientID:    akiflag.GetClientID(),
 			Domain:      akiflag.Domain,
 			ModelURI:    modelURI,
 			VersionName: args[0],

@@ -72,7 +72,7 @@ var Cmd = &cobra.Command{
 		}
 
 		uploadArgs := upload.Args{
-			ClientID:      akiflag.ClientID,
+			ClientID:      akiflag.GetClientID(),
 			Domain:        akiflag.Domain,
 			DestURI:       destURI,
 			FilePaths:     args,

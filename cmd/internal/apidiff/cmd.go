@@ -28,7 +28,7 @@ var Cmd = &cobra.Command{
 		}
 
 		diffArgs := apidiff.Args{
-			ClientID:    akiflag.ClientID,
+			ClientID:    akiflag.GetClientID(),
 			Domain:      akiflag.Domain,
 			BaseSpecURI: spec1,
 			NewSpecURI:  spec2,
