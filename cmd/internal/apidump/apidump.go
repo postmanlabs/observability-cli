@@ -63,7 +63,7 @@ var Cmd = &cobra.Command{
 		traceTags[tags.XAkitaSource] = tags.UserSource
 
 		args := apidump.Args{
-			ClientID:           akiflag.ClientID,
+			ClientID:           akiflag.GetClientID(),
 			Domain:             akiflag.Domain,
 			Out:                outFlag,
 			Tags:               traceTags,

@@ -33,7 +33,7 @@ var Cmd = &cobra.Command{
 		}
 
 		args := daemon.Args{
-			ClientID:   akiflag.ClientID,
+			ClientID:   akiflag.GetClientID(),
 			Domain:     akiflag.Domain,
 			DaemonName: nameFlag,
 			PortNumber: portNumberFlag,

@@ -41,7 +41,7 @@ func GuardCommand(cmd *cobra.Command) *cobra.Command {
 // Queries Akita Cloud to determine whether the given GitHub PR is
 // Akita-enabled.
 func gitHubPrIsAkitaEnabled(gitHubPR *github.PullRequest) (bool, error) {
-	frontClient := rest.NewFrontClient(akiflag.Domain, akiflag.ClientID)
+	frontClient := rest.NewFrontClient(akiflag.Domain, akiflag.GetClientID())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -8,5 +8,13 @@ import "github.com/akitasoftware/akita-libs/akid"
 
 var Domain string
 
-// A global ClientID, generated once per CLI instance.
-var ClientID akid.ClientID = akid.GenerateClientID()
+// Returns a global ClientID, generated once per CLI instance.
+func GetClientID() akid.ClientID {
+	if clientID == nil {
+		newID := akid.GenerateClientID()
+		clientID = &newID
+	}
+	return *clientID
+}
+
+var clientID *akid.ClientID
