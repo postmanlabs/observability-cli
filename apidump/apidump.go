@@ -142,28 +142,9 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 
 }
 
-// Captures packets from the network and adds them to a trace. The trace is
-// created if it doesn't already exist.
-//
-// The args.Tags is expected to already contain information about how the trace
-// is captured (e.g., whether the capture was user-initiated or is from CI, and
-// any applicable information from CI).
-func Run(args Args) error {
-	// Get the interfaces to listen on.
-	interfaces, err := getEligibleInterfaces(args.Interfaces)
-	if err != nil {
-		return errors.Wrap(err, "failed to list network interfaces")
-	}
-
-	// Build inbound and outbound filters for each interface.
-	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, 0)
-	if err != nil {
-		return err
-	}
-	printer.Debugln("Inbound BPF filters:", inboundFilters)
-	printer.Debugln("Outbound BPF filters:", outboundFilters)
-
-	// Build tags.
+// args.Tags may be initialized via the command line, but automated settings
+// are mainly performed here (for now.)
+func collectTraceTags(args *Args) map[tags.Key]string {
 	traceTags := args.Tags
 	if traceTags == nil {
 		traceTags = map[tags.Key]string{}
@@ -195,6 +176,27 @@ func Run(args Args) error {
 	}
 
 	printer.Debugln("trace tags:", traceTags)
+	return traceTags
+}
+
+// Captures packets from the network and adds them to a trace. The trace is
+// created if it doesn't already exist.
+func Run(args Args) error {
+	// Get the interfaces to listen on.
+	interfaces, err := getEligibleInterfaces(args.Interfaces)
+	if err != nil {
+		return errors.Wrap(err, "failed to list network interfaces")
+	}
+
+	// Build inbound and outbound filters for each interface.
+	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, 0)
+	if err != nil {
+		return err
+	}
+	printer.Debugln("Inbound BPF filters:", inboundFilters)
+	printer.Debugln("Outbound BPF filters:", outboundFilters)
+
+	traceTags := collectTraceTags(&args)
 
 	// Build path filters.
 	pathExclusions := make([]*regexp.Regexp, 0, len(args.PathExclusions))

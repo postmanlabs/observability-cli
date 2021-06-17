@@ -45,7 +45,7 @@ func (d Deployment) String() string {
 }
 
 // Use envToTag map to see if any of the environment variables are present.
-// Return true if so.
+// Return true if so, and update the tagset.
 func (d Deployment) getTagsFromEnvironment(tagset map[tags.Key]string) bool {
 	found := false
 	for envVar, tag := range environmentToTag[d] {
