@@ -68,11 +68,6 @@ type Args struct {
 }
 
 func Run(args Args) error {
-	// Set source to user by default.
-	if _, ok := args.Tags[tags.XAkitaSource]; !ok {
-		args.Tags[tags.XAkitaSource] = tags.UserSource
-	}
-
 	// Auto detect CI environment.
 	{
 		ciType, pr, ciTags := ci.GetCIInfo()
@@ -101,18 +96,12 @@ func Run(args Args) error {
 	}
 
 	// Import information about production or staging environment
-	{
-		deploymentType, deploymentTags := deployment.GetDeploymentInfo()
+	// including, possible, XAkitaSource
+	deployment.UpdateTags(args.Tags)
 
-		// Override user type, but not CI.
-		if deploymentType != deployment.None &&
-			args.Tags[tags.XAkitaSource] == tags.UserSource {
-			args.Tags[tags.XAkitaSource] = tags.DeploymentSource
-		}
-
-		for k, v := range deploymentTags {
-			args.Tags[k] = v
-		}
+	// Set source to user by default.
+	if _, ok := args.Tags[tags.XAkitaSource]; !ok {
+		args.Tags[tags.XAkitaSource] = tags.UserSource
 	}
 
 	var serviceName string

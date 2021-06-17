@@ -60,9 +60,6 @@ var Cmd = &cobra.Command{
 			outFlag.AkitaURI = &uri
 		}
 
-		// Tag the trace as being manually created by the user.
-		traceTags[tags.XAkitaSource] = tags.UserSource
-
 		args := apidump.Args{
 			ClientID:           akid.GenerateClientID(),
 			Domain:             akiflag.Domain,

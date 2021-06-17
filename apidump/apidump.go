@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/plugin"
@@ -176,22 +177,24 @@ func Run(args Args) error {
 		traceTags[tags.XAkitaDumpFilterFlag] = args.Filter
 	}
 
-	// Import information about production or staging environment
-	// FIXME: this is performed in apispec as well; does that cause problems if the same
-	// args.Tags map is re-used?
-	{
-		deploymentType, deploymentTags := deployment.GetDeploymentInfo()
-
-		// Override user type, but not CI.
-		if deploymentType != deployment.None &&
-			args.Tags[tags.XAkitaSource] == tags.UserSource || args.Tags[tags.XAkitaSource] == tags.Source("") {
-			args.Tags[tags.XAkitaSource] = tags.DeploymentSource
+	// Set CI type and tags on trace
+	ciType, _, ciTags := ci.GetCIInfo()
+	if ciType != ci.Unknown {
+		for k, v := range ciTags {
+			traceTags[k] = v
 		}
-
-		for k, v := range deploymentTags {
-			args.Tags[k] = v
-		}
+		traceTags[tags.XAkitaSource] = tags.CISource
 	}
+
+	// Import information about production or staging environment
+	deployment.UpdateTags(traceTags)
+
+	// Set source to user by default (if not CI or deployment)
+	if _, ok := traceTags[tags.XAkitaSource]; !ok {
+		traceTags[tags.XAkitaSource] = tags.UserSource
+	}
+
+	printer.Debugln("trace tags:", traceTags)
 
 	// Build path filters.
 	pathExclusions := make([]*regexp.Regexp, 0, len(args.PathExclusions))

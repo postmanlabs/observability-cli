@@ -7,41 +7,73 @@ import (
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
+// Internal type of the deployment, automatically discovered.
+// The most-specific one is returned.  (Or do we need to
+// support categorizing the deployment in more than one way?)
+// This does not correspond to a tag.
 type Deployment string
 
 const (
 	None       Deployment = ""
-	Unknown               = "unknown"
-	Kubernetes            = "kubernetes"
+	Any        Deployment = "any"
+	Unknown    Deployment = "unknown"
+	AWS        Deployment = "aws"
+	Kubernetes Deployment = "kubernetes"
 )
+
+// Map of environment variables to tags, grouped by deployment type.
+var environmentToTag map[Deployment]map[string]tags.Key = map[Deployment]map[string]tags.Key{
+	Any: {
+		"AKITA_DEPLOYMENT":        tags.XAkitaDeployment,
+		"AKITA_DEPLOYMENT_COMMIT": tags.XAkitaGitCommit,
+	},
+	AWS: {
+		"AKITA_AWS_REGION": tags.XAkitaAWSRegion,
+	},
+	Kubernetes: {
+		"AKITA_K8S_NAMESPACE": tags.XAkitaKubernetesNamespace,
+		"AKITA_K8S_NODE":      tags.XAkitaKubernetesNode,
+		"AKITA_K8S_HOST_IP":   tags.XAkitaKubernetesHostIP,
+		"AKITA_K8S_POD":       tags.XAkitaKubernetesPod,
+		"AKITA_K8S_POD_IP":    tags.XAkitaKubernetesPodIP,
+		"AKITA_K8S_DAEMONSET": tags.XAkitaKubernetesDaemonset,
+	},
+}
 
 func (d Deployment) String() string {
 	return string(d)
 }
 
-func GetDeploymentInfo() (Deployment, map[tags.Key]string) {
-	// Allow the user to specify a deployment environment, even
-	// if it's of an unknown type.
+// Use envToTag map to see if any of the environment variables are present.
+// Return true if so.
+func (d Deployment) getTagsFromEnvironment(tagset map[tags.Key]string) bool {
+	found := false
+	for envVar, tag := range environmentToTag[d] {
+		if v := os.Getenv(envVar); v != "" {
+			tagset[tag] = v
+			found = true
+		}
+	}
+	return found
+}
 
+func GetDeploymentInfo() (Deployment, map[tags.Key]string) {
 	deploymentType := None
 	tagset := make(map[tags.Key]string)
 
-	if d := os.Getenv("AKITA_DEPLOYMENT"); d != "" {
+	// Allow the user to specify the name (not type) of deployment environment,
+	// even if it's of an unknown type.
+	// If there is a git commit associated with this deployment, then record it.
+	if Any.getTagsFromEnvironment(tagset) {
 		deploymentType = Unknown
-		tagset[tags.XAkitaDeployment] = d
 	}
 
-	// If there is a git commit associated with this deployment,
-	// then record it.
-	if c := os.Getenv("AKITA_DEPLOYMENT_COMMIT"); c != "" {
-		tagset[tags.XAkitaGitCommit] = c
-	}
-
-	if GetAWSTags(tagset) {
+	if AWS.getTagsFromEnvironment(tagset) {
 		printer.Infof("Found AWS environment variables.\n")
+		deploymentType = AWS
 	}
 
-	if GetKubernetesTags(tagset) {
+	if Kubernetes.getTagsFromEnvironment(tagset) {
 		printer.Infof("Found Kubernetes environment variables.\n")
 		deploymentType = Kubernetes
 	}
@@ -49,37 +81,20 @@ func GetDeploymentInfo() (Deployment, map[tags.Key]string) {
 	return deploymentType, tagset
 }
 
-func GetKubernetesTags(tagset map[tags.Key]string) bool {
-	// Return true if any of these are present.
-	envMapping := []struct {
-		EnvVar string
-		Key    tags.Key
-	}{
-		{"AKITA_K8S_NAMESPACE", tags.XAkitaKubernetesNamespace},
-		{"AKITA_K8S_NODE", tags.XAkitaKubernetesNode},
-		{"AKITA_K8S_HOST_IP", tags.XAkitaKubernetesHostIP},
-		{"AKITA_K8S_POD", tags.XAkitaKubernetesPod},
-		{"AKITA_K8S_POD_IP", tags.XAkitaKubernetesPodIP},
-		{"AKITA_K8S_DAEMONSET", tags.XAkitaKubernetesDaemonset},
-	}
+// Import information about production or staging environment
+// if it is available in environment variables.
+func UpdateTags(argsTags map[tags.Key]string) {
+	deploymentType, deploymentTags := GetDeploymentInfo()
 
-	found := false
-	for _, e := range envMapping {
-		if v := os.Getenv(e.EnvVar); v != "" {
-			tagset[e.Key] = v
-			found = true
+	// Only specify source if no source is already set.
+	if deploymentType != None {
+		if _, present := argsTags[tags.XAkitaSource]; !present {
+			argsTags[tags.XAkitaSource] = tags.DeploymentSource
 		}
 	}
 
-	return found
-}
-
-func GetAWSTags(tagset map[tags.Key]string) bool {
-	// Only the region for now
-
-	if awsRegion := os.Getenv("AKITA_AWS_REGION"); awsRegion != "" {
-		tagset[tags.XAkitaAWSRegion] = awsRegion
-		return true
+	// Copy into existing map
+	for k, v := range deploymentTags {
+		argsTags[k] = v
 	}
-	return false
 }

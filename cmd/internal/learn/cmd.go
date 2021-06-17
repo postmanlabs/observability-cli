@@ -161,10 +161,11 @@ func runLearnMode() error {
 
 		// Tag as coming from CI.
 		tagsMap[tags.XAkitaSource] = tags.CISource
-	} else {
-		// Tag as coming from the user.
-		tagsMap[tags.XAkitaSource] = tags.UserSource
 	}
+	// Other tags are set up in apidump and/or apispec
+	// TODO: completely refactor so tags are only set here, or
+	// internal/apidump/cmd, or internal/apispec/cmd, instead
+	// of doing it twice in this case.
 
 	traceURI, err := runAPIDump(clientID, serviceName, tagsMap, plugins)
 	if err != nil {
