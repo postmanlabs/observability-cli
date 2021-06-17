@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"github.com/akitasoftware/akita-cli/ci"
+	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -140,12 +142,45 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 
 }
 
+// args.Tags may be initialized via the command line, but automated settings
+// are mainly performed here (for now.)
+func collectTraceTags(args *Args) map[tags.Key]string {
+	traceTags := args.Tags
+	if traceTags == nil {
+		traceTags = map[tags.Key]string{}
+	}
+	// Store the current packet capture flags so we can reuse them in active
+	// learning.
+	if len(args.Interfaces) > 0 {
+		traceTags[tags.XAkitaDumpInterfacesFlag] = strings.Join(args.Interfaces, ",")
+	}
+	if args.Filter != "" {
+		traceTags[tags.XAkitaDumpFilterFlag] = args.Filter
+	}
+
+	// Set CI type and tags on trace
+	ciType, _, ciTags := ci.GetCIInfo()
+	if ciType != ci.Unknown {
+		for k, v := range ciTags {
+			traceTags[k] = v
+		}
+		traceTags[tags.XAkitaSource] = tags.CISource
+	}
+
+	// Import information about production or staging environment
+	deployment.UpdateTags(traceTags)
+
+	// Set source to user by default (if not CI or deployment)
+	if _, ok := traceTags[tags.XAkitaSource]; !ok {
+		traceTags[tags.XAkitaSource] = tags.UserSource
+	}
+
+	printer.Debugln("trace tags:", traceTags)
+	return traceTags
+}
+
 // Captures packets from the network and adds them to a trace. The trace is
 // created if it doesn't already exist.
-//
-// The args.Tags is expected to already contain information about how the trace
-// is captured (e.g., whether the capture was user-initiated or is from CI, and
-// any applicable information from CI).
 func Run(args Args) error {
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
@@ -161,19 +196,7 @@ func Run(args Args) error {
 	printer.Debugln("Inbound BPF filters:", inboundFilters)
 	printer.Debugln("Outbound BPF filters:", outboundFilters)
 
-	// Build tags.
-	traceTags := args.Tags
-	if traceTags == nil {
-		traceTags = map[tags.Key]string{}
-	}
-	// Store the current packet capture flags so we can reuse them in active
-	// learning.
-	if len(args.Interfaces) > 0 {
-		traceTags[tags.XAkitaDumpInterfacesFlag] = strings.Join(args.Interfaces, ",")
-	}
-	if args.Filter != "" {
-		traceTags[tags.XAkitaDumpFilterFlag] = args.Filter
-	}
+	traceTags := collectTraceTags(&args)
 
 	// Build path filters.
 	pathExclusions := make([]*regexp.Regexp, 0, len(args.PathExclusions))

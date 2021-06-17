@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/ci"
+	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -66,39 +67,82 @@ type Args struct {
 	Plugins []plugin.AkitaPlugin
 }
 
-func Run(args Args) error {
-	// Set source to user by default.
-	if _, ok := args.Tags[tags.XAkitaSource]; !ok {
-		args.Tags[tags.XAkitaSource] = tags.UserSource
+// Collect the tag set to apply to the specification.
+// May modify the arguments based on CI information, and return a github PR
+func collectSpecTags(args *Args) (map[tags.Key]string, *github.PRInfo, error) {
+	specTags := args.Tags
+	if specTags == nil {
+		specTags = map[tags.Key]string{}
 	}
 
 	// Auto detect CI environment.
-	{
-		ciType, pr, ciTags := ci.GetCIInfo()
-		if ciType != ci.Unknown {
-			for k, v := range ciTags {
-				args.Tags[k] = v
+	ciType, pr, ciTags := ci.GetCIInfo()
+	if ciType != ci.Unknown {
+		for k, v := range ciTags {
+			specTags[k] = v
+		}
+
+		specTags[tags.XAkitaSource] = tags.CISource
+
+		if pr != nil {
+			if args.GitHubBranch == "" {
+				args.GitHubBranch = pr.Branch
 			}
-
-			args.Tags[tags.XAkitaSource] = tags.CISource
-
-			if pr != nil {
-				if args.GitHubBranch == "" {
-					args.GitHubBranch = pr.Branch
-				}
-				if args.GitHubCommit == "" {
-					args.GitHubCommit = pr.Commit
-				}
-				if args.GitHubRepo == "" {
-					args.GitHubRepo = pr.Repo.Owner + "/" + pr.Repo.Name
-				}
-				if args.GitHubPR == 0 {
-					args.GitHubPR = pr.Num
-				}
+			if args.GitHubCommit == "" {
+				args.GitHubCommit = pr.Commit
+			}
+			if args.GitHubRepo == "" {
+				args.GitHubRepo = pr.Repo.Owner + "/" + pr.Repo.Name
+			}
+			if args.GitHubPR == 0 {
+				args.GitHubPR = pr.Num
 			}
 		}
 	}
 
+	// Import information about production or staging environment
+	// including, possibly, XAkitaSource
+	deployment.UpdateTags(specTags)
+
+	// Set source to user by default.
+	if _, ok := specTags[tags.XAkitaSource]; !ok {
+		specTags[tags.XAkitaSource] = tags.UserSource
+	}
+
+	// additional github or gitlab tags
+	var githubPR *github.PRInfo
+	if args.GitHubRepo != "" && args.GitHubPR != 0 {
+		parts := strings.Split(args.GitHubRepo, "/")
+		if len(parts) != 2 {
+			return nil, nil, errors.Errorf("github repo name should contain {OWNER}/{NAME}")
+		}
+
+		// Add tags to store commit information.
+		specTags[tags.XAkitaSource] = tags.CISource
+		specTags[tags.XAkitaGitHubRepo] = args.GitHubRepo
+		specTags[tags.XAkitaGitHubPR] = strconv.Itoa(args.GitHubPR)
+		specTags[tags.XAkitaGitBranch] = args.GitHubBranch
+		specTags[tags.XAkitaGitCommit] = args.GitHubCommit
+
+		githubPR = &github.PRInfo{
+			RepoOwner: parts[0],
+			RepoName:  parts[1],
+			Num:       args.GitHubPR,
+		}
+	}
+	if args.GitLabMR != nil {
+		// Add tags to store commit information.
+		specTags[tags.XAkitaSource] = tags.CISource
+		specTags[tags.XAkitaGitLabProject] = args.GitLabMR.Project
+		specTags[tags.XAkitaGitLabMRIID] = args.GitLabMR.IID
+		specTags[tags.XAkitaGitBranch] = args.GitLabMR.Branch
+		specTags[tags.XAkitaGitCommit] = args.GitLabMR.Commit
+	}
+
+	return specTags, githubPR, nil
+}
+
+func Run(args Args) error {
 	var serviceName string
 	if uri := args.Out.AkitaURI; uri != nil {
 		serviceName = uri.ServiceName
@@ -150,38 +194,10 @@ func Run(args Args) error {
 		}
 	}
 
-	specTags := args.Tags
-	if specTags == nil {
-		specTags = map[tags.Key]string{}
-	}
-
-	var githubPR *github.PRInfo
-	if args.GitHubRepo != "" && args.GitHubPR != 0 {
-		parts := strings.Split(args.GitHubRepo, "/")
-		if len(parts) != 2 {
-			return errors.Errorf("github repo name should contain {OWNER}/{NAME}")
-		}
-
-		// Add tags to store commit information.
-		specTags[tags.XAkitaSource] = tags.CISource
-		specTags[tags.XAkitaGitHubRepo] = args.GitHubRepo
-		specTags[tags.XAkitaGitHubPR] = strconv.Itoa(args.GitHubPR)
-		specTags[tags.XAkitaGitBranch] = args.GitHubBranch
-		specTags[tags.XAkitaGitCommit] = args.GitHubCommit
-
-		githubPR = &github.PRInfo{
-			RepoOwner: parts[0],
-			RepoName:  parts[1],
-			Num:       args.GitHubPR,
-		}
-	}
-	if args.GitLabMR != nil {
-		// Add tags to store commit information.
-		specTags[tags.XAkitaSource] = tags.CISource
-		specTags[tags.XAkitaGitLabProject] = args.GitLabMR.Project
-		specTags[tags.XAkitaGitLabMRIID] = args.GitLabMR.IID
-		specTags[tags.XAkitaGitBranch] = args.GitLabMR.Branch
-		specTags[tags.XAkitaGitCommit] = args.GitLabMR.Commit
+	// Build tag set, extract CI or source-control information
+	specTags, githubPR, err := collectSpecTags(&args)
+	if err != nil {
+		return err
 	}
 
 	// Process input.
