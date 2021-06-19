@@ -13,6 +13,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidiff"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apispec"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/daemon"
 	"github.com/akitasoftware/akita-cli/cmd/internal/learn"
@@ -123,16 +124,17 @@ func init() {
 		viper.BindPFlag("verbose-level", flag.CommandLine.Lookup("v"))
 	}
 
-	// Register subcommands.
-	rootCmd.AddCommand(apidiff.Cmd)
-	rootCmd.AddCommand(apidump.Cmd)
-	rootCmd.AddCommand(apispec.Cmd)
+	// Register subcommands. Most commands that interact with Akita Cloud should
+	// be guarded by ci_guard.
+	rootCmd.AddCommand(ci_guard.GuardCommand(apidiff.Cmd))
+	rootCmd.AddCommand(ci_guard.GuardCommand(apidump.Cmd))
+	rootCmd.AddCommand(ci_guard.GuardCommand(apispec.Cmd))
 	rootCmd.AddCommand(daemon.Cmd)
-	rootCmd.AddCommand(learn.Cmd)
+	rootCmd.AddCommand(ci_guard.GuardCommand(learn.Cmd))
 	rootCmd.AddCommand(login.Cmd)
 	rootCmd.AddCommand(man.Cmd)
-	rootCmd.AddCommand(setversion.Cmd)
-	rootCmd.AddCommand(upload.Cmd)
+	rootCmd.AddCommand(ci_guard.GuardCommand(setversion.Cmd))
+	rootCmd.AddCommand(ci_guard.GuardCommand(upload.Cmd))
 
 	// Legacy commands, included for backward compatibility but are hidden.
 	legacy.SessionsCmd.Hidden = true
