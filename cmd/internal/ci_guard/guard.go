@@ -11,6 +11,7 @@ import (
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var AkitaGitHubUsersTeamSlug = "akita-users"
@@ -42,6 +43,10 @@ func GuardCommand(cmd *cobra.Command) *cobra.Command {
 // Queries Akita Cloud to determine whether the given GitHub PR is
 // Akita-enabled.
 func gitHubPrIsAkitaEnabled(gitHubPR *github.PullRequest) (bool, error) {
+	if viper.GetBool("test_only_disable_github_teams_check") {
+		return true, nil
+	}
+
 	frontClient := rest.NewFrontClient(akiflag.Domain, akiflag.GetClientID())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
