@@ -29,9 +29,10 @@ import (
 
 var (
 	// Test only flags
-	testOnlyUseHTTPSFlag bool
-	dogfoodFlag          bool
-	debugFlag            bool
+	testOnlyUseHTTPSFlag                bool
+	testOnlyDisableGitHubTeamsCheckFlag bool
+	dogfoodFlag                         bool
+	debugFlag                           bool
 )
 
 const (
@@ -81,9 +82,13 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("test_only_disable_https")
 	viper.BindPFlag("test_only_disable_https", rootCmd.PersistentFlags().Lookup("test_only_disable_https"))
 
-	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "TEST ONLY - whether to enable dogfooding")
+	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "TEST ONLY - whether to enable dogfooding. When enabled, outgoing REST calls will have the 'x-akita-dogfood' header set to 'true'.")
 	rootCmd.PersistentFlags().MarkHidden("dogfood")
 	viper.BindPFlag("dogfood", rootCmd.PersistentFlags().Lookup("dogfood"))
+
+	rootCmd.PersistentFlags().BoolVar(&testOnlyDisableGitHubTeamsCheckFlag, "test_only_disable_github_teams_check", false, "TEST ONLY - whether to disable the GitHub teams check, even though the environment suggests the CLI is being run as part of CI")
+	rootCmd.PersistentFlags().MarkHidden("test_only_disable_github_teams_check")
+	viper.BindPFlag("test_only_disable_github_teams_check", rootCmd.PersistentFlags().Lookup("test_only_disable_github_teams_check"))
 
 	rootCmd.PersistentFlags().BoolVar(&debugFlag, "debug", false, "If set, outputs detailed information for debugging.")
 	rootCmd.PersistentFlags().MarkHidden("debug")
