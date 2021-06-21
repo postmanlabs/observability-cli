@@ -67,7 +67,7 @@ func Run(args Args) error {
 		router.Handle("/v1/services/{serviceName}/traces/{traceName}/events", httpHandler(addEvents)).Methods("POST")
 	}
 
-	listenSocket := fmt.Sprintf("127.0.0.1:%d", cmdArgs.PortNumber)
+	listenSocket := fmt.Sprintf(":%d", cmdArgs.PortNumber)
 	log.Fatal(http.ListenAndServe(listenSocket, router))
 	return nil
 }
