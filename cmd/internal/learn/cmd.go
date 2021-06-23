@@ -279,6 +279,8 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		WitnessesPerMinute: rateLimitFlag,
 		PathExclusions:     pathExclusionsFlag,
 		HostExclusions:     hostExclusionsFlag,
+		PathAllowlist:      pathAllowlistFlag,
+		HostAllowlist:      hostAllowlistFlag,
 		ExecCommand:        execCommandFlag,
 		ExecCommandUser:    execCommandUserFlag,
 		Plugins:            plugins,

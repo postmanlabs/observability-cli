@@ -64,6 +64,8 @@ type Args struct {
 	Tags           map[tags.Key]string
 	PathExclusions []string
 	HostExclusions []string
+	PathAllowlist  []string
+	HostAllowlist  []string
 
 	// Rate-limiting parameters -- only one should be set to a non-default value.
 	SampleRate         float64
@@ -85,7 +87,7 @@ type Args struct {
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
 // at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
 // in the Run function below); all we really need are those names.
-func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *trace.PacketCountSummary, outboundSummary *trace.PacketCountSummary) {
+func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *trace.PacketCountSummary, outboundSummary *trace.PacketCountSummary, showInterface bool) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
 	directions := []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound}
 	toReport := []*trace.PacketCountSummary{inboundSummary}
@@ -93,21 +95,23 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		toReport = append(toReport, outboundSummary)
 	}
 
-	printer.Stderr.Debugf("==================================================\n")
-	printer.Stderr.Debugf("Packets per interface:\n")
-	printer.Stderr.Debugf("%15v %8v %7v %11v %5v\n", "", "", "TCP  ", "HTTP   ", "")
-	printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
-	for n := range interfaces {
-		for i, summary := range toReport {
-			count := summary.TotalOnInterface(n)
-			printer.Stderr.Debugf("%15s %8s %7d %5d %5d %5d\n",
-				n,
-				directions[i],
-				count.TCPPackets,
-				count.HTTPRequests,
-				count.HTTPResponses,
-				count.Unparsed,
-			)
+	if showInterface {
+		printer.Stderr.Debugf("==================================================\n")
+		printer.Stderr.Debugf("Packets per interface:\n")
+		printer.Stderr.Debugf("%15v %8v %7v %11v %5v\n", "", "", "TCP  ", "HTTP   ", "")
+		printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
+		for n := range interfaces {
+			for i, summary := range toReport {
+				count := summary.TotalOnInterface(n)
+				printer.Stderr.Debugf("%15s %8s %7d %5d %5d %5d\n",
+					n,
+					directions[i],
+					count.TCPPackets,
+					count.HTTPRequests,
+					count.HTTPResponses,
+					count.Unparsed,
+				)
+			}
 		}
 	}
 
@@ -179,6 +183,18 @@ func collectTraceTags(args *Args) map[tags.Key]string {
 	return traceTags
 }
 
+func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
+	result := make([]*regexp.Regexp, len(filters))
+	for i, f := range filters {
+		r, err := regexp.Compile(f)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to compile %s %q", name, f)
+		}
+		result[i] = r
+	}
+	return result, nil
+}
+
 // Captures packets from the network and adds them to a trace. The trace is
 // created if it doesn't already exist.
 func Run(args Args) error {
@@ -199,23 +215,21 @@ func Run(args Args) error {
 	traceTags := collectTraceTags(&args)
 
 	// Build path filters.
-	pathExclusions := make([]*regexp.Regexp, 0, len(args.PathExclusions))
-	for _, f := range args.PathExclusions {
-		if r, err := regexp.Compile(f); err != nil {
-			return errors.Wrapf(err, "failed to compile path filter %q", f)
-		} else {
-			pathExclusions = append(pathExclusions, r)
-		}
+	pathExclusions, err := compileRegexps(args.PathExclusions, "path exclusion")
+	if err != nil {
+		return err
 	}
-
-	// Build host filters.
-	hostExclusions := make([]*regexp.Regexp, 0, len(args.HostExclusions))
-	for _, f := range args.HostExclusions {
-		if r, err := regexp.Compile(f); err != nil {
-			return errors.Wrapf(err, "failed to compile host filter %q", f)
-		} else {
-			hostExclusions = append(hostExclusions, r)
-		}
+	hostExclusions, err := compileRegexps(args.HostExclusions, "host exclusion")
+	if err != nil {
+		return err
+	}
+	pathAllowlist, err := compileRegexps(args.PathAllowlist, "path filter")
+	if err != nil {
+		return err
+	}
+	hostAllowlist, err := compileRegexps(args.HostAllowlist, "host filter")
+	if err != nil {
+		return err
 	}
 
 	// Validate args.Out and fill in any missing defaults.
@@ -266,6 +280,9 @@ func Run(args Args) error {
 	inboundSummary := trace.NewPacketCountSummary()
 	outboundSummary := trace.NewPacketCountSummary()
 
+	userFilters := len(pathExclusions) + len(hostExclusions) + len(pathAllowlist) + len(hostAllowlist)
+	inboundPrefilter := trace.NewPacketCountSummary()
+
 	// Initialized shared rate object, if we are configured with a rate limit
 	var rateLimit *trace.SharedRateLimit
 	if args.WitnessesPerMinute != 0.0 {
@@ -315,6 +332,13 @@ func Run(args Args) error {
 				}
 			}
 
+			// Build filters from the inside out (last to first)
+			//  3) statistics
+			//  2) subsampling
+			//  1) path and host filters
+			//  0) Akita CLI traffic
+			//
+
 			// Count packets that have *passed* filtering (so that we know whether the
 			// trace is empty or not.)  In the future we could add columns for both
 			// pre- and post-filtering.
@@ -323,6 +347,7 @@ func Run(args Args) error {
 				Collector:    collector,
 			}
 
+			// Subsampling
 			if args.SampleRate != 1.0 {
 				// This is a change from previous behavior: now we sample after filtering
 				// instead of before.
@@ -335,12 +360,31 @@ func Run(args Args) error {
 				collector = rateLimit.NewCollector(collector)
 			}
 
-			// Add filters
+			// Host and path
+			if len(hostExclusions) > 0 {
+				collector = trace.NewHTTPHostFilterCollector(hostExclusions, collector)
+			}
+			if len(pathExclusions) > 0 {
+				collector = trace.NewHTTPPathFilterCollector(pathExclusions, collector)
+			}
+			if len(hostAllowlist) > 0 {
+				collector = trace.NewHTTPHostAllowlistCollector(hostAllowlist, collector)
+			}
+			if len(pathAllowlist) > 0 {
+				collector = trace.NewHTTPPathAllowlistCollector(pathAllowlist, collector)
+			}
+
+			// Count packets before user filters for diagnostics
+			if dir == kgxapi.Inbound && userFilters > 0 {
+				collector = &trace.PacketCountCollector{
+					PacketCounts: inboundPrefilter,
+					Collector:    collector,
+				}
+			}
+
+			// Eliminate Akita CLI traffic
 			collector = &trace.UserTrafficCollector{
-				Collector: trace.NewHTTPPathFilterCollector(
-					pathExclusions,
-					trace.NewHTTPHostFilterCollector(hostExclusions, collector),
-				),
+				Collector: collector,
 			}
 
 			go func(interfaceName, filter string) {
@@ -435,10 +479,16 @@ func Run(args Args) error {
 
 	if viper.GetBool("debug") {
 		if len(outboundFilters) == 0 {
-			DumpPacketCounters(interfaces, inboundSummary, nil)
+			DumpPacketCounters(interfaces, inboundSummary, nil, true)
 		} else {
-			DumpPacketCounters(interfaces, inboundSummary, outboundSummary)
+			DumpPacketCounters(interfaces, inboundSummary, outboundSummary, true)
 		}
+
+		if userFilters > 0 {
+			printer.Stderr.Debugf("+++ Counts before allow and exclude filters and sampling +++\n")
+			DumpPacketCounters(interfaces, inboundPrefilter, nil, false)
+		}
+
 	}
 
 	// Check summary to see if the inbound trace will have anything in it.
@@ -462,6 +512,9 @@ func Run(args Args) error {
 			printer.Stderr.Infof("for instructions on using a proxy, or generate a HAR file with\n")
 			printer.Stderr.Infof("your browser as described in\n")
 			printer.Stderr.Infof("https://docs.akita.software/docs/collect-client-side-traffic-2\n")
+		} else if userFilters > 0 && inboundPrefilter.Total().HTTPRequests != 0 {
+			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
+				inboundPrefilter.Total().HTTPRequests)
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", aurora.Red("No inbound HTTP calls captured!"))
 		return errors.New("incoming API trace is empty")
