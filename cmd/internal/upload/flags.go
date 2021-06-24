@@ -12,9 +12,10 @@ var (
 	// Optional flags
 	specNameFlag string // deprecated
 
+	tagsFlag []string
+
 	appendFlag          bool
 	includeTrackersFlag bool
-	overwriteFlag       bool
 	uploadTimeoutFlag   time.Duration
 
 	pluginsFlag []string
@@ -52,6 +53,13 @@ func init() {
 		"",
 		"A custom name for the spec.")
 	Cmd.Flags().MarkDeprecated("name", "use --dest instead.")
+
+	Cmd.Flags().StringSliceVar(
+		&tagsFlag,
+		"tags",
+		nil,
+		`Adds tags to the uploaded object. Specified as a comma-seprated list of "key=value" pairs.`,
+	)
 
 	Cmd.Flags().BoolVar(
 		&appendFlag,

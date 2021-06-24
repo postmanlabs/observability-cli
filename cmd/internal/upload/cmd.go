@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-libs/akiuri"
+	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -71,11 +72,24 @@ var Cmd = &cobra.Command{
 			return errors.New("\"plugins\" can only be used with trace objects")
 		}
 
+		// The flags --append and --tags cannot be used together.
+		// TODO: add support for this.
+		if appendFlag && len(tagsFlag) > 0 {
+			return errors.New("\"append\" and \"tags\" cannot be used together")
+		}
+
+		// Parse tags.
+		tags, err := tags.FromPairs(tagsFlag)
+		if err != nil {
+			return err
+		}
+
 		uploadArgs := upload.Args{
 			ClientID:      akiflag.GetClientID(),
 			Domain:        akiflag.Domain,
 			DestURI:       destURI,
 			FilePaths:     args,
+			Tags:          tags,
 			Append:        appendFlag,
 			UploadTimeout: uploadTimeoutFlag,
 		}
