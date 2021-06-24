@@ -10,6 +10,7 @@ import (
 )
 
 // Filters out HTTP paths.
+// TODO: compile the N regular expressions into one for efficiency.
 func NewHTTPPathFilterCollector(matchers []*regexp.Regexp, col Collector) Collector {
 	return &genericRequestFilter{
 		Collector: col,
@@ -26,6 +27,7 @@ func NewHTTPPathFilterCollector(matchers []*regexp.Regexp, col Collector) Collec
 	}
 }
 
+// Filter out matching HTTP hosts
 func NewHTTPHostFilterCollector(matchers []*regexp.Regexp, col Collector) Collector {
 	return &genericRequestFilter{
 		Collector: col,
@@ -36,6 +38,39 @@ func NewHTTPHostFilterCollector(matchers []*regexp.Regexp, col Collector) Collec
 				}
 			}
 			return true
+		},
+	}
+}
+
+// Allows only matching paths
+// TODO: compile the N regular expressions into one for efficiency.
+func NewHTTPPathAllowlistCollector(matchers []*regexp.Regexp, col Collector) Collector {
+	return &genericRequestFilter{
+		Collector: col,
+		filterFunc: func(r akinet.HTTPRequest) bool {
+			if r.URL != nil {
+				for _, m := range matchers {
+					if m.MatchString(r.URL.Path) {
+						return true
+					}
+				}
+			}
+			return false
+		},
+	}
+}
+
+// Allows only matching hosts
+func NewHTTPHostAllowlistCollector(matchers []*regexp.Regexp, col Collector) Collector {
+	return &genericRequestFilter{
+		Collector: col,
+		filterFunc: func(r akinet.HTTPRequest) bool {
+			for _, m := range matchers {
+				if m.MatchString(r.Host) {
+					return true
+				}
+			}
+			return false
 		},
 	}
 }
