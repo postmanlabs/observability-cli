@@ -41,6 +41,11 @@ func Run(args Args) error {
 		}
 	}
 
+	// Tag the object's source as "uploaded" if not already tagged.
+	if _, ok := args.Tags[tags.XAkitaSource]; !ok {
+		args.Tags[tags.XAkitaSource] = tags.UploadedSource
+	}
+
 	// Do the upload.
 	learnClient := rest.NewLearnClient(args.Domain, args.ClientID, svc)
 	switch *args.DestURI.ObjectType {
@@ -82,9 +87,7 @@ func uploadSpec(learnClient rest.LearnClient, args Args, specName string) error 
 	req := api_schema.UploadSpecRequest{
 		Name:    specName,
 		Content: string(fileContent),
-		Tags: map[tags.Key]string{
-			tags.XAkitaSource: tags.UploadedSource,
-		},
+		Tags:    args.Tags,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), args.UploadTimeout)
 	defer cancel()
@@ -111,10 +114,7 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 
 		// Attempt to create the trace.
 		printer.Stderr.Infof("Creating trace...\n")
-		tags := map[tags.Key]string{
-			tags.XAkitaSource: tags.UploadedSource,
-		}
-		traceID, err = util.NewLearnSession(args.Domain, args.ClientID, serviceID, traceName, tags, nil)
+		traceID, err = util.NewLearnSession(args.Domain, args.ClientID, serviceID, traceName, args.Tags, nil)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create trace %q", traceName)
 		}
