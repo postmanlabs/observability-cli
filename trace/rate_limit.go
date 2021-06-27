@@ -128,6 +128,8 @@ func (r *SharedRateLimit) startNewEpoch(epochStart time.Time) {
 	printer.Debugln("New collection epoch:", epochStart)
 
 	r.lock.Lock()
+	defer r.lock.Unlock()
+
 	r.CurrentEpochStart = time.Now()
 
 	// Ensure timer is stopped before reset
@@ -145,9 +147,7 @@ func (r *SharedRateLimit) startNewEpoch(epochStart time.Time) {
 		r.intervalTimer.Reset(randomOffset)
 	}
 
-	r.lock.Unlock()
-
-	// Trigger request expiration for all collectors
+	// Trigger request expiration for all collectors.
 	// If they never have Process() called, then their channel will fill up,
 	// so do this in a nonblocking fashion (with buffer size 1).
 	threshold := epochStart.Add(-1 * viper.GetDuration(RateLimitMaxDuration))
