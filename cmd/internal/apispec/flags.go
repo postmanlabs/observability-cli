@@ -1,14 +1,13 @@
 package apispec
 
 import (
-	"github.com/spf13/cobra"
-
 	"github.com/akitasoftware/akita-cli/location"
 )
 
 var (
 	// Required flags.
-	tracesFlag []string
+	tracesFlag      []string
+	tracesByTagFlag []string
 
 	// Optional flags
 	outFlag     location.Location
@@ -41,7 +40,12 @@ func init() {
 		"traces",
 		nil,
 		"The locations to read traces from. Can be a mix of AkitaURI and local file paths.")
-	cobra.MarkFlagRequired(Cmd.Flags(), "traces")
+
+	Cmd.Flags().StringSliceVar(
+		&tracesByTagFlag,
+		"trace-tag",
+		nil,
+		"Use a the most recent trace in the Akita cloud with a matching tag as input.")
 
 	//
 	// Optional Flags

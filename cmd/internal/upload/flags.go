@@ -15,6 +15,7 @@ var (
 	tagsFlag []string
 
 	appendFlag          bool
+	appendByTagFlag     bool
 	includeTrackersFlag bool
 	uploadTimeoutFlag   time.Duration
 
@@ -66,6 +67,12 @@ func init() {
 		"append",
 		false,
 		"Add the upload to an existing Akita trace.")
+
+	Cmd.Flags().BoolVar(
+		&appendByTagFlag,
+		"append-by-tag",
+		false,
+		"Add the upload to the most recent Akita trace with matching tag.")
 
 	Cmd.Flags().BoolVar(
 		&includeTrackersFlag,
