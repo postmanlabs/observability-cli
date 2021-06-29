@@ -374,17 +374,19 @@ func Run(args Args) error {
 				collector = trace.NewHTTPPathAllowlistCollector(pathAllowlist, collector)
 			}
 
+			// Eliminate Akita CLI traffic, unless --dogfood has been specified
+			if !viper.GetBool("dogfood") {
+				collector = &trace.UserTrafficCollector{
+					Collector: collector,
+				}
+			}
+
 			// Count packets before user filters for diagnostics
 			if dir == kgxapi.Inbound && userFilters > 0 {
 				collector = &trace.PacketCountCollector{
 					PacketCounts: inboundPrefilter,
 					Collector:    collector,
 				}
-			}
-
-			// Eliminate Akita CLI traffic
-			collector = &trace.UserTrafficCollector{
-				Collector: collector,
 			}
 
 			go func(interfaceName, filter string) {

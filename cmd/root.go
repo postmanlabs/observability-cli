@@ -82,7 +82,7 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("test_only_disable_https")
 	viper.BindPFlag("test_only_disable_https", rootCmd.PersistentFlags().Lookup("test_only_disable_https"))
 
-	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "TEST ONLY - whether to enable dogfooding. When enabled, outgoing REST calls will have the 'x-akita-dogfood' header set to 'true'.")
+	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "Capture HTTP traffic to Akita services that would ordinarily be filtered")
 	rootCmd.PersistentFlags().MarkHidden("dogfood")
 	viper.BindPFlag("dogfood", rootCmd.PersistentFlags().Lookup("dogfood"))
 

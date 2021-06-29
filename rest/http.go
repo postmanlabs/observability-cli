@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -105,10 +104,6 @@ func sendRequest(ctx context.Context, req *http.Request) ([]byte, error) {
 	// 		on release, so there could be many experimental builds from different
 	//		git commits with the same semantic version.
 	req.Header.Set("x-akita-cli-git-version", version.GitVersion())
-
-	if viper.GetBool("dogfood") {
-		req.Header.Set("x-akita-dogfood", "true")
-	}
 
 	retryableReq, err := retryablehttp.FromRequest(req)
 	if err != nil {

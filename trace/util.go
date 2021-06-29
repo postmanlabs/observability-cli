@@ -18,12 +18,6 @@ func containsCLITraffic(t akinet.ParsedNetworkTraffic) bool {
 		return false
 	}
 
-	if header.Get(spec_util.XAkitaDogfood) != "" {
-		// Treat dogfood traffic as normal user traffic so we can build an API spec
-		// of our own API.
-		return false
-	}
-
 	for _, k := range []string{spec_util.XAkitaCLIGitVersion, spec_util.XAkitaRequestID} {
 		if header.Get(k) != "" {
 			return true
