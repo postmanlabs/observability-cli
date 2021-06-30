@@ -9,6 +9,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/tags"
 )
@@ -22,6 +23,7 @@ var (
 	sampleRateFlag      float64
 	rateLimitFlag       float64
 	tagsFlag            []string
+	appendByTagFlag     bool
 	pathExclusionsFlag  []string
 	hostExclusionsFlag  []string
 	pathAllowlistFlag   []string
@@ -59,6 +61,30 @@ var Cmd = &cobra.Command{
 				return errors.Wrap(err, "bad service name")
 			}
 			outFlag.AkitaURI = &uri
+		}
+
+		// Look up existing trace by tags
+		if appendByTagFlag {
+			if outFlag.AkitaURI == nil {
+				return errors.New("\"append-by-tag\" can only be used with a cloud-based trace")
+			}
+
+			if outFlag.AkitaURI.ObjectName != "" {
+				return errors.New("Cannot specify a trace name together with \"append-by-tag\"")
+			}
+
+			destURI, err := util.GetTraceURIByTags(akiflag.Domain,
+				akiflag.GetClientID(),
+				outFlag.AkitaURI.ServiceName,
+				traceTags,
+				"append-by-tag",
+			)
+			if err != nil {
+				return err
+			}
+			if destURI.ObjectName != "" {
+				outFlag.AkitaURI = &destURI
+			}
 		}
 
 		args := apidump.Args{
@@ -129,6 +155,12 @@ func init() {
 		nil,
 		`Adds tags to the dump. Specified as a comma separated list of "key=value" pairs.`,
 	)
+
+	Cmd.Flags().BoolVar(
+		&appendByTagFlag,
+		"append-by-tag",
+		false,
+		"Add to the most recent Akita trace with matching tag.")
 
 	Cmd.Flags().StringSliceVar(
 		&pathExclusionsFlag,

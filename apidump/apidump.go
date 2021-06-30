@@ -56,7 +56,7 @@ type Args struct {
 
 	// If both LocalPath and AkitaURI are set, data is teed to both local traces
 	// and backend trace.
-	// If unset, defaults to a random spec on Akita Cloud.
+	// If unset, defaults to a random spec name on Akita Cloud.
 	Out location.Location
 
 	Interfaces     []string
