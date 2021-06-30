@@ -13,6 +13,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/version"
+	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
 const (
@@ -103,7 +104,7 @@ func sendRequest(ctx context.Context, req *http.Request) ([]byte, error) {
 	// 2. As extra debug info, since the CLI semantic version is only incremented
 	// 		on release, so there could be many experimental builds from different
 	//		git commits with the same semantic version.
-	req.Header.Set("x-akita-cli-git-version", version.GitVersion())
+	req.Header.Set(spec_util.XAkitaCLIGitVersion, version.GitVersion())
 
 	retryableReq, err := retryablehttp.FromRequest(req)
 	if err != nil {

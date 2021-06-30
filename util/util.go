@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"time"
 
@@ -12,9 +13,11 @@ import (
 
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/daemon"
+	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
@@ -122,3 +125,23 @@ var RandomLearnSessionName func() string = randomName
 
 // Produces a random name for an API model.
 var RandomAPIModelName func() string = randomName
+
+// Detect Akita internal traffic
+func ContainsCLITraffic(t akinet.ParsedNetworkTraffic) bool {
+	var header http.Header
+	switch tc := t.Content.(type) {
+	case akinet.HTTPRequest:
+		header = tc.Header
+	case akinet.HTTPResponse:
+		header = tc.Header
+	default:
+		return false
+	}
+
+	for _, k := range []string{spec_util.XAkitaCLIGitVersion, spec_util.XAkitaRequestID} {
+		if header.Get(k) != "" {
+			return true
+		}
+	}
+	return false
+}
