@@ -10,6 +10,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/upload"
+	"github.com/akitasoftware/akita-cli/util"
 )
 
 var Cmd = &cobra.Command{
@@ -74,7 +75,7 @@ var Cmd = &cobra.Command{
 
 		// The flags --append and --tags cannot be used together.
 		// TODO: add support for this.
-		if appendFlag && len(tagsFlag) > 0 {
+		if appendFlag && len(tagsFlag) > 0 && !appendByTagFlag {
 			return errors.New("\"append\" and \"tags\" cannot be used together")
 		}
 
@@ -82,6 +83,28 @@ var Cmd = &cobra.Command{
 		tags, err := tags.FromPairs(tagsFlag)
 		if err != nil {
 			return err
+		}
+
+		// Handle --append-by-tag
+		if appendByTagFlag {
+			if !destURI.ObjectType.IsTrace() {
+				return errors.New("\"append-by-tag\" can only be used with trace objects")
+			}
+			if destURI.ObjectName != "" {
+				return errors.New("Cannot specify a trace name together with \"append-by-tag\"")
+			}
+			destURI, err = util.GetTraceURIByTags(akiflag.Domain,
+				akiflag.GetClientID(),
+				destURI.ServiceName,
+				tags,
+				"append-by-tag",
+			)
+			if err != nil {
+				return err
+			}
+			if destURI.ObjectName != "" {
+				appendFlag = true
+			}
 		}
 
 		uploadArgs := upload.Args{
