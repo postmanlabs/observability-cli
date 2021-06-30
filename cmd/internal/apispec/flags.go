@@ -45,7 +45,7 @@ func init() {
 		&tracesByTagFlag,
 		"trace-tag",
 		nil,
-		"Use a the most recent trace in the Akita cloud with a matching tag as input.")
+		"Use the most recent trace in the Akita cloud with a matching tag as input.")
 
 	//
 	// Optional Flags
