@@ -13,9 +13,11 @@ import (
 	"github.com/OneOfOne/xxhash"
 	"github.com/google/martian/v3/har"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	col "github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-cli/version"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
@@ -82,8 +84,10 @@ func CollectWitnessesFromChannel(parsedChan <-chan akinet.ParsedNetworkTraffic, 
 		// Skip witnesses of CLI to backend API calls that were accidentally
 		// captured.
 		if spec_util.ContainsCLITraffic(r.witness) {
-			printer.Debugf("Skipping witness containing Akita API call\n")
-			continue
+			if !viper.GetBool("dogfood") {
+				printer.Debugf("Skipping witness containing Akita API call\n")
+				continue
+			}
 		}
 
 		if err := proc.ProcessWitness(r); err != nil {
@@ -91,23 +95,6 @@ func CollectWitnessesFromChannel(parsedChan <-chan akinet.ParsedNetworkTraffic, 
 		}
 	}
 	return nil
-}
-
-func containsCLITraffic(c akinet.ParsedNetworkContent) bool {
-	var header http.Header
-	switch tc := c.(type) {
-	case akinet.HTTPRequest:
-		header = tc.Header
-	case akinet.HTTPResponse:
-		header = tc.Header
-	}
-
-	for _, k := range []string{spec_util.XAkitaCLIGitVersion, spec_util.XAkitaRequestID, spec_util.XAkitaDogfood} {
-		if header.Get(k) != "" {
-			return true
-		}
-	}
-	return false
 }
 
 func createHARFile(in <-chan akinet.ParsedNetworkTraffic, interfaceName string, opts *HAROptions) {
@@ -120,8 +107,10 @@ func createHARFile(in <-chan akinet.ParsedNetworkTraffic, interfaceName string, 
 
 	l := har.NewLogger()
 	for t := range in {
-		if containsCLITraffic(t.Content) {
-			continue
+		if util.ContainsCLITraffic(t) {
+			if !viper.GetBool("dogfood") {
+				continue
+			}
 		}
 
 		switch c := t.Content.(type) {

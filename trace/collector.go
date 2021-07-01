@@ -6,6 +6,7 @@ import (
 
 	"github.com/OneOfOne/xxhash"
 
+	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akinet"
 )
 
@@ -63,7 +64,7 @@ type UserTrafficCollector struct {
 }
 
 func (sc *UserTrafficCollector) Process(t akinet.ParsedNetworkTraffic) error {
-	if !containsCLITraffic(t) {
+	if !util.ContainsCLITraffic(t) {
 		return sc.Collector.Process(t)
 	}
 	return nil

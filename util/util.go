@@ -2,6 +2,8 @@ package util
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -10,11 +12,14 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/daemon"
+	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
@@ -24,13 +29,16 @@ var (
 
 	// Maps learn session name to ID.
 	learnSessionNameCache = cache.New(30*time.Second, 5*time.Minute)
+
+	// API timeout
+	apiTimeout = 20 * time.Second
 )
 
 func NewLearnSession(domain string, clientID akid.ClientID, svc akid.ServiceID, sessionName string, tags map[tags.Key]string, baseSpecRef *kgxapi.APISpecReference) (akid.LearnSessionID, error) {
 	learnClient := rest.NewLearnClient(domain, clientID, svc)
 
 	// Create a new learn session.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 	lrn, err := learnClient.CreateLearnSession(ctx, baseSpecRef, sessionName, tags)
 	if err != nil {
@@ -46,7 +54,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	}
 
 	// Fill cache.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 	services, err := c.GetServices(ctx)
 	if err != nil {
@@ -68,7 +76,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 }
 
 func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 	err := c.DaemonHeartbeat(ctx, daemonName)
 	if err != nil {
@@ -90,7 +98,7 @@ func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSession
 	}
 
 	// Fill cache.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 	id, err := c.GetLearnSessionIDByName(ctx, name)
 	if err != nil {
@@ -100,11 +108,77 @@ func GetLearnSessionIDByName(c rest.LearnClient, name string) (akid.LearnSession
 	return id, nil
 }
 
+func GetLearnSessionByTags(c rest.LearnClient, serviceID akid.ServiceID, tags map[tags.Key]string) (*kgxapi.ListedLearnSession, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+
+	sessions, err := c.ListLearnSessions(ctx, serviceID, tags)
+	if err != nil {
+		return nil, errors.Wrapf(err, "listing sessions for %v by tag failed", akid.String(serviceID))
+	}
+
+	if len(sessions) == 0 {
+		return nil, nil
+	}
+
+	// TODO: support AND-based matching on the back-end
+	printer.Debugf("Found %d sessions, filtering for most recent match.\n", len(sessions))
+	latest := -1
+	for i, s := range sessions {
+		if latest < 0 || s.CreationTime.After(sessions[latest].CreationTime) {
+			latest = i
+		}
+	}
+
+	return sessions[latest], nil
+}
+
+// Get the most recent trace for a service; helper method for commands to implement the
+// --append-by-tag or --trace-tag flags.
+func GetTraceURIByTags(domain string, clientID akid.ClientID, serviceName string, tags map[tags.Key]string, flagName string) (akiuri.URI, error) {
+	if len(tags) == 0 {
+		return akiuri.URI{}, fmt.Errorf("Must specify a tag to match with %q", flagName)
+	}
+
+	if len(tags) > 1 {
+		return akiuri.URI{}, fmt.Errorf("%q currently supports only a single tag", flagName)
+	}
+
+	// Resolve ServiceID
+	// TODO: find a better way to overlap this with commands that already do the lookup
+	frontClient := rest.NewFrontClient(domain, clientID)
+	serviceID, err := GetServiceIDByName(frontClient, serviceName)
+	if err != nil {
+		return akiuri.URI{}, errors.Wrapf(err, "failed to resolve service name %q", serviceName)
+	}
+
+	learnClient := rest.NewLearnClient(domain, clientID, serviceID)
+	learnSession, err := GetLearnSessionByTags(learnClient, serviceID, tags)
+	if err != nil {
+		return akiuri.URI{}, errors.Wrapf(err, "failed to list traces for %q", serviceName)
+	}
+	if learnSession == nil {
+		printer.Infof("No traces matching specified tag\n")
+		return akiuri.URI{
+			ServiceName: serviceName,
+			ObjectName:  "", // create a new name
+			ObjectType:  akiuri.TRACE.Ptr(),
+		}, nil
+	}
+	uri := akiuri.URI{
+		ServiceName: serviceName,
+		ObjectName:  learnSession.Name,
+		ObjectType:  akiuri.TRACE.Ptr(),
+	}
+	printer.Infof("Trace %v matches tag\n", uri.String())
+	return uri, nil
+}
+
 func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error) {
 	if !uri.ObjectType.IsSpec() {
 		return akid.APISpecID{}, errors.Errorf("AkitaURI must refer to a spec object")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
 }
@@ -122,3 +196,23 @@ var RandomLearnSessionName func() string = randomName
 
 // Produces a random name for an API model.
 var RandomAPIModelName func() string = randomName
+
+// Detect Akita internal traffic
+func ContainsCLITraffic(t akinet.ParsedNetworkTraffic) bool {
+	var header http.Header
+	switch tc := t.Content.(type) {
+	case akinet.HTTPRequest:
+		header = tc.Header
+	case akinet.HTTPResponse:
+		header = tc.Header
+	default:
+		return false
+	}
+
+	for _, k := range []string{spec_util.XAkitaCLIGitVersion, spec_util.XAkitaRequestID} {
+		if header.Get(k) != "" {
+			return true
+		}
+	}
+	return false
+}
