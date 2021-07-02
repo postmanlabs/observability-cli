@@ -94,19 +94,10 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 
 	go func() {
 		ticker := time.NewTicker(streamTimeout / 4)
+		defer ticker.Stop()
 
-		defer func() {
-			ticker.Stop()
-
-			// Flushes and closes all remaining connections. This should trigger all
-			// parsers to hit EOF and return. This call will block until the parsers
-			// have returned because tcpStream.ReassemblyComplete waits for
-			// parsers.
-			assembler.FlushAll()
-
-			// Signal caller that we're done here.
-			close(out)
-		}()
+		// Signal caller that we're done on exit
+		defer close(out)
 
 		for {
 			select {
@@ -114,6 +105,16 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 			// invoked.
 			case packet, more := <-packets:
 				if !more || packet == nil {
+					// Flushes and closes all remaining connections. This should trigger all
+					// parsers to hit EOF and return. This call will block until the parsers
+					// have returned because tcpStream.ReassemblyComplete waits for
+					// parsers.
+					//
+					// This is not safe to call in a defer, because it will be called on abnormal
+					// exit from FlushCloseOlderThan (like a parser segfault) but assembler might
+					// not be in a safe state to call (like holding a mutex.)
+					assembler.FlushAll()
+
 					return
 				}
 				p.observer(packet)
