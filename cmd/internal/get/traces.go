@@ -24,12 +24,6 @@ var GetTracesCmd = &cobra.Command{
 	RunE:         getTraces,
 }
 
-var (
-	serviceFlag string
-	tagsFlag    []string
-	limitFlag   int
-)
-
 func init() {
 	Cmd.AddCommand(GetTracesCmd)
 
@@ -81,7 +75,9 @@ func getTraces(cmd *cobra.Command, args []string) error {
 
 	if limitFlag > 0 {
 		firstIndex := len(sessions) - limitFlag
-		sessions = sessions[firstIndex:]
+		if firstIndex > 0 {
+			sessions = sessions[firstIndex:]
+		}
 	}
 
 	for _, session := range sessions {
