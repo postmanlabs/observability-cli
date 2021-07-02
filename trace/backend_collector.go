@@ -31,7 +31,7 @@ const (
 	pairCacheCleanupInterval = 30 * time.Second
 
 	// Max size per upload batch.
-	uploadBatchMaxSize = 10
+	uploadBatchMaxSize = 120
 
 	// How often to flush the upload batch.
 	uploadBatchFlushDuration = 30 * time.Second
