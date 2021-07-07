@@ -3,6 +3,7 @@ package get
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -136,14 +138,60 @@ func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
 	return nil
 }
 
-func downloadSpec(srcURI akiuri.URI, output string) error {
-	printer.Debugf("Retrieving spec: %v\n", srcURI)
-	return nil
+func downloadSpec(srcURI akiuri.URI, outputFile string) error {
+	printer.Debugf("Downloading specs %q to file %q\n", srcURI, outputFile)
+
+	output := os.Stdout
+	if outputFile != "" {
+		var err error
+		output, err = os.Create(outputFile)
+		if err != nil {
+			return errors.Wrapf(err, "Error creating file %q", outputFile)
+		}
+		defer output.Close()
+	}
+
+	clientID := akid.GenerateClientID()
+	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+
+	serviceID, err := util.GetServiceIDByName(frontClient, srcURI.ServiceName)
+	if err != nil {
+		return err
+	}
+
+	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	id, err := learnClient.GetAPISpecIDByName(ctx, srcURI.ObjectName)
+	if err != nil {
+		return errors.Wrapf(err, "Couldn't find spec %q", srcURI.ObjectName)
+	}
+	if (id == akid.APISpecID{}) {
+		return fmt.Errorf("No such spec name %q", srcURI.ObjectName)
+	}
+
+	// TODO: make this a flag?
+	resp, err := learnClient.GetSpec(ctx, id, rest.GetSpecOptions{
+		EnableRelatedTypes: false,
+	})
+	if err != nil {
+		return errors.Wrapf(err, "Error downloading spec %q", srcURI.ObjectName)
+	}
+
+	if len(resp.Content) == 0 {
+		return errors.Wrapf(err, "Spec %q is empty", srcURI.ObjectName)
+	}
+	return apispec.WriteSpec(output, resp.Content)
 }
 
 func getSpecs(cmd *cobra.Command, args []string) error {
 	if len(args) > 2 {
 		return errors.New("Only one source and one destination supported.")
+	}
+
+	tags, err := tags.FromPairs(tagsFlag)
+	if err != nil {
+		return err
 	}
 
 	var srcURI akiuri.URI
@@ -163,7 +211,6 @@ func getSpecs(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		// Use --service flag to list instead
-
 		if serviceFlag == "" {
 			return errors.New("Must specify an akitaURI or service name.")
 		}
@@ -173,11 +220,6 @@ func getSpecs(cmd *cobra.Command, args []string) error {
 		srcURI.ObjectName = ""
 	}
 
-	tags, err := tags.FromPairs(tagsFlag)
-	if err != nil {
-		return err
-	}
-
 	// If no object name, then list
 	if srcURI.ObjectName == "" {
 		err = listSpecs(srcURI, tags, limitFlag)
@@ -185,6 +227,16 @@ func getSpecs(cmd *cobra.Command, args []string) error {
 			return cmderr.AkitaErr{Err: err}
 		}
 		return nil
+	}
+
+	// Download to stdout or file
+	var outputFile string
+	if len(args) > 1 {
+		outputFile = args[1]
+	}
+	err = downloadSpec(srcURI, outputFile)
+	if err != nil {
+		return cmderr.AkitaErr{Err: err}
 	}
 
 	return nil

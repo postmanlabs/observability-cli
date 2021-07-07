@@ -6,17 +6,20 @@ import (
 	"sort"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var GetTracesCmd = &cobra.Command{
-	Use:          "traces",
+	Use:          "traces [AKITURI|SERVICE]",
 	Aliases:      []string{"trace"},
 	Short:        "List traces for the given service.",
 	Long:         "List traces in the Akita cloud, filtered by service and by tag.",
@@ -47,6 +50,42 @@ func init() {
 }
 
 func getTraces(cmd *cobra.Command, args []string) error {
+	if len(args) > 1 {
+		return errors.New("Only one service permitted.")
+	}
+
+	var serviceArg string
+	if len(args) == 1 {
+		srcURI, err := akiuri.Parse(args[0])
+		if err == nil {
+			if srcURI.ObjectType != nil && !srcURI.ObjectType.IsTrace() {
+				return fmt.Errorf("%q is not a trace URI.", args[0])
+			}
+			if srcURI.ObjectName != "" {
+				return fmt.Errorf("Cannot download a trace.")
+			}
+			serviceArg = srcURI.ServiceName
+		} else {
+			// Try to use the argument as a service name
+			// FIXME: maybe remove this, it is not consistent with "get specs" and is harder to
+			// do there.
+			serviceArg = args[0]
+			printer.Infof("Attempting to use akita://%v:trace\n", serviceArg)
+		}
+	}
+
+	switch {
+	case serviceFlag == "" && serviceArg == "":
+		return fmt.Errorf("Must specify a service name using argument or --service flag.")
+	case serviceFlag == "":
+		serviceFlag = serviceArg
+	case serviceArg == "":
+		// servceFlag is nonempty
+		break
+	case serviceFlag != serviceArg:
+		return fmt.Errorf("Difference services specified in flag and URI.")
+	}
+
 	clientID := akid.GenerateClientID()
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
 
@@ -76,6 +115,7 @@ func getTraces(cmd *cobra.Command, args []string) error {
 	if limitFlag > 0 {
 		firstIndex := len(sessions) - limitFlag
 		if firstIndex > 0 {
+			printer.Infof("Showing %d most recent traces\n", limitFlag)
 			sessions = sessions[firstIndex:]
 		}
 	}
