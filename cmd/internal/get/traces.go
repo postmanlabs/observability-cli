@@ -19,7 +19,7 @@ import (
 )
 
 var GetTracesCmd = &cobra.Command{
-	Use:          "traces [AKITURI|SERVICE]",
+	Use:          "traces [AKITAURI|SERVICE]",
 	Aliases:      []string{"trace"},
 	Short:        "List traces for the given service.",
 	Long:         "List traces in the Akita cloud, filtered by service and by tag.",
