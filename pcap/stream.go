@@ -129,7 +129,7 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 	} else if pnc != nil {
 		// Parsing complete.
 		parseStart := f.currentParserCtx.GetCaptureInfo().Timestamp
-		var time.Time parseEnd
+		var parseEnd time.Time
 		if ac != nil {
 			parseEnd = ac.GetCaptureInfo().Timestamp
 		} else {
@@ -137,7 +137,7 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			// appear when we have called FlushCloseOlderThan, it would
 			// probably be misleading.
 			// TODO: what else can we log here to help identify what's going on?
-			printer.Errorf( "AssemblerContext is nil for packet started at %v\n", parseStart )
+			printer.Errorf("AssemblerContext is nil for packet started at %v\n", parseStart)
 			parseEnd = parseStart
 		}
 		f.outChan <- f.toPNT(parseStart, parseEnd, pnc)
