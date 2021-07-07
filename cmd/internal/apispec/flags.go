@@ -1,6 +1,9 @@
 package apispec
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/akitasoftware/akita-cli/location"
 )
 
@@ -27,6 +30,9 @@ var (
 	tagsFlag                       []string
 	getSpecEnableRelatedFieldsFlag bool
 	includeTrackersFlag            bool
+
+	fromTimeFlag string
+	toTimeFlag   string
 
 	pathParamsFlag     []string
 	pathExclusionsFlag []string
@@ -123,6 +129,28 @@ func init() {
 		"include-trackers",
 		false,
 		"If set to true, disables automatic filtering of requests to third-party trackers that are recorded in traces.")
+
+	// Figure out the local time zone.
+	now := time.Now()
+	timeZone, offsetSecs := now.Zone()
+	offsetDir := "+"
+	if offsetSecs < 0 {
+		offsetDir = "-"
+		offsetSecs = -offsetSecs
+	}
+	offsetHours := offsetSecs / 3600
+	offsetMinutes := (offsetSecs / 60) % 60
+
+	Cmd.Flags().StringVar(
+		&fromTimeFlag,
+		"from-time",
+		"",
+		fmt.Sprintf("If provided, only trace events occurring at or after this time will be used to build the spec. Expected format is 'YYYY-MM-DD hh:mm:ss'. If desired, the 'hh:mm:ss' or the ':ss' can be omitted, in which case the start of the day or minute is used. The client's local time zone is assumed: %s (%s%02d:%02d). If the given time occurs during a transition to or from daylight saving time, then one side of the transition is arbitrarily chosen.", timeZone, offsetDir, offsetHours, offsetMinutes))
+	Cmd.Flags().StringVar(
+		&toTimeFlag,
+		"to-time",
+		"",
+		fmt.Sprintf("If provided, only trace events occurring at or before this time will be used to build the spec. Expected format is 'YYYY-MM-DD hh:mm:ss'. If desired, the 'hh:mm:ss' or the ':ss' can be omitted, in which case the start of the day or minute is used. The client's local time zone is assumed: %s (%s%02d:%02d). If the given time occurs during a transition to or from daylight saving time, then one side of the transition is arbitrarily chosen.", timeZone, offsetDir, offsetHours, offsetMinutes))
 
 	// GitLab integration
 	Cmd.Flags().StringVar(

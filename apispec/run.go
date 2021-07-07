@@ -34,6 +34,7 @@ import (
 	"github.com/akitasoftware/akita-libs/gitlab"
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
 	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/akitasoftware/akita-libs/time_span"
 
 	"github.com/akitasoftware/akita-cli/plugin"
 )
@@ -56,6 +57,7 @@ type Args struct {
 	IncludeTrackers            bool
 	PathParams                 []string
 	PathExclusions             []string
+	TimeRange                  *time_span.TimeSpan
 
 	GitHubBranch string
 	GitHubCommit string
@@ -245,6 +247,7 @@ func Run(args Args) error {
 		PathExclusions: pathExclusions,
 		GitHubPR:       githubPR,
 		GitLabMR:       args.GitLabMR,
+		TimeRange:      args.TimeRange,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to create new spec")
