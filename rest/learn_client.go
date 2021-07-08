@@ -129,6 +129,15 @@ func (c *learnClientImpl) GetSpec(ctx context.Context, api akid.APISpecID, opts 
 	return resp, err
 }
 
+func (c *learnClientImpl) ListSpecs(ctx context.Context) ([]kgxapi.SpecInfo, error) {
+	qs := make(url.Values)
+	p := path.Join("/v1/services", akid.String(c.serviceID), "specs")
+
+	var resp kgxapi.ListSpecsResponse
+	err := c.getWithQuery(ctx, p, qs, &resp)
+	return resp.Specs, err
+}
+
 func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (kgxapi.APISpecVersion, error) {
 	var resp kgxapi.APISpecVersion
 	p := path.Join("/v1/services", akid.String(c.serviceID), "spec-versions", version)

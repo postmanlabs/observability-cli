@@ -301,7 +301,7 @@ func Run(args Args) error {
 			out = f
 		}
 
-		if err := writeSpec(out, specContent); err != nil {
+		if err := WriteSpec(out, specContent); err != nil {
 			return errors.Wrap(err, "failed to write spec")
 		}
 
@@ -345,7 +345,7 @@ func pollSpecUntilReady(lc rest.LearnClient, specID akid.APISpecID, enableRelate
 	return spec.Content, nil
 }
 
-func writeSpec(out io.Writer, spec string) error {
+func WriteSpec(out io.Writer, spec string) error {
 	for len(spec) > 0 {
 		if n, err := io.WriteString(out, spec); err != nil {
 			return errors.Wrap(err, "failed to write output")
