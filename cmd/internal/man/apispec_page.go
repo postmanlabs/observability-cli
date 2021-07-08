@@ -51,6 +51,11 @@ Output format for the OpenAPI 3 specification. Supports 'yaml' and 'json'.
 
 Default is 'yaml'.
 
+## --from-time string
+## --to-time string
+
+If provided, only trace events occurring in the given time range will be used to build the spec. Expected format is 'YYYY-MM-DD hh:mm:ss'. If desired, the 'hh:mm:ss' or the ':ss' can be omitted, in which case the start of the day or minute is used. The client's local time is assumed. If a given time occurs during a transition to or from daylight saving time, then one side of the transition is arbitrarily chosen.
+
 ## --tags []string
 
 Add tags to the spec.
