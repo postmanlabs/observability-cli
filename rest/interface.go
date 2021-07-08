@@ -12,6 +12,7 @@ import (
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/akitasoftware/akita-libs/time_span"
 )
 
 type GetSpecOptions struct {
@@ -24,6 +25,7 @@ type CreateSpecOptions struct {
 	PathExclusions []*regexp.Regexp
 	GitHubPR       *github.PRInfo
 	GitLabMR       *gitlab.MRInfo
+	TimeRange      *time_span.TimeSpan
 }
 
 type LearnClient interface {

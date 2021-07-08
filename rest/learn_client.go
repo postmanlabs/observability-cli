@@ -107,6 +107,9 @@ func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []ak
 	if opts.GitLabMR != nil {
 		req["gitlab_mr"] = opts.GitLabMR
 	}
+	if opts.TimeRange != nil {
+		req["time_range"] = opts.TimeRange
+	}
 
 	p := path.Join("/v1/services", akid.String(c.serviceID), "specs")
 	var resp kgxapi.CreateSpecResponse

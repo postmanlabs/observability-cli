@@ -1,6 +1,8 @@
 package apispec
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -12,7 +14,22 @@ import (
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/akitasoftware/akita-libs/time_span"
 )
+
+func parseTime(s string) (time.Time, error) {
+	result, err := time.ParseInLocation("2006-01-02", s, time.Local)
+	if err == nil {
+		return result, nil
+	}
+
+	result, err = time.ParseInLocation("2006-01-02 15:04", s, time.Local)
+	if err == nil {
+		return result, nil
+	}
+
+	return time.ParseInLocation("2006-01-02 15:04:05", s, time.Local)
+}
 
 var Cmd = &cobra.Command{
 	Use:          "apispec",
@@ -27,6 +44,25 @@ var Cmd = &cobra.Command{
 		traceTags, err := tags.FromPairs(tracesByTagFlag)
 		if err != nil {
 			return err
+		}
+
+		var timeRange *time_span.TimeSpan
+		var startTime time.Time
+		endTime := time.Now()
+		if fromTimeFlag != "" {
+			startTime, err = parseTime(fromTimeFlag)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse start time")
+			}
+		}
+		if toTimeFlag != "" {
+			endTime, err = parseTime(toTimeFlag)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse end time")
+			}
+		}
+		if fromTimeFlag != "" || toTimeFlag != "" {
+			timeRange = time_span.NewTimeSpan(startTime, endTime)
 		}
 
 		if len(traces) == 0 && len(traceTags) == 0 {
@@ -82,6 +118,7 @@ var Cmd = &cobra.Command{
 			Tags:           tags,
 			PathParams:     pathParamsFlag,
 			PathExclusions: pathExclusionsFlag,
+			TimeRange:      timeRange,
 
 			GitHubBranch: githubBranchFlag,
 			GitHubCommit: githubCommitFlag,
