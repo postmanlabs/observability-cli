@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Parent command for listing objects from Akita (just traces for now.)
+// Parent command for listing objects from Akita.
 var Cmd = &cobra.Command{
 	Use:          "get [AKITAURI]",
 	Short:        "List or download objects in the Akita cloud.",

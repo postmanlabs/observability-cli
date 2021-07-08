@@ -40,7 +40,7 @@ func init() {
 		&tagsFlag,
 		"tags",
 		[]string{},
-		"Tag set to filter on, specified as key=value matches. Uses OR of tags.")
+		"Tag set to filter on, specified as key=value pairs. All tags must match.")
 
 	GetTracesCmd.Flags().IntVar(
 		&limitFlag,
@@ -100,6 +100,9 @@ func getTraces(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// TODO: ListLearnSessions has a limit, but currently the back-end applies that limit
+	// before ensuring all tags match, instead of after.  Once we fix that, we can
+	// push the limit and sort to the backend.
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	sessions, err := learnClient.ListLearnSessions(ctx, serviceID, tags)
@@ -107,7 +110,6 @@ func getTraces(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: proper filtering of responses
 	sort.Slice(sessions, func(i, j int) bool {
 		return sessions[i].CreationTime.Before(sessions[j].CreationTime)
 	})

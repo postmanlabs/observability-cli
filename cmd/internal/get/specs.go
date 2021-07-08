@@ -45,7 +45,7 @@ func init() {
 		&tagsFlag,
 		"tags",
 		[]string{},
-		"Tag set to filter on, specified as key=value matches. Uses OR of tags.")
+		"Tag set to filter on, specified as key=value pairs. All tags must match.")
 
 	GetSpecsCmd.Flags().IntVar(
 		&limitFlag,
@@ -95,6 +95,9 @@ func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
 		return nil
 	}
 
+	// TODO: the ListSpecs API does not do any filtering, but we do have a
+	// database function (FindAPISpecsForService) that knows how to filter by tag.
+	// Switch the API to start using that functions and add tag and limit arguments.
 	if len(tags) > 0 {
 		filteredSpecs := make([]kgxapi.SpecInfo, 0)
 		for _, s := range specs {
@@ -141,16 +144,6 @@ func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
 func downloadSpec(srcURI akiuri.URI, outputFile string) error {
 	printer.Debugf("Downloading specs %q to file %q\n", srcURI, outputFile)
 
-	output := os.Stdout
-	if outputFile != "" {
-		var err error
-		output, err = os.Create(outputFile)
-		if err != nil {
-			return errors.Wrapf(err, "Error creating file %q", outputFile)
-		}
-		defer output.Close()
-	}
-
 	clientID := akid.GenerateClientID()
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
 
@@ -181,6 +174,17 @@ func downloadSpec(srcURI akiuri.URI, outputFile string) error {
 	if len(resp.Content) == 0 {
 		return errors.Wrapf(err, "Spec %q is empty", srcURI.ObjectName)
 	}
+
+	output := os.Stdout
+	if outputFile != "" {
+		var err error
+		output, err = os.Create(outputFile)
+		if err != nil {
+			return errors.Wrapf(err, "Error creating file %q", outputFile)
+		}
+		defer output.Close()
+	}
+
 	return apispec.WriteSpec(output, resp.Content)
 }
 
