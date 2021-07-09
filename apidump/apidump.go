@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/logrusorgru/aurora"
@@ -456,11 +457,12 @@ func Run(args Args) error {
 		{
 			// Must use buffered channel for signals since the signal package does not
 			// block when sending signals.
-			sig := make(chan os.Signal, 1)
+			sig := make(chan os.Signal, 2)
 			signal.Notify(sig, os.Interrupt)
+			signal.Notify(sig, syscall.SIGTERM)
 			select {
-			case <-sig:
-				printer.Stderr.Infof("Received SIGINT, stopping trace collection...\n")
+			case received := <-sig:
+				printer.Stderr.Infof("Received %v, stopping trace collection...\n", received.String())
 			case err := <-errChan:
 				stopErr = err
 				printer.Stderr.Errorf("Encountered error while collecting traces, stopping...\n")
