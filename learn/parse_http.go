@@ -430,37 +430,19 @@ func parseHeader(header http.Header, responseCode int) []*pb.Data {
 			// Handled by parseBody.
 			continue
 		case "authorization":
-			lv := strings.ToLower(v)
-
-			var authType pb.HTTPAuth_HTTPAuthType
-			var token string
-			if strings.HasPrefix(lv, "bearer ") {
-				authType = pb.HTTPAuth_BEARER
-				token = v[len("bearer "):]
-			} else if strings.HasPrefix(lv, "basic ") {
-				authType = pb.HTTPAuth_BASIC
-				token = v[len("basic "):]
-			} else {
-				authType = pb.HTTPAuth_UNKNOWN
-				token = v
-			}
-
-			authData := &pb.Data{
-				Value: &pb.Data_Primitive{spec_util.CategorizeString(token).Obfuscate().ToProto()},
-				Meta: &pb.DataMeta{
-					Meta: &pb.DataMeta_Http{
-						Http: &pb.HTTPMeta{
-							Location:     &pb.HTTPMeta_Auth{Auth: &pb.HTTPAuth{Type: authType}},
-							ResponseCode: int32(responseCode),
-						},
-					},
-				},
-			}
-			datas = append(datas, authData)
-
+			datas = append(datas, AuthorizationHeaderType(v, responseCode))
 			continue
 		}
 
+		// Check for known header values used by particular applications
+		if d, ok := NonstandardAuthorizationHeader(k, v, responseCode); ok {
+			datas = append(datas, d)
+			continue
+		}
+
+		// TODO: although applications *should* recognize that headers are case-independent,
+		// sometimes they might not, and so a case change could be a breaking change!
+		// But
 		d := &pb.Data{
 			Value: newDataPrimitive(categorizeStringToPrimitive(v)),
 			Meta:  newDataMetaHeader(&pb.HTTPHeader{Key: k}, responseCode),
