@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.2.7
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/akitasoftware/akita-ir v0.0.0-20210406221235-f036dc848087
+	github.com/akitasoftware/akita-ir v0.0.0-20210709202958-12143082fbe1
 	github.com/akitasoftware/akita-libs v0.0.0-20210707204046-8388976a7962
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
@@ -41,6 +41,9 @@ require (
 )
 
 replace (
+	github.com/akitasoftware/akita-ir => ../akita-ir
+	github.com/akitasoftware/akita-libs => ../akita-libs
+
 	github.com/google/gopacket v1.1.18 => github.com/akitasoftware/gopacket v1.1.18-0.20201119235945-f584f5125293
 	github.com/google/martian/v3 v3.0.1 => github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de
 )
