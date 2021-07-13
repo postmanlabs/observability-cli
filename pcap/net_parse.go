@@ -14,9 +14,9 @@ import (
 	"github.com/akitasoftware/akita-libs/memview"
 )
 
-const (
-	streamTimeout = time.Minute * 5
-)
+// The maximum time we will wait before flushing a connection and delivering
+// the data even if there is a gap in the collected sequence.
+var StreamTimeoutSeconds int64 = 10
 
 // Internal implementation of reassembly.AssemblerContext that include TCP
 // seq and ack numbers.
@@ -91,6 +91,7 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 	streamFactory := newTCPStreamFactory(p.clock, out, akinet.TCPParserFactorySelector(fs))
 	streamPool := reassembly.NewStreamPool(streamFactory)
 	assembler := reassembly.NewAssembler(streamPool)
+	streamTimeout := time.Duration(StreamTimeoutSeconds) * time.Second
 
 	go func() {
 		ticker := time.NewTicker(streamTimeout / 4)
@@ -122,6 +123,12 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 			case <-ticker.C:
 				// The assembler stops reassembly for streams older than stream timeout.
 				// This means the corresponding tcpFlow readers will return EOF.
+				//
+				// If there is a missing portion of the TCP reassembly (usually due to an
+				// uncaptured packet) older then the stream timeout, then this call forces
+				// the assembler to skip the missing data and deliver what it has accumulated
+				// after that point. The stream will not be closed if it has received
+				// packets more recently than that gap.
 				assembler.FlushCloseOlderThan(p.clock.Now().Add(-streamTimeout))
 			}
 		}

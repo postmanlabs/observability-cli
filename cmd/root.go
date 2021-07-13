@@ -23,6 +23,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/man"
 	"github.com/akitasoftware/akita-cli/cmd/internal/setversion"
 	"github.com/akitasoftware/akita-cli/cmd/internal/upload"
+	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-cli/version"
@@ -83,6 +84,10 @@ func init() {
 	rootCmd.PersistentFlags().Int64Var(&http.MaximumHTTPLength, "max-http-length", 1024*1024, "Maximum size of HTTP body to capture")
 	rootCmd.PersistentFlags().MarkHidden("max-http-length")
 	viper.BindPFlag("max-http-length", rootCmd.PersistentFlags().Lookup("max-http-length"))
+
+	rootCmd.PersistentFlags().Int64Var(&pcap.StreamTimeoutSeconds, "stream-timeout-seconds", 10, "Maximum time to wait for missing TCP data")
+	rootCmd.PersistentFlags().MarkHidden("stream-timeout-seconds")
+	viper.BindPFlag("stream-timeout-seconds", rootCmd.PersistentFlags().Lookup("stream-timeout-seconds"))
 
 	// Super secret unsafe test only flags
 	rootCmd.PersistentFlags().BoolVar(&testOnlyUseHTTPSFlag, "test_only_disable_https", false, "TEST ONLY - whether to use HTTPS when communicating with backend")
