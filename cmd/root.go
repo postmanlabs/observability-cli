@@ -2,7 +2,11 @@ package cmd
 
 import (
 	goflag "flag"
+	httpserv "net/http"
+	_ "net/http/pprof"
 	"os"
+	"runtime"
+	"runtime/pprof"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -36,6 +40,10 @@ var (
 	testOnlyDisableGitHubTeamsCheckFlag bool
 	dogfoodFlag                         bool
 	debugFlag                           bool
+	cpuProfile                          string
+	cpuProfileOut                       *os.File
+	heapProfile                         string
+	liveProfileAddress                  string
 )
 
 const (
@@ -55,8 +63,54 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
+		PersistentPreRun:  startProfiling,
+		PersistentPostRun: stopProfiling,
 	}
 )
+
+func startProfiling(cmd *cobra.Command, args []string) {
+	var err error
+	if cpuProfile != "" {
+		cpuProfileOut, err = os.Create(cpuProfile)
+		if err != nil {
+			printer.Stderr.Errorf("Can't open CPU profile: %v\n", err)
+			os.Exit(1)
+		}
+		err = pprof.StartCPUProfile(cpuProfileOut)
+		if err != nil {
+			printer.Stderr.Errorf("Can't start CPU profile: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if liveProfileAddress != "" {
+		go func() {
+			err := httpserv.ListenAndServe(liveProfileAddress, nil)
+			printer.Stderr.Errorf("Profile server error: %v\n", err)
+		}()
+	}
+}
+
+func stopProfiling(cmd *cobra.Command, args []string) {
+	if heapProfile != "" {
+		f, err := os.Create(heapProfile)
+		defer f.Close()
+		if err != nil {
+			printer.Stderr.Errorf("Can't open heap profile: %v\n", err)
+		} else {
+			runtime.GC()
+			err = pprof.WriteHeapProfile(f)
+			if err != nil {
+				printer.Stderr.Errorf("Can't write heap profile: %v\n", err)
+			}
+		}
+	}
+
+	if cpuProfileOut != nil {
+		pprof.StopCPUProfile()
+		cpuProfileOut.Close()
+	}
+}
 
 func Execute() {
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
@@ -88,6 +142,14 @@ func init() {
 	rootCmd.PersistentFlags().Int64Var(&pcap.StreamTimeoutSeconds, "stream-timeout-seconds", 10, "Maximum time to wait for missing TCP data")
 	rootCmd.PersistentFlags().MarkHidden("stream-timeout-seconds")
 	viper.BindPFlag("stream-timeout-seconds", rootCmd.PersistentFlags().Lookup("stream-timeout-seconds"))
+
+	rootCmd.PersistentFlags().StringVar(&liveProfileAddress, "live-profile", "", "Address and port to use for live profiling, 0 to disable")
+	rootCmd.PersistentFlags().MarkHidden("live-profile")
+
+	rootCmd.PersistentFlags().StringVar(&cpuProfile, "cpu-profile", "", "File for CPU profile")
+	rootCmd.PersistentFlags().MarkHidden("cpu-profile")
+	rootCmd.PersistentFlags().StringVar(&heapProfile, "heap-profile", "", "File for heap profile")
+	rootCmd.PersistentFlags().MarkHidden("heap-profile")
 
 	// Super secret unsafe test only flags
 	rootCmd.PersistentFlags().BoolVar(&testOnlyUseHTTPSFlag, "test_only_disable_https", false, "TEST ONLY - whether to use HTTPS when communicating with backend")
