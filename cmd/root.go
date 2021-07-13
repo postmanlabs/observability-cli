@@ -81,7 +81,7 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("domain")
 
 	// Semi-secret somewhat-safe flags
-	rootCmd.PersistentFlags().Int64Var(&http.MaximumHTTPLength, "max-http-length", 1024*1024, "Maximum size of HTTP body to capture")
+	rootCmd.PersistentFlags().Int64Var(&http.MaximumHTTPLength, "max-http-length", 10*1024*1024, "Maximum size of HTTP body to capture")
 	rootCmd.PersistentFlags().MarkHidden("max-http-length")
 	viper.BindPFlag("max-http-length", rootCmd.PersistentFlags().Lookup("max-http-length"))
 
