@@ -18,9 +18,27 @@ import (
 // the data even if there is a gap in the collected sequence.
 var StreamTimeoutSeconds int64 = 10
 
+// Maximum size of gopacket reassembly buffers, per interface and direction.
+//
+// A gopacket page is 1900 bytes.
+// We want to cap the total memory usage at about 300MB = 157894 pages
+var MaxBufferedPagesTotal int = 150_000
+
+//
+// What is a reasonable worst case? We should have enough so that if the
+// packet is retransmitted, we will get it before giving up.
+// 10Gb/s networking * 1ms RTT = 1.25 MB = 1Gb/s networking * 10ms RTT
+// We have observed 3GB growth in RSS over 40 seconds = 75MByte/s
+// Assuming a very long 100ms RTT then we'd need 75MB/s * 100ms = 7.5 MB
+// 7.5MB / 1900 bytes = 3947 pages
+// This would permit only 37 connections to simultaneously stall;
+// 1.5MB / 1900 bytes = 657 pages might be better.
+// TODO: Would be interesting to know the TCP window sizes we see in practice
+// and adjust that way.
+var MaxBufferedPagesPerConnection int = 4_000
+
 // Internal implementation of reassembly.AssemblerContext that include TCP
 // seq and ack numbers.
-
 type assemblerCtxWithSeq struct {
 	ci       gopacket.CaptureInfo
 	seq, ack reassembly.Sequence
@@ -91,6 +109,11 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 	streamFactory := newTCPStreamFactory(p.clock, out, akinet.TCPParserFactorySelector(fs))
 	streamPool := reassembly.NewStreamPool(streamFactory)
 	assembler := reassembly.NewAssembler(streamPool)
+
+	// Override the assembler configuration. (This is the documented way to change them.)
+	assembler.AssemblerOptions.MaxBufferedPagesTotal = MaxBufferedPagesTotal
+	assembler.AssemblerOptions.MaxBufferedPagesPerConnection = MaxBufferedPagesPerConnection
+
 	streamTimeout := time.Duration(StreamTimeoutSeconds) * time.Second
 
 	go func() {
