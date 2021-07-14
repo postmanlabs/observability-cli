@@ -18,7 +18,7 @@ import (
 // the data even if there is a gap in the collected sequence.
 var StreamTimeoutSeconds int64 = 10
 
-// Maximum size of gopacket reassembly buffers.
+// Maximum size of gopacket reassembly buffers, per interface and direction.
 //
 // A gopacket page is 1900 bytes.
 // We want to cap the total memory usage at about 300MB = 157894 pages
