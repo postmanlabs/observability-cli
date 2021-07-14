@@ -143,9 +143,14 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("stream-timeout-seconds")
 	viper.BindPFlag("stream-timeout-seconds", rootCmd.PersistentFlags().Lookup("stream-timeout-seconds"))
 
+	// For explanation of these defaults see net_parse.go
+	rootCmd.PersistentFlags().IntVar(&pcap.MaxBufferedPagesTotal, "gopacket-pages", 150_000, "Maximum number of TCP reassembly pages to allocate")
+	rootCmd.PersistentFlags().MarkHidden("gopacket-pages")
+	rootCmd.PersistentFlags().IntVar(&pcap.MaxBufferedPagesPerConnection, "gopacket-per-conn", 4_000, "Maximum number of TCP reassembly pages per connectio")
+	rootCmd.PersistentFlags().MarkHidden("gopacket-per-conn")
+
 	rootCmd.PersistentFlags().StringVar(&liveProfileAddress, "live-profile", "", "Address and port to use for live profiling, 0 to disable")
 	rootCmd.PersistentFlags().MarkHidden("live-profile")
-
 	rootCmd.PersistentFlags().StringVar(&cpuProfile, "cpu-profile", "", "File for CPU profile")
 	rootCmd.PersistentFlags().MarkHidden("cpu-profile")
 	rootCmd.PersistentFlags().StringVar(&heapProfile, "heap-profile", "", "File for heap profile")
