@@ -70,8 +70,6 @@ func Run(args Args) error {
 		ObjectName:  objectName,
 	}
 	printer.Stderr.Infof("%s 🎉\n", aurora.Green("Success!"))
-
-	// print URI to stdout for easy scripting
 	printer.Stderr.Infof(fmt.Sprintf("Your upload is available as: %s\n", uri.String()))
 
 	return nil
