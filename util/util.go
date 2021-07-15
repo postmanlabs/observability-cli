@@ -49,6 +49,9 @@ func NewLearnSession(domain string, clientID akid.ClientID, svc akid.ServiceID, 
 }
 
 func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error) {
+	// Normalize the name.
+	name = strings.ToLower(name)
+
 	if id, found := serviceNameCache.Get(name); found {
 		return id.(akid.ServiceID), nil
 	}
@@ -61,17 +64,24 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 		return akid.ServiceID{}, errors.Wrap(err, "failed to get list of services associated with the account")
 	}
 
+	var result *akid.ServiceID
 	for _, svc := range services {
 		if svc.ID == (akid.ServiceID{}) {
 			continue
 		}
-		serviceNameCache.Set(svc.Name, svc.ID, cache.DefaultExpiration)
 
-		if svc.Name == name {
-			return svc.ID, nil
+		// Normalize service name.
+		svcName := strings.ToLower(svc.Name)
+		serviceNameCache.Set(svcName, svc.ID, cache.DefaultExpiration)
+
+		if strings.EqualFold(svc.Name, name) {
+			result = &svc.ID
 		}
 	}
 
+	if result != nil {
+		return *result, nil
+	}
 	return akid.ServiceID{}, errors.Errorf("cannot determine service ID for %s", name)
 }
 
