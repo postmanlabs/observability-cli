@@ -53,6 +53,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	name = strings.ToLower(name)
 
 	if id, found := serviceNameCache.Get(name); found {
+		printer.Stderr.Debugf("Cached service name %q is %q\n", name, akid.String(id.(akid.ServiceID)))
 		return id.(akid.ServiceID), nil
 	}
 
@@ -64,7 +65,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 		return akid.ServiceID{}, errors.Wrap(err, "failed to get list of services associated with the account")
 	}
 
-	var result *akid.ServiceID
+	var result akid.ServiceID
 	for _, svc := range services {
 		if svc.ID == (akid.ServiceID{}) {
 			continue
@@ -75,12 +76,14 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 		serviceNameCache.Set(svcName, svc.ID, cache.DefaultExpiration)
 
 		if strings.EqualFold(svc.Name, name) {
-			result = &svc.ID
+			result = svc.ID
+			// keep going to fill the cache
 		}
 	}
 
-	if result != nil {
-		return *result, nil
+	if (result != akid.ServiceID{}) {
+		printer.Stderr.Debugf("Service name %q is %q\n", name, akid.String(result))
+		return result, nil
 	}
 	return akid.ServiceID{}, errors.Errorf("cannot determine service ID for %s", name)
 }
