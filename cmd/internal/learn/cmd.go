@@ -14,6 +14,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
+	"github.com/akitasoftware/akita-libs/gitlab"
+	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/akitasoftware/akita-libs/version_names"
+
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
@@ -23,10 +29,6 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
-	"github.com/akitasoftware/akita-libs/akid"
-	"github.com/akitasoftware/akita-libs/akiuri"
-	"github.com/akitasoftware/akita-libs/gitlab"
-	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/plugin"
 )
@@ -148,6 +150,13 @@ func runLearnMode() error {
 	tagsMap, err := tags.FromPairs(tagsFlag)
 	if err != nil {
 		return err
+	}
+
+	// Check for reserved versions.
+	for _, version := range versionsFlag {
+		if version_names.IsReservedVersionName(version) {
+			return errors.Errorf("'%s' is an Akita-reserved version", version)
+		}
 	}
 
 	// Populate legacy github integration tag.
@@ -318,6 +327,7 @@ func runAPISpec(clientID akid.ClientID, serviceName string, traceURI *akiuri.URI
 		Service:        serviceName,
 		Format:         "yaml",
 		Tags:           tagsMap,
+		Versions:       versionsFlag,
 		PathParams:     pathParamsFlag,
 		PathExclusions: pathExclusionsFlag,
 

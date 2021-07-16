@@ -28,6 +28,7 @@ var (
 
 	formatFlag                     string
 	tagsFlag                       []string
+	versionsFlag                   []string
 	getSpecEnableRelatedFieldsFlag bool
 	includeTrackersFlag            bool
 
@@ -103,6 +104,12 @@ func init() {
 		"tags",
 		nil,
 		`Adds tags to the spec. Specified as a comma separated list of "key=value" pairs.`,
+	)
+	Cmd.Flags().StringSliceVar(
+		&versionsFlag,
+		"versions",
+		nil,
+		`Assigns versions to the spec.  Versions are similar to tags, but a version may only be assigned to one spec within a service. Specified as a comma separated list of strings.`,
 	)
 	Cmd.Flags().StringSliceVar(
 		&pathParamsFlag,

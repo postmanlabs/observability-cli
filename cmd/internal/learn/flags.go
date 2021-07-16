@@ -14,6 +14,7 @@ var (
 	filterFlag     string
 	interfacesFlag []string
 	tagsFlag       []string
+	versionsFlag   []string
 	sampleRateFlag float64
 	rateLimitFlag  float64
 
@@ -85,6 +86,16 @@ func registerOptionalFlags() {
 		"tags",
 		nil,
 		`Adds tags to the new learn session. Specified as a comma separated list of "key=value" pairs.
+
+Ignored if --session is used to attach to an existing learn session.
+`,
+	)
+
+	Cmd.Flags().StringSliceVar(
+		&versionsFlag,
+		"versions",
+		nil,
+		`Assigns versions to the spec.  Versions are similar to tags, but a version may only be assigned to one spec within a service. Specified as a comma separated list of strings.
 
 Ignored if --session is used to attach to an existing learn session.
 `,

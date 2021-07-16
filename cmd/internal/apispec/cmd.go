@@ -15,6 +15,7 @@ import (
 	"github.com/akitasoftware/akita-libs/gitlab"
 	"github.com/akitasoftware/akita-libs/tags"
 	"github.com/akitasoftware/akita-libs/time_span"
+	"github.com/akitasoftware/akita-libs/version_names"
 )
 
 func parseTime(s string) (time.Time, error) {
@@ -44,6 +45,13 @@ var Cmd = &cobra.Command{
 		traceTags, err := tags.FromPairs(tracesByTagFlag)
 		if err != nil {
 			return err
+		}
+
+		// Check for reserved versions.
+		for _, version := range versionsFlag {
+			if version_names.IsReservedVersionName(version) {
+				return errors.Errorf("'%s' is an Akita-reserved version", version)
+			}
 		}
 
 		var timeRange *time_span.TimeSpan
@@ -116,6 +124,7 @@ var Cmd = &cobra.Command{
 			Service:        serviceFlag,
 			Format:         formatFlag,
 			Tags:           tags,
+			Versions:       versionsFlag,
 			PathParams:     pathParamsFlag,
 			PathExclusions: pathExclusionsFlag,
 			TimeRange:      timeRange,
