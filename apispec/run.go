@@ -53,6 +53,7 @@ type Args struct {
 	Service                    string
 	Format                     string
 	Tags                       map[tags.Key]string
+	Versions                   []string
 	GetSpecEnableRelatedFields bool
 	IncludeTrackers            bool
 	PathParams                 []string
@@ -243,6 +244,7 @@ func Run(args Args) error {
 	defer cancel()
 	outSpecID, err := learnClient.CreateSpec(ctx, outSpecName, learnSessions, rest.CreateSpecOptions{
 		Tags:           specTags,
+		Versions:       args.Versions,
 		PathPatterns:   pathPatternsFromStrings(args.PathParams),
 		PathExclusions: pathExclusions,
 		GitHubPR:       githubPR,

@@ -21,6 +21,7 @@ type GetSpecOptions struct {
 
 type CreateSpecOptions struct {
 	Tags           map[tags.Key]string
+	Versions       []string
 	PathPatterns   []pp.Pattern
 	PathExclusions []*regexp.Regexp
 	GitHubPR       *github.PRInfo

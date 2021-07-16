@@ -5,6 +5,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/setversion"
 	"github.com/akitasoftware/akita-libs/akiuri"
+	"github.com/akitasoftware/akita-libs/version_names"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -15,8 +16,12 @@ var Cmd = &cobra.Command{
 	SilenceUsage: true,
 	Args:         cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// First argument is the version.
+		version := args[0]
+
 		// Second argument must be a model URI.
 		modelURI, err := akiuri.Parse(args[1])
+
 		if err != nil {
 			return errors.Wrapf(err, "%q is not a well-formed AkitaURI", args[1])
 		}
@@ -24,11 +29,16 @@ var Cmd = &cobra.Command{
 			return errors.New("Must specify an API model. For example, \"akita://serviceName:spec:specName\"")
 		}
 
+		// Check for reserved versions.
+		if version_names.IsReservedVersionName(version) {
+			return errors.Errorf("'%s' is an Akita-reserved version", version)
+		}
+
 		setversionArgs := setversion.Args{
 			ClientID:    akiflag.GetClientID(),
 			Domain:      akiflag.Domain,
 			ModelURI:    modelURI,
-			VersionName: args[0],
+			VersionName: version,
 		}
 
 		if err := setversion.Run(setversionArgs); err != nil {

@@ -100,6 +100,7 @@ func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []ak
 		"path_patterns":     opts.PathPatterns,
 		"path_exclusions":   pathExclusions,
 		"tags":              opts.Tags,
+		"versions":          opts.Versions,
 	}
 	if opts.GitHubPR != nil {
 		req["github_pr"] = opts.GitHubPR
