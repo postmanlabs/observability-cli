@@ -12,6 +12,7 @@ import (
 
 var (
 	Stderr = NewP(os.Stderr)
+	Color  = aurora.NewAurora(true)
 )
 
 func Infoln(args ...interface{}) {
@@ -82,41 +83,41 @@ func (p impl) ln(t string, args ...interface{}) {
 }
 
 func (p impl) Infoln(args ...interface{}) {
-	p.ln(aurora.Blue("[INFO] ").String(), args...)
+	p.ln(Color.Blue("[INFO] ").String(), args...)
 }
 
 func (p impl) Warningln(args ...interface{}) {
-	p.ln(aurora.Yellow("[WARNING] ").String(), args...)
+	p.ln(Color.Yellow("[WARNING] ").String(), args...)
 }
 
 func (p impl) Errorln(args ...interface{}) {
-	p.ln(aurora.Red("[ERROR] ").String(), args...)
+	p.ln(Color.Red("[ERROR] ").String(), args...)
 }
 
 func (p impl) Debugln(args ...interface{}) {
 	if viper.GetBool("debug") {
-		p.ln(aurora.Magenta("[DEBUG] ").String(), args...)
+		p.ln(Color.Magenta("[DEBUG] ").String(), args...)
 	}
 }
 
 func (p impl) Infof(fmtString string, args ...interface{}) {
-	fmt.Fprintf(p.out, aurora.Blue("[INFO] ").String())
+	fmt.Fprintf(p.out, Color.Blue("[INFO] ").String())
 	fmt.Fprintf(p.out, fmtString, args...)
 }
 
 func (p impl) Warningf(fmtString string, args ...interface{}) {
-	fmt.Fprintf(p.out, aurora.Yellow("[WARNING] ").String())
+	fmt.Fprintf(p.out, Color.Yellow("[WARNING] ").String())
 	fmt.Fprintf(p.out, fmtString, args...)
 }
 
 func (p impl) Errorf(fmtString string, args ...interface{}) {
-	fmt.Fprintf(p.out, aurora.Red("[ERROR] ").String())
+	fmt.Fprintf(p.out, Color.Red("[ERROR] ").String())
 	fmt.Fprintf(p.out, fmtString, args...)
 }
 
 func (p impl) Debugf(fmtString string, args ...interface{}) {
 	if viper.GetBool("debug") {
-		fmt.Fprintf(p.out, aurora.Magenta("[DEBUG] ").String())
+		fmt.Fprintf(p.out, Color.Magenta("[DEBUG] ").String())
 		fmt.Fprintf(p.out, fmtString, args...)
 	}
 }

@@ -16,7 +16,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/jpillora/backoff"
-	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -271,11 +270,11 @@ func Run(args Args) error {
 	if args.Out.LocalPath == nil {
 		// No LocalPath means either AkitaURI is set or Out is not set - both mean
 		// backend output only.
-		successMsg := aurora.Green(fmt.Sprintf("🔎 View your spec at: %s", specURL.String()))
-		printer.Infof("%s 🎉\n\n%s\n\n", aurora.Green("Success!"), successMsg)
+		successMsg := printer.Color.Green(fmt.Sprintf("🔎 View your spec at: %s", specURL.String()))
+		printer.Infof("%s 🎉\n\n%s\n\n", printer.Color.Green("Success!"), successMsg)
 	} else {
 		printer.Infof("Waiting for your spec to generate...\n")
-		printer.Infof("%s\n", aurora.Green(fmt.Sprintf("🔎 Preview your spec at: %s", specURL.String())))
+		printer.Infof("%s\n", printer.Color.Green(fmt.Sprintf("🔎 Preview your spec at: %s", specURL.String())))
 
 		specContent, err := pollSpecUntilReady(learnClient, outSpecID, args.GetSpecEnableRelatedFields)
 		if err != nil {
@@ -307,7 +306,7 @@ func Run(args Args) error {
 			return errors.Wrap(err, "failed to write spec")
 		}
 
-		printer.Infof("%s 🎉\n\n", aurora.Green("Success!"))
+		printer.Infof("%s 🎉\n\n", printer.Color.Green("Success!"))
 	}
 
 	return nil

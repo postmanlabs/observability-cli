@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-libs/akid"
@@ -69,7 +68,7 @@ func Run(args Args) error {
 		ObjectType:  args.DestURI.ObjectType,
 		ObjectName:  objectName,
 	}
-	printer.Stderr.Infof("%s 🎉\n", aurora.Green("Success!"))
+	printer.Stderr.Infof("%s 🎉\n", printer.Color.Green("Success!"))
 	printer.Stderr.Infof(fmt.Sprintf("Your upload is available as: %s\n", uri.String()))
 
 	return nil
