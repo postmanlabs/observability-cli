@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -408,9 +407,9 @@ func Run(args Args) error {
 		printer.Stderr.Infof("Running learn mode on interfaces %s\n", strings.Join(iNames, ", "))
 	}
 	if len(outboundFilters) == 0 {
-		printer.Stderr.Warningf("%s\n", aurora.Yellow("--filter flag is not set, this means that:"))
-		printer.Stderr.Warningf("%s\n", aurora.Yellow("  - all network traffic is treated as your API traffic"))
-		printer.Stderr.Warningf("%s\n", aurora.Yellow("  - outbound witness collection is disabled"))
+		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that:"))
+		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - all network traffic is treated as your API traffic"))
+		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - outbound witness collection is disabled"))
 	}
 
 	var stopErr error
@@ -502,16 +501,16 @@ func Run(args Args) error {
 		if totalCount.TCPPackets == 0 {
 			if outboundSummary.Total().TCPPackets == 0 {
 				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
-				printer.Stderr.Infof("%s\n", aurora.Yellow("This may mean the traffic is on a different interface, or that"))
-				printer.Stderr.Infof("%s\n", aurora.Yellow("there is a problem sending traffic to the API."))
+				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
+				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
 			} else {
 				printer.Stderr.Infof("Did not capture any TCP packets matching the filter.\n")
-				printer.Stderr.Infof("%s\n", aurora.Yellow("This may mean your filter is incorrect, such as the wrong TCP port."))
+				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean your filter is incorrect, such as the wrong TCP port."))
 			}
 		} else if totalCount.Unparsed > 0 {
 			printer.Stderr.Infof("Captured %d TCP packets total; %d unparsed TCP segments.\n",
 				totalCount.TCPPackets, totalCount.Unparsed)
-			printer.Stderr.Infof("%s\n", aurora.Yellow("This may mean you are trying to capture HTTPS traffic."))
+			printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean you are trying to capture HTTPS traffic."))
 			printer.Stderr.Infof("See https://docs.akita.software/docs/proxy-for-encrypted-traffic\n")
 			printer.Stderr.Infof("for instructions on using a proxy, or generate a HAR file with\n")
 			printer.Stderr.Infof("your browser as described in\n")
@@ -520,19 +519,19 @@ func Run(args Args) error {
 			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
 				inboundPrefilter.Total().HTTPRequests)
 		}
-		printer.Stderr.Errorf("%s 🛑\n\n", aurora.Red("No inbound HTTP calls captured!"))
+		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No inbound HTTP calls captured!"))
 		return errors.New("incoming API trace is empty")
 	}
 	if totalCount.HTTPRequests == 0 {
-		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP responses, but not requests."))
+		printer.Stderr.Warningf("%s ⚠\n\n", printer.Color.Yellow("Saw HTTP responses, but not requests."))
 		return nil
 	}
 	if totalCount.HTTPResponses == 0 {
-		printer.Stderr.Warningf("%s ⚠\n\n", aurora.Yellow("Saw HTTP requests, but not responses."))
+		printer.Stderr.Warningf("%s ⚠\n\n", printer.Color.Yellow("Saw HTTP requests, but not responses."))
 		return nil
 	}
 
-	printer.Stderr.Infof("%s 🎉\n\n", aurora.Green("Success!"))
+	printer.Stderr.Infof("%s 🎉\n\n", printer.Color.Green("Success!"))
 	return nil
 }
 

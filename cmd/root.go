@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 
+	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -44,6 +45,7 @@ var (
 	cpuProfileOut                       *os.File
 	heapProfile                         string
 	liveProfileAddress                  string
+	noColorFlag                         bool
 )
 
 const (
@@ -63,10 +65,17 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
-		PersistentPreRun:  startProfiling,
+		PersistentPreRun:  preRun,
 		PersistentPostRun: stopProfiling,
 	}
 )
+
+func preRun(cmd *cobra.Command, args []string) {
+	if noColorFlag {
+		printer.Color = aurora.NewAurora(false)
+	}
+	startProfiling(cmd, args)
+}
 
 func startProfiling(cmd *cobra.Command, args []string) {
 	var err error
@@ -172,6 +181,9 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&debugFlag, "debug", false, "If set, outputs detailed information for debugging.")
 	rootCmd.PersistentFlags().MarkHidden("debug")
 	viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
+
+	rootCmd.PersistentFlags().BoolVar(&noColorFlag, "no-color", false, "If set, disables color highlighting.")
+	rootCmd.PersistentFlags().MarkHidden("no-color")
 
 	// Include flags from go libraries that we're using. We hand-pick the flags to
 	// include to avoid polluting the flag set of the CLI.

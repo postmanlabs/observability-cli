@@ -7,7 +7,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -36,8 +35,8 @@ func printViewSpecMessage(svc akid.ServiceID, spec akid.APISpecID) {
 	printer.Stderr.Infof("Your API spec ID is: ")
 	fmt.Println(akid.String(spec))
 
-	successMsg := aurora.Green(fmt.Sprintf("🔎 View your spec at: %s", editorURL.String()))
-	printer.Stderr.Infof("%s 🎉\n\n%s\n\n", aurora.Green("Success!"), successMsg)
+	successMsg := printer.Color.Green(fmt.Sprintf("🔎 View your spec at: %s", editorURL.String()))
+	printer.Stderr.Infof("%s 🎉\n\n%s\n\n", printer.Color.Green("Success!"), successMsg)
 }
 
 func getAppHost() string {
