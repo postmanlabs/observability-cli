@@ -13,7 +13,6 @@ import (
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/gitlab"
-	"github.com/akitasoftware/akita-libs/tags"
 	"github.com/akitasoftware/akita-libs/time_span"
 	"github.com/akitasoftware/akita-libs/version_names"
 )
@@ -42,7 +41,8 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
-		traceTags, err := tags.FromPairs(tracesByTagFlag)
+		// No need to warn here, matching on reserved tags is OK
+		traceTags, err := util.ParseTags(tracesByTagFlag)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ var Cmd = &cobra.Command{
 			traces = append(traces, location.Location{AkitaURI: &destURI})
 		}
 
-		tags, err := tags.FromPairs(tagsFlag)
+		tags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {
 			return err
 		}

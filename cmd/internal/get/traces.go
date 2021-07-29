@@ -15,7 +15,6 @@ import (
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
-	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var GetTracesCmd = &cobra.Command{
@@ -95,7 +94,7 @@ func getTraces(cmd *cobra.Command, args []string) error {
 	}
 
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
-	tags, err := tags.FromPairs(tagsFlag)
+	tags, err := util.ParseTags(tagsFlag)
 	if err != nil {
 		return err
 	}

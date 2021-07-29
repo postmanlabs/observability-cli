@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-libs/akiuri"
-	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -80,7 +79,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Parse tags.
-		tags, err := tags.FromPairs(tagsFlag)
+		tags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {
 			return err
 		}

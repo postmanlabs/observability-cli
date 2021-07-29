@@ -193,7 +193,7 @@ func getSpecs(cmd *cobra.Command, args []string) error {
 		return errors.New("Only one source and one destination supported.")
 	}
 
-	tags, err := tags.FromPairs(tagsFlag)
+	tags, err := util.ParseTags(tagsFlag)
 	if err != nil {
 		return err
 	}

@@ -147,7 +147,7 @@ func runLearnMode() error {
 		}
 	}
 
-	tagsMap, err := tags.FromPairs(tagsFlag)
+	tagsMap, err := util.ParseTagsAndWarn(tagsFlag)
 	if err != nil {
 		return err
 	}

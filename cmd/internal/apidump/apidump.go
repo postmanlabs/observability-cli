@@ -11,7 +11,6 @@ import (
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akiuri"
-	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var (
@@ -39,9 +38,9 @@ var Cmd = &cobra.Command{
 	Long:         "Capture and store a sequence of requests/responses to a service by observing network traffic.",
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		traceTags, err := tags.FromPairs(tagsFlag)
+		traceTags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {
-			return errors.Wrap(err, "failed to parse tags")
+			return err
 		}
 
 		plugins, err := pluginloader.Load(pluginsFlag)
