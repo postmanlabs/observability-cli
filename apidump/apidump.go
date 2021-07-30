@@ -1,7 +1,6 @@
 package apidump
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -420,11 +419,12 @@ func Run(args Args) error {
 
 		// Print delimiter so it's easier to differentiate subcommand output from
 		// Akita output.
-		fmt.Fprintln(os.Stdout, subcommandOutputDelimiter)
-		fmt.Fprintln(os.Stderr, subcommandOutputDelimiter)
+		// It won't appear in JSON-formatted output.
+		printer.Stdout.RawOutput(subcommandOutputDelimiter)
+		printer.Stderr.RawOutput(subcommandOutputDelimiter)
 		cmdErr := runCommand(args.ExecCommandUser, args.ExecCommand)
-		fmt.Fprintln(os.Stdout, subcommandOutputDelimiter)
-		fmt.Fprintln(os.Stderr, subcommandOutputDelimiter)
+		printer.Stdout.RawOutput(subcommandOutputDelimiter)
+		printer.Stderr.RawOutput(subcommandOutputDelimiter)
 
 		if cmdErr != nil {
 			stopErr = errors.Wrap(cmdErr, "failed to run subcommand")

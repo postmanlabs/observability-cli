@@ -229,3 +229,28 @@ func ContainsCLITraffic(t akinet.ParsedNetworkTraffic) bool {
 	}
 	return false
 }
+
+func ParseTags(tagsArg []string) (map[tags.Key]string, error) {
+	tagSet, err := tags.FromPairs(tagsArg)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse tags")
+	}
+	return tagSet, nil
+}
+
+func ParseTagsAndWarn(tagsArg []string) (map[tags.Key]string, error) {
+	tagSet, err := tags.FromPairs(tagsArg)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse tags")
+	}
+	WarnOnReservedTags(tagSet)
+	return tagSet, nil
+}
+
+func WarnOnReservedTags(tagSet map[tags.Key]string) {
+	for t, _ := range tagSet {
+		if tags.IsReservedKey(t) {
+			printer.Warningf("%s is an Akita-reserved key. Its value may be overwritten internally\n", t)
+		}
+	}
+}

@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 
-	"github.com/logrusorgru/aurora"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
@@ -46,6 +45,7 @@ var (
 	heapProfile                         string
 	liveProfileAddress                  string
 	noColorFlag                         bool
+	logFormatFlag                       string
 )
 
 const (
@@ -71,9 +71,24 @@ var (
 )
 
 func preRun(cmd *cobra.Command, args []string) {
-	if noColorFlag {
-		printer.Color = aurora.NewAurora(false)
+	switch logFormatFlag {
+	case "json":
+		printer.SwitchToJSON()
+	case "plain":
+		printer.SwitchToPlain()
+	case "color":
+		// No change needed
+	case "":
+		// default value, we'll be context-sensitive.  If in AKITA_DEPLOYMENT, use JSON, otherwise
+		// color.
+		if os.Getenv("AKITA_DEPLOYMENT") != "" {
+			printer.SwitchToJSON()
+		}
+	default:
+		// Use color
+		printer.Warningln("Unknown log format, using `color`.")
 	}
+
 	startProfiling(cmd, args)
 }
 
@@ -182,8 +197,8 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("debug")
 	viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
 
-	rootCmd.PersistentFlags().BoolVar(&noColorFlag, "no-color", false, "If set, disables color highlighting.")
-	rootCmd.PersistentFlags().MarkHidden("no-color")
+	rootCmd.PersistentFlags().StringVar(&logFormatFlag, "log-format", "", "Set to `color`, `plain` or `json` to control the log format.")
+	rootCmd.PersistentFlags().MarkHidden("log-format")
 
 	// Include flags from go libraries that we're using. We hand-pick the flags to
 	// include to avoid polluting the flag set of the CLI.
