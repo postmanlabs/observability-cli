@@ -19,7 +19,7 @@ require (
 	// pb/README.md
 	github.com/golang/protobuf v1.3.4
 	github.com/google/go-cmp v0.5.4
-	github.com/google/gopacket v1.1.18
+	github.com/google/gopacket v1.1.19
 	github.com/google/martian/v3 v3.0.1
 	github.com/google/uuid v1.2.0
 	github.com/gorilla/mux v1.8.0
@@ -42,6 +42,8 @@ require (
 )
 
 replace (
-	github.com/google/gopacket v1.1.18 => github.com/akitasoftware/gopacket v1.1.18-0.20201119235945-f584f5125293
+	// Merging google/gopacket into akitasoftware/gopacket does not
+	// bring along any tags, such as the v1.1.19 release.
+	github.com/google/gopacket v1.1.19 => github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b
 	github.com/google/martian/v3 v3.0.1 => github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de
 )
