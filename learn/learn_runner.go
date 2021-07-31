@@ -46,7 +46,7 @@ func CollectWitnesses(stop <-chan struct{}, intf, bpfFilter string, proc Witness
 		akihttp.NewHTTPRequestParserFactory(),
 		akihttp.NewHTTPResponseParserFactory(),
 	}
-	parser := col.NewNetworkTrafficParser()
+	parser := col.NewNetworkTrafficParser(1.0)
 	parsedChan, err := parser.ParseFromInterface(intf, bpfFilter, stop, facts...)
 	if err != nil {
 		return errors.Wrap(err, "couldn't start parsing from interface")

@@ -8,7 +8,7 @@ import (
 	akihttp "github.com/akitasoftware/akita-libs/akinet/http"
 )
 
-func Collect(stop <-chan struct{}, intf, bpfFilter string, proc Collector, packetCount PacketCountConsumer) error {
+func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc Collector, packetCount PacketCountConsumer) error {
 	defer proc.Close()
 
 	facts := []akinet.TCPParserFactory{
@@ -16,7 +16,7 @@ func Collect(stop <-chan struct{}, intf, bpfFilter string, proc Collector, packe
 		akihttp.NewHTTPResponseParserFactory(),
 	}
 
-	parser := col.NewNetworkTrafficParser()
+	parser := col.NewNetworkTrafficParser(bufferShare)
 
 	if packetCount != nil {
 		parser.InstallObserver(CountTcpPackets(intf, packetCount))
