@@ -388,10 +388,14 @@ func Run(args Args) error {
 				}
 			}
 
+			// Compute the share of the page cache that each collection process may use.
+			// (gopacket does not currently permit a unified page cache for packet reassembly.)
+			bufferShare := 1.0 / float32(len(outboundFilters)+len(inboundFilters))
+
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := trace.Collect(stop, interfaceName, filter, collector, summary); err != nil {
+				if err := trace.Collect(stop, interfaceName, filter, bufferShare, collector, summary); err != nil {
 					errChan <- errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName)
 				}
 			}(interfaceName, filter)

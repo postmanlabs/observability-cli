@@ -21,8 +21,8 @@ var StreamTimeoutSeconds int64 = 10
 // Maximum size of gopacket reassembly buffers, per interface and direction.
 //
 // A gopacket page is 1900 bytes.
-// We want to cap the total memory usage at about 300MB = 157894 pages
-var MaxBufferedPagesTotal int = 150_000
+// We want to cap the total memory usage at about 200MB = 105263 pages
+var MaxBufferedPagesTotal int = 100_000
 
 //
 // What is a reasonable worst case? We should have enough so that if the
@@ -72,16 +72,18 @@ func (fact *tcpStreamFactory) New(netFlow, tcpFlow gopacket.Flow, _ *layers.TCP,
 type NetworkTrafficObserver func(gopacket.Packet)
 
 type NetworkTrafficParser struct {
-	pcap     pcapWrapper
-	clock    clockWrapper
-	observer NetworkTrafficObserver // This function is called for every packet.
+	pcap        pcapWrapper
+	clock       clockWrapper
+	observer    NetworkTrafficObserver // This function is called for every packet.
+	bufferShare float32
 }
 
-func NewNetworkTrafficParser() *NetworkTrafficParser {
+func NewNetworkTrafficParser(bufferShare float32) *NetworkTrafficParser {
 	return &NetworkTrafficParser{
-		pcap:     &pcapImpl{},
-		clock:    &realClock{},
-		observer: func(gopacket.Packet) {},
+		pcap:        &pcapImpl{},
+		clock:       &realClock{},
+		observer:    func(gopacket.Packet) {},
+		bufferShare: bufferShare,
 	}
 }
 
@@ -111,7 +113,9 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 	assembler := reassembly.NewAssembler(streamPool)
 
 	// Override the assembler configuration. (This is the documented way to change them.)
-	assembler.AssemblerOptions.MaxBufferedPagesTotal = MaxBufferedPagesTotal
+	// Give this particular assembler a fraction of the total pages; there doesn't seem to be a way
+	// to set an aggregate limit without major work.
+	assembler.AssemblerOptions.MaxBufferedPagesTotal = int(p.bufferShare * float32(MaxBufferedPagesTotal))
 	assembler.AssemblerOptions.MaxBufferedPagesPerConnection = MaxBufferedPagesPerConnection
 
 	streamTimeout := time.Duration(StreamTimeoutSeconds) * time.Second
