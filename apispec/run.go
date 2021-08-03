@@ -230,13 +230,7 @@ func Run(args Args) error {
 	// Create spec with a random name unless user specified a name.
 	printer.Infof("Generating API specification...\n")
 	outSpecName := util.RandomAPIModelName()
-	if args.Out.AkitaURI == nil || args.Out.AkitaURI.ObjectName == "" {
-		printer.Infof("Creating a new spec: %s\n", akiuri.URI{
-			ServiceName: serviceName,
-			ObjectType:  akiuri.SPEC.Ptr(),
-			ObjectName:  outSpecName,
-		})
-	} else {
+	if args.Out.AkitaURI != nil && args.Out.AkitaURI.ObjectName != "" {
 		outSpecName = args.Out.AkitaURI.ObjectName
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -258,8 +252,13 @@ func Run(args Args) error {
 	// We precede it with a message on stderr so when the user is using the CLI
 	// interactively, it doesn't look like there's a random spec ID floating
 	// around.
-	printer.Stderr.Infof("Your API spec ID is: ")
-	fmt.Println(akid.String(outSpecID))
+	outURI := akiuri.URI{
+		ServiceName: serviceName,
+		ObjectName: outSpecName,
+		ObjectType: akiuri.SPEC.Ptr(),
+	}
+	printer.Stderr.Infof("Your API spec URI is: ")
+	fmt.Println(outURI.String())
 
 	specURL := GetSpecURL(args.Domain, serviceID, outSpecID)
 
