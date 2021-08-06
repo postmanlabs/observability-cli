@@ -40,6 +40,18 @@ var (
 	}
 )
 
+const (
+	// The fallback to trying compression algorithms is more exprensive because there doesn't seem to be a
+	// good way of interrogating the algorithms about whether the stream is OK. So we limit the amount of
+	// data is may consume or produce.
+	MaxFallbackInput  = 1 * 1024 * 1024
+	MaxFallbackOutput = 10 * 1024 * 1024
+
+	// This is used for non-JSON and non-YAML types where there is no point in reading more
+	// than a little bit anyway.
+	MaxBufferedBody = 5 * 1024 * 1024
+)
+
 // These need to be constructors, rather than a global var that's reused, so
 // that there is not a race condition when marshaling to protobufs that share
 // them. (The race condition actually manifested in obfuscate().)
@@ -109,29 +121,23 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 	}
 
 	if len(rawBody) > 0 {
-		body, err := decodeBody(headers, rawBody, bodyDecompressed)
+		bodyStream := bytes.NewReader(rawBody)
+		decodeStream, err := decodeBody(headers, bodyStream, bodyDecompressed)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode body")
 		}
 
 		contentType := headers.Get("Content-Type")
-		bodyData, err := parseBody(contentType, body, statusCode)
+		bodyData, err := parseBody(contentType, decodeStream, statusCode)
 		if err != nil {
+			// TODO: maybe don't do this if we *did* get a Content-Encoding header?
+			//
 			// Try common decompression algorithms to see if the body is compressed
 			// but did not have Content-Encoding header.
-			foundFallback := false
-			printer.Debugf("Failed to parse body, attempting common decompressions\n")
-			for _, fc := range fallbackDecompressions {
-				if b, err := decompress(fc, body); err == nil {
-					printer.Debugf("%s seems to work, attempting to parse body again\n", fc)
-					body = b
-					foundFallback = true
-					break
-				}
-			}
-
-			if foundFallback {
-				bodyData, err = parseBody(contentType, body, statusCode)
+			printer.Debugf("Failed to parse body, attempting common decompressions: %v\n", err)
+			fallbackReader, decompressErr := attemptDecompress(rawBody)
+			if decompressErr == nil {
+				bodyData, err = parseBody(contentType, fallbackReader, statusCode)
 			}
 		}
 
@@ -175,30 +181,58 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 	}, nil
 }
 
-func decompress(compression string, body []byte) ([]byte, error) {
+// Today body has been completely assembled, but we accept a Reader to allow us to
+// stream throught he decompression later, if it becomes feasible.
+//
+// TODO: some of the compression algorithms return a ReadCloser, but it
+// doesn't look like there's a good standard library way to propogate closes
+// all the way back.  So they'd all have to be deferred here?
+func decompress(compression string, body io.Reader) (io.Reader, error) {
 	printer.Debugf("Decompressing body using %s\n", compression)
 	var dr io.Reader
 	switch compression {
 	case "gzip":
-		if r, err := gzip.NewReader(bytes.NewReader(body)); err != nil {
+		if r, err := gzip.NewReader(body); err != nil {
 			return nil, err
 		} else {
 			dr = r
 		}
 	case "deflate":
-		dr = flate.NewReader(bytes.NewReader(body))
+		dr = flate.NewReader(body)
 	case "identity":
-		dr = bytes.NewReader(body)
+		dr = body
 	case "br":
-		dr = brotli.NewReader(bytes.NewReader(body))
+		dr = io.NopCloser(brotli.NewReader(body))
 	default:
 		return nil, errors.New("unsupported compression type")
 	}
-	return ioutil.ReadAll(dr)
+	return dr, nil
+}
+
+// Our only means of success seems to be reading all the way to the end.
+// We limit the amount of space that can be produced that way (and the largest
+// body we are willing to try.)
+func attemptDecompress(body []byte) (io.Reader, error) {
+	if len(body) > MaxFallbackInput {
+		return nil, errors.New("body too large to attempt trial decompression")
+	}
+
+	for _, algorithm := range fallbackDecompressions {
+		dr, err := decompress(algorithm, bytes.NewReader(body))
+		if err != nil {
+			continue
+		}
+		limitReader := &io.LimitedReader{R: dr, N: MaxFallbackOutput}
+		bufferedResult, err := ioutil.ReadAll(limitReader)
+		if err == nil {
+			return io.NopCloser(bytes.NewReader(bufferedResult)), nil
+		}
+	}
+	return nil, errors.New("unrecognized compression type")
 }
 
 // Handles character encoding and decompression.
-func decodeBody(headers http.Header, body []byte, bodyDecompressed bool) ([]byte, error) {
+func decodeBody(headers http.Header, body io.Reader, bodyDecompressed bool) (io.Reader, error) {
 	// Handle decompression first.
 	if !bodyDecompressed {
 		compressions := headers[http.CanonicalHeaderKey("Content-Encoding")]
@@ -234,24 +268,24 @@ func decodeBody(headers http.Header, body []byte, bodyDecompressed bool) ([]byte
 		}
 
 		if n, _ := ianaindex.MIME.Name(enc); n != "UTF-8" {
-			utf8Body, _, err := transform.Bytes(enc.NewDecoder(), body)
-			if err != nil {
-				return nil, errors.Wrapf(err, `failed to convert %s to UTF-8`, cs)
-			}
-			body = utf8Body
+			body = io.NopCloser(transform.NewReader(body, enc.NewDecoder()))
 		}
 	}
 
 	return body, nil
 }
 
+func limitedBufferBody(bodyStream io.Reader) ([]byte, error) {
+	body, err := io.ReadAll(io.LimitReader(bodyStream, MaxBufferedBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading body")
+	}
+	return body, nil
+}
+
 // Possible to return nil for both the data and error values. The data will be nil
 // if the passed in body is length 0 or nil. This is not considered an error.
-func parseBody(contentType string, body []byte, statusCode int) (*pb.Data, error) {
-	if body == nil || len(body) == 0 {
-		return nil, nil
-	}
-
+func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Data, error) {
 	mediaType, mediaParams, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse MIME from Content-Type %q", contentType)
@@ -261,12 +295,16 @@ func parseBody(contentType string, body []byte, statusCode int) (*pb.Data, error
 	var pbContentType pb.HTTPBody_ContentType
 	switch mediaType {
 	case "application/json":
-		bodyData, err = parseHTTPBodyJSON(body)
+		bodyData, err = parseHTTPBodyJSON(bodyStream)
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not parse JSON body")
 		}
 		pbContentType = pb.HTTPBody_JSON
 	case "application/x-www-form-urlencoded":
+		body, err := limitedBufferBody(bodyStream)
+		if err != nil {
+			return nil, err
+		}
 		values, err := url.ParseQuery(string(body))
 		if err != nil {
 			return nil, errors.Wrap(err, "could not parse URL-encoded body")
@@ -295,21 +333,29 @@ func parseBody(contentType string, body []byte, statusCode int) (*pb.Data, error
 	case "application/octet-stream":
 		// Whether we interpret strings here doesn't matter, since the body is just
 		// a bitstring.
+		body, err := limitedBufferBody(bodyStream)
+		if err != nil {
+			return nil, err
+		}
 		bodyData = parseElem(body, spec_util.NO_INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_OCTET_STREAM
 	case "text/plain":
+		body, err := limitedBufferBody(bodyStream)
+		if err != nil {
+			return nil, err
+		}
 		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_TEXT_PLAIN
 	case "application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml":
-		bodyData, err = parseHTTPBodyYAML(body)
+		bodyData, err = parseHTTPBodyYAML(bodyStream)
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not parse YAML body")
 		}
 		pbContentType = pb.HTTPBody_YAML
 	case "multipart/form-data":
-		return parseMultipartBody("form-data", mediaParams["boundary"], body, statusCode)
+		return parseMultipartBody("form-data", mediaParams["boundary"], bodyStream, statusCode)
 	case "multipart/mixed":
-		return parseMultipartBody("mixed", mediaParams["boundary"], body, statusCode)
+		return parseMultipartBody("mixed", mediaParams["boundary"], bodyStream, statusCode)
 	default:
 		return nil, ParseAPISpecError(fmt.Sprintf("could not parse body with media type: %s", mediaType))
 	}
@@ -327,9 +373,9 @@ func parseBody(contentType string, body []byte, statusCode int) (*pb.Data, error
 	return bodyData, nil
 }
 
-func parseMultipartBody(multipartType string, boundary string, body []byte, statusCode int) (*pb.Data, error) {
+func parseMultipartBody(multipartType string, boundary string, bodyStream io.Reader, statusCode int) (*pb.Data, error) {
 	fields := map[string]*pb.Data{}
-	r := multipart.NewReader(bytes.NewReader(body), boundary)
+	r := multipart.NewReader(bodyStream, boundary)
 	for {
 		part, err := r.NextPart()
 		if err == io.EOF {
@@ -346,12 +392,7 @@ func parseMultipartBody(multipartType string, boundary string, body []byte, stat
 			partContentType = "text/plain"
 		}
 
-		partBody, err := ioutil.ReadAll(part)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to read multipart field %q", part.FormName())
-		}
-
-		partData, err := parseBody(partContentType, partBody, statusCode)
+		partData, err := parseBody(partContentType, part, statusCode)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to convert multipart field %q to data", part.FormName())
 		}
@@ -519,9 +560,9 @@ func parseMethodMeta(req *akinet.HTTPRequest) *pb.MethodMeta {
 	}
 }
 
-func parseHTTPBodyJSON(raw []byte) (*pb.Data, error) {
+func parseHTTPBodyJSON(stream io.Reader) (*pb.Data, error) {
 	var top interface{}
-	decoder := json.NewDecoder(bytes.NewBuffer(raw))
+	decoder := json.NewDecoder(stream)
 	decoder.UseNumber()
 
 	err := decoder.Decode(&top)
@@ -535,9 +576,9 @@ func parseHTTPBodyJSON(raw []byte) (*pb.Data, error) {
 	return parseElem(top, spec_util.NO_INTERPRET_STRINGS), nil
 }
 
-func parseHTTPBodyYAML(raw []byte) (*pb.Data, error) {
+func parseHTTPBodyYAML(stream io.Reader) (*pb.Data, error) {
 	var top interface{}
-	decoder := yaml.NewDecoder(bytes.NewBuffer(raw))
+	decoder := yaml.NewDecoder(stream)
 	if err := decoder.Decode(&top); err != nil {
 		return nil, errors.Wrapf(err, "couldn't parse YAML")
 	}
