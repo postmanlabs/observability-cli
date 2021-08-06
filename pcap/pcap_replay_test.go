@@ -174,7 +174,7 @@ func (filePcapWrapper) getInterfaceAddrs(interfaceName string) ([]net.IP, error)
 }
 
 func readFromPcapFile(file string) ([]akinet.ParsedNetworkTraffic, error) {
-	p := NewNetworkTrafficParser()
+	p := NewNetworkTrafficParser(1.0)
 	p.pcap = filePcapWrapper(file)
 
 	done := make(chan struct{})

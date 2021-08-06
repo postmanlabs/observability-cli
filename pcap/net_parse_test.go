@@ -94,7 +94,7 @@ func makeUDPPackets(split int, ms ...*testMessage) []gopacket.Packet {
 }
 
 func setupParseFromInterface(pcap pcapWrapper, signalClose <-chan struct{}, facts ...akinet.TCPParserFactory) (<-chan akinet.ParsedNetworkTraffic, error) {
-	p := NewNetworkTrafficParser()
+	p := NewNetworkTrafficParser(1.0)
 	p.pcap = pcap
 	p.clock = &fakeClock{testTime}
 	return p.ParseFromInterface("dummy0", "", signalClose, facts...)
