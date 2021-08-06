@@ -276,7 +276,7 @@ func decodeBody(headers http.Header, body io.Reader, bodyDecompressed bool) (io.
 }
 
 func limitedBufferBody(bodyStream io.Reader) ([]byte, error) {
-	body, err := io.ReadAll(io.LimitReader(bodyStream, MaxBufferedBody))
+	body, err := ioutil.ReadAll(io.LimitReader(bodyStream, MaxBufferedBody))
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading body")
 	}
