@@ -10,6 +10,8 @@ import (
 	as "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/spec_util"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -507,10 +509,53 @@ prince:
 // Make sure the fallbackDecompression list is supported by the decompress
 // method.
 func TestFallbackDecompressionList(t *testing.T) {
+	junk := []byte("abcdefghijklmnopqrstuvwxyz")
 	for _, fc := range fallbackDecompressions {
-		_, err := decompress(fc, nil)
+		_, err := decompress(fc, bytes.NewReader(junk))
 		if err != nil && err.Error() == "unsupported compression type" {
 			t.Errorf("%s is not supported by decompress", fc)
 		}
 	}
+}
+
+func TestFailingParse(t *testing.T) {
+	// Look at the debug messages
+	// TODO: is there any way to grab them programatically?  Install a new Stderr, maybe?
+	viper.Set("debug", true)
+
+	testCases := []struct {
+		Name        string
+		TestContent akinet.ParsedNetworkContent
+	}{
+		{
+			Name: "deflate error",
+			TestContent: newTestHTTPResponse(
+				200,
+				[]byte("xxxyzzy"),
+				"application/json",
+				map[string][]string{"Content-Encoding": {"deflate"}},
+				[]*http.Cookie{},
+			),
+		},
+		{
+			Name: "json error",
+			TestContent: newTestHTTPResponse(
+				200,
+				[]byte("{oops_no_quotes: 3}"),
+				"application/json",
+				map[string][]string{},
+				[]*http.Cookie{},
+			),
+		},
+	}
+	for _, tc := range testCases {
+		_, err := ParseHTTP(tc.TestContent)
+		// The recognizable portions of the response are returned anyway
+		if err != nil {
+			t.Errorf("%q returned an error %q", tc.Name, err)
+		}
+	}
+
+	viper.Set("debug", false)
+
 }
