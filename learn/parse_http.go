@@ -25,8 +25,8 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
-	"github.com/akitasoftware/akita-libs/pbhash"
 	"github.com/akitasoftware/akita-libs/spec_util"
+	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
 )
 
 var (
@@ -153,10 +153,7 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 	for _, d := range datas {
 		// Use the hash of the data proto as the key so we can deterministically
 		// compare witnesses.
-		k, err := pbhash.HashProto(d)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to hash data proto")
-		}
+		k := ir_hash.HashDataToString(d)
 		if _, collision := dataMap[k]; collision {
 			return nil, errors.Errorf("detected collision in data map key")
 		}

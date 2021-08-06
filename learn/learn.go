@@ -9,12 +9,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-cli/printer"
+	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
-	"github.com/akitasoftware/akita-libs/pbhash"
-	"github.com/akitasoftware/akita-libs/spec_util"
-	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/spec_util"
+	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
 )
 
 const (
@@ -38,10 +38,7 @@ type witnessResult struct {
 func (r witnessResult) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessReport, error) {
 	// Hash algorithm defined in
 	// https://docs.google.com/document/d/1ZANeoLTnsO10DcuzsAt6PBCt2MWLYW8oeu_A6d9bTJk/edit#heading=h.tbvm9waph6eu
-	hash, err := pbhash.HashProto(r.witness)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to hash witness proto")
-	}
+	hash := ir_hash.HashWitnessToString(r.witness)
 
 	b, err := proto.Marshal(r.witness)
 	if err != nil {
