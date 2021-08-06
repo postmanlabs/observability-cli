@@ -77,16 +77,6 @@ func (c *learnClientImpl) ReportWitnesses(ctx context.Context, lrn akid.LearnSes
 	return c.post(ctx, p, req, &resp)
 }
 
-func (c *learnClientImpl) CheckpointLearnSession(ctx context.Context, lrn akid.LearnSessionID) (akid.APISpecID, error) {
-	var resp kgxapi.CheckpointResponse
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_checkpoint")
-	err := c.post(ctx, p, emptyObject, &resp)
-	if err != nil {
-		return akid.APISpecID{}, err
-	}
-	return resp.APISpecID, nil
-}
-
 func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []akid.LearnSessionID, opts CreateSpecOptions) (akid.APISpecID, error) {
 	// Go cannot marshal regexp into JSON unfortunately.
 	pathExclusions := make([]string, len(opts.PathExclusions))

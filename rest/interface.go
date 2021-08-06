@@ -35,10 +35,6 @@ type LearnClient interface {
 	CreateLearnSession(context.Context, *kgxapi.APISpecReference, string, map[tags.Key]string) (akid.LearnSessionID, error)
 	ReportWitnesses(context.Context, akid.LearnSessionID, []*kgxapi.WitnessReport) error
 
-	// Deprecated: old way of creating a spec from a single learn session.
-	// Use CreateSpec instead.
-	CheckpointLearnSession(context.Context, akid.LearnSessionID) (akid.APISpecID, error)
-
 	// Creates a spec from a set of learn sessions.
 	CreateSpec(context.Context, string, []akid.LearnSessionID, CreateSpecOptions) (akid.APISpecID, error)
 	GetSpec(context.Context, akid.APISpecID, GetSpecOptions) (kgxapi.GetSpecResponse, error)

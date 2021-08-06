@@ -7,18 +7,21 @@ import (
 	"path"
 	"time"
 
+	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/util"
+
 	"github.com/akitasoftware/akita-libs/akid"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
-func printViewSpecMessage(svc akid.ServiceID, spec akid.APISpecID) {
+func printViewSpecMessage(svc akid.ServiceID, svcName string, spec akid.APISpecID, specName string) {
 	editorURL := url.URL{
 		Scheme: "https",
 		Host:   getAppHost(),
@@ -32,8 +35,18 @@ func printViewSpecMessage(svc akid.ServiceID, spec akid.APISpecID) {
 	// We precede it with a message on stderr so when the user is using the CLI
 	// interactively, it doesn't look like there's a random spec ID floating
 	// around.
-	printer.Stderr.Infof("Your API spec ID is: ")
-	fmt.Println(akid.String(spec))
+	outURI := akiuri.URI{
+		ServiceName: svcName,
+		ObjectName: specName,
+		ObjectType: akiuri.SPEC.Ptr(),
+	}
+
+	// Print spec URI to stdout to make it easy for scripting.
+	// We precede it with a message on stderr so when the user is using the CLI
+	// interactively, it doesn't look like there's a random spec ID floating
+	// around.
+	printer.Stderr.Infof("Your API spec URL is: ")
+	fmt.Println(outURI.String())
 
 	successMsg := printer.Color.Green(fmt.Sprintf("🔎 View your spec at: %s", editorURL.String()))
 	printer.Stderr.Infof("%s 🎉\n\n%s\n\n", printer.Color.Green("Success!"), successMsg)
@@ -81,12 +94,13 @@ func startLearnSession(c rest.LearnClient, baseSpecRef *kgxapi.APISpecReference,
 	return lrn, nil
 }
 
-func checkpointLearnSession(c rest.LearnClient, lrn akid.LearnSessionID, timeout time.Duration) (akid.APISpecID, error) {
+func checkpointLearnSession(c rest.LearnClient, lrn akid.LearnSessionID, timeout time.Duration) (akid.APISpecID, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	specID, err := c.CheckpointLearnSession(ctx, lrn)
+	name := util.RandomAPIModelName()
+	specID, err := c.CreateSpec(ctx, name, []akid.LearnSessionID{lrn}, rest.CreateSpecOptions{})
 	if err != nil {
-		return akid.APISpecID{}, errors.Wrapf(err, "failed to checkpoint learn session %s", akid.String(lrn))
+		return akid.APISpecID{}, "", errors.Wrapf(err, "failed to checkpoint learn session %s", akid.String(lrn))
 	}
-	return specID, nil
+	return specID, name, nil
 }

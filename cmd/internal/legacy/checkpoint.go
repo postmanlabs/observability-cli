@@ -9,15 +9,19 @@ import (
 )
 
 // Creates a checkpoint and prints out progress message while we wait.
-func checkpointWithProgress(c rest.LearnClient, lrn akid.LearnSessionID, timeout time.Duration) (akid.APISpecID, error) {
-	checkpointResult := make(chan akid.APISpecID)
+func checkpointWithProgress(c rest.LearnClient, lrn akid.LearnSessionID, timeout time.Duration) (akid.APISpecID, string, error) {
+	type specPair struct {
+		SpecID akid.APISpecID
+		SpecName string
+	}
+	checkpointResult := make(chan specPair)
 	checkpointErr := make(chan error)
 	go func() {
-		specID, err := checkpointLearnSession(c, lrn, timeout)
+		specID, specName, err := checkpointLearnSession(c, lrn, timeout)
 		if err != nil {
 			checkpointErr <- err
 		} else {
-			checkpointResult <- specID
+			checkpointResult <- specPair{specID, specName}
 		}
 	}()
 
@@ -26,9 +30,9 @@ func checkpointWithProgress(c rest.LearnClient, lrn akid.LearnSessionID, timeout
 	for {
 		select {
 		case r := <-checkpointResult:
-			return r, nil
+			return r.SpecID, r.SpecName, nil
 		case err := <-checkpointErr:
-			return akid.APISpecID{}, err
+			return akid.APISpecID{}, "", err
 		case <-t.C:
 			printer.Stderr.Infoln("Still working...")
 		}
