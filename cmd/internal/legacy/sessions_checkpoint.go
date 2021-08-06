@@ -60,10 +60,10 @@ func runCheckpointSession(rawSessionID string) error {
 	}
 
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
-	specID, err := checkpointWithProgress(learnClient, sessionID, checkpointSessionTimeoutFlag)
+	specID, specName, err := checkpointWithProgress(learnClient, sessionID, checkpointSessionTimeoutFlag)
 	if err != nil {
 		return err
 	}
-	printViewSpecMessage(serviceID, specID)
+	printViewSpecMessage(serviceID, sessionsServiceFlag, specID, specName)
 	return nil
 }

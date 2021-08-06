@@ -9,14 +9,15 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/tags"
+
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
-	"github.com/akitasoftware/akita-libs/tags"
 )
 
 var createSessionCmd = &cobra.Command{
