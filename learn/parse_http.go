@@ -202,7 +202,7 @@ func decompress(compression string, body io.Reader) (io.Reader, error) {
 	case "identity":
 		dr = body
 	case "br":
-		dr = io.NopCloser(brotli.NewReader(body))
+		dr = brotli.NewReader(body)
 	default:
 		return nil, errors.New("unsupported compression type")
 	}
@@ -225,7 +225,7 @@ func attemptDecompress(body []byte) (io.Reader, error) {
 		limitReader := &io.LimitedReader{R: dr, N: MaxFallbackOutput}
 		bufferedResult, err := ioutil.ReadAll(limitReader)
 		if err == nil {
-			return io.NopCloser(bytes.NewReader(bufferedResult)), nil
+			return bytes.NewReader(bufferedResult), nil
 		}
 	}
 	return nil, errors.New("unrecognized compression type")
@@ -268,7 +268,7 @@ func decodeBody(headers http.Header, body io.Reader, bodyDecompressed bool) (io.
 		}
 
 		if n, _ := ianaindex.MIME.Name(enc); n != "UTF-8" {
-			body = io.NopCloser(transform.NewReader(body, enc.NewDecoder()))
+			body = transform.NewReader(body, enc.NewDecoder())
 		}
 	}
 
