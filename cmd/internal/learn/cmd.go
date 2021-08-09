@@ -38,7 +38,8 @@ var Cmd = &cobra.Command{
 	Short:        "Run learn mode monitor",
 	Long:         "Generate API specifications from network traffic with Akita Learn Mode!",
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:         cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if err := runLearnMode(); err != nil {
 			return cmderr.AkitaErr{Err: err}
 		}

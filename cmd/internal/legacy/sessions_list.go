@@ -24,7 +24,8 @@ var listSessionsCmd = &cobra.Command{
 You may specify additional filters based on tags using --tags flag.
 `,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:         cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if err := runListSessions(); err != nil {
 			return cmderr.AkitaErr{Err: err}
 		}

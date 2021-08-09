@@ -23,7 +23,8 @@ var Cmd = &cobra.Command{
 API key information will be stored in ` + cfg.GetCredentialsConfigPath(),
 	SuggestFor:   []string{"signin", "sign-in", "log-in"},
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:         cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ans := struct {
 			APIKeyID     string
 			APIKeySecret string

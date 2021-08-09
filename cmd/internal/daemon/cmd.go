@@ -26,6 +26,7 @@ var Cmd = &cobra.Command{
 	Use:          "daemon",
 	Short:        "Run the Akita client daemon.",
 	SilenceUsage: true,
+	Args:         cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		plugins, err := pluginloader.Load(pluginsFlag)
 		if err != nil {

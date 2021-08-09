@@ -76,6 +76,7 @@ var Cmd = &cobra.Command{
 	Use:          "man [COMMAND]",
 	Short:        "Manual pages for Akita commands.",
 	SilenceUsage: true,
+	Args:         cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		command := ""
 		if len(args) > 0 {

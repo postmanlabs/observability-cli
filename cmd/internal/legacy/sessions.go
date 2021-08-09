@@ -10,7 +10,8 @@ var SessionsCmd = &cobra.Command{
 	Short:        "Manage learn sessions.",
 	Long:         "Learn sessions are basic units of organization for Akita's witness collection.",
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:         cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()
 	},
 }
