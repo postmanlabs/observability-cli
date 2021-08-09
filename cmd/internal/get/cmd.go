@@ -23,7 +23,7 @@ func getByURIType(cmd *cobra.Command, args []string) error {
 	}
 	srcURI, err := akiuri.Parse(args[0])
 	if err != nil {
-		return errors.Wrapf(err, "%q is not an Akita URI", args[1])
+		return errors.Wrapf(err, "%q is not an Akita URI", args[0])
 	}
 
 	switch {
