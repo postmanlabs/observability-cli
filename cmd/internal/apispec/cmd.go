@@ -35,6 +35,7 @@ var Cmd = &cobra.Command{
 	Use:          "apispec",
 	Short:        "Convert traces into an OpenAPI3 specification.",
 	SilenceUsage: true,
+	Args:         cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		traces, err := toLocations(tracesFlag)
 		if err != nil {

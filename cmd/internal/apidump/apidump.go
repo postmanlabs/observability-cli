@@ -37,6 +37,7 @@ var Cmd = &cobra.Command{
 	Short:        "Capture requests/responses from network traffic.",
 	Long:         "Capture and store a sequence of requests/responses to a service by observing network traffic.",
 	SilenceUsage: true,
+	Args:         cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		traceTags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {
