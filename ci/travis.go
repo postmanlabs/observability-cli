@@ -29,9 +29,11 @@ func travisCIInfo() (*github.PullRequest, map[tags.Key]string) {
 	if err == nil {
 		pr.Branch = os.Getenv("TRAVIS_BRANCH")
 		pr.Commit = os.Getenv("TRAVIS_COMMIT")
+	} else {
+		debugln("Unable to build a GitHub PR URL from the environment. Are `TRAVIS_BRANCH` and `TRAVIS_COMMIT` set correctly?")
 	}
 
-	return pr, map[tags.Key]string{
+	tags := map[tags.Key]string{
 		tags.XAkitaCI:                Travis.String(),
 		tags.XAkitaGitRepoURL:        repoURL.String(),
 		tags.XAkitaGitBranch:         os.Getenv("TRAVIS_BRANCH"),
@@ -40,4 +42,13 @@ func travisCIInfo() (*github.PullRequest, map[tags.Key]string) {
 		tags.XAkitaTravisBuildWebURL: os.Getenv("TRAVIS_BUILD_WEB_URL"),
 		tags.XAkitaTravisJobWebURL:   os.Getenv("TRAVIS_JOB_WEB_URL"),
 	}
+	debugDumpEnv([]string{
+		"TRAVIS_REPO_SLUG",
+		"TRAVIS_PULL_REQUEST",
+		"TRAVIS_BRANCH",
+		"TRAVIS_COMMIT",
+		"TRAVIS_BUILD_WEB_URL",
+		"TRAVIS_JOB_WEB_URL",
+	})
+	return pr, tags
 }
