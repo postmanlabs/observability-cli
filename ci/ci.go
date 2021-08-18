@@ -102,6 +102,7 @@ func debugDumpEnv(vars []string) {
 // - CircleCI
 // - TravisCI
 func GetCIInfo() (CI, *github.PullRequest, map[tags.Key]string) {
+	// Only do debug logging the first time this is called.
 	defer func() { debugged = true }()
 
 	ciValue, haveCI := os.LookupEnv("CI")
