@@ -13,6 +13,8 @@ func circleCIInfo() (*github.PullRequest, map[tags.Key]string) {
 	if err == nil {
 		pr.Branch = os.Getenv("CIRCLE_BRANCH")
 		pr.Commit = os.Getenv("CIRCLE_SHA1")
+	} else {
+		debugln("Unable to determine GitHub PR from environment. Is `CIRCLE_PULL_REQUEST` set correctly?")
 	}
 
 	tags := map[tags.Key]string{
@@ -23,5 +25,12 @@ func circleCIInfo() (*github.PullRequest, map[tags.Key]string) {
 		tags.XAkitaGitHubPRURL:      os.Getenv("CIRCLE_PULL_REQUEST"),
 		tags.XAkitaCircleCIBuildURL: os.Getenv("CIRCLE_BUILD_URL"),
 	}
+	debugDumpEnv([]string{
+		"CIRCLE_CI_REPOSITORY_URL",
+		"CIRCLE_BRANCH",
+		"CIRCLE_SHA1",
+		"CIRCLE_PULL_REQUEST",
+		"CIRCLE_BUILD_URL",
+	})
 	return pr, tags
 }
