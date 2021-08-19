@@ -288,6 +288,15 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 		return nil, errors.Wrapf(err, "failed to parse MIME from Content-Type %q", contentType)
 	}
 
+	// Rewrite media type to JSON for types encoded as JSON
+	// TODO: XML parsing
+	// TODO: application/json-seq (RFC 7466)?
+	// TODO: more text/* types
+	switch {
+	case strings.HasSuffix(mediaType, "+json"):
+		mediaType = "application/json"
+	}
+
 	var bodyData *pb.Data
 	var pbContentType pb.HTTPBody_ContentType
 	switch mediaType {
@@ -336,7 +345,7 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 		}
 		bodyData = parseElem(body, spec_util.NO_INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_OCTET_STREAM
-	case "text/plain":
+	case "text/plain", "text/csv":
 		body, err := limitedBufferBody(bodyStream)
 		if err != nil {
 			return nil, err
