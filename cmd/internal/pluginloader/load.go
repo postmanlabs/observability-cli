@@ -13,6 +13,18 @@ func Load(paths []string) ([]plugin.AkitaPlugin, error) {
 	var loaded []plugin.AkitaPlugin
 
 	for _, path := range paths {
+		if loader, found := PrecompiledPlugins[path]; found {
+			plug, err := loader()
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to load %q", path)
+			}
+			loaded = append(loaded, plug)
+			continue
+		}
+
+		// Preserve this path, but note that it really doesn't work for a plugin
+		// that was not compiled to refer to the same source paths that akita-cli was
+		// compiled from.
 		p, err := go_plugin.Open(path)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to open plugin %q", path)
