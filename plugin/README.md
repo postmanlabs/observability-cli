@@ -72,7 +72,9 @@ so that its dependencies refer to the exact same source paths as where `akita-cl
 This means it is nearly impossible to get it to work with an official Akita release.
 See https://github.com/golang/go/issues/31354
 
-Here is a sample `go.mod` for compiling a dynamically loaded plugin:
+Here is a sample `go.mod` for compiling a dynamically loaded plugin.  If you compile `akita-cli` from source, and then
+on the same system compile your plugin with a replace directive like that below, then the plugin can be dynamically loaded.
+
 
 ```
 module example.com/my-plugin
@@ -91,6 +93,10 @@ replace github.com/google/martian/v3 v3.0.1 => github.com/akitasoftware/martian/
 replace github.com/akitasoftware/akita-cli => ../akita-cli
 
 ```
+
+Go's plugin runtime will return an error stating "plugin was built with a different version of package akita-cli" even if the versions match,
+if the package hashes do not also match-- because the packages were compiled in different locations.  So an alternate workaround is to
+compile `akita-cli` in `$GOPATH/pkg/mod/github.com/akitasoftware/akita-cli@v...`.
 
 ## How to Use Plugins
 
