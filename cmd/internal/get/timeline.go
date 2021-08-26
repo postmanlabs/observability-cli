@@ -1,0 +1,178 @@
+package get
+
+import (
+	"container/heap"
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
+	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/util"
+	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+)
+
+var GetTimelineCmd = &cobra.Command{
+	Use:          "timeline [SERVICE] [DEPLOYMENT]",
+	Aliases:      []string{"timeline"},
+	Short:        "List timeline for the given service.",
+	Long:         "List timeline of API calls for the given service.",
+	SilenceUsage: false,
+	RunE:         getTimeline,
+}
+
+var (
+	deploymentFlag string
+	startTimeFlag  string
+	endTimeFlag    string
+)
+
+func init() {
+	Cmd.AddCommand(GetTimelineCmd)
+
+	GetTimelineCmd.Flags().StringVar(
+		&serviceFlag,
+		"service",
+		"",
+		"Your Akita service.")
+
+	GetTimelineCmd.Flags().StringVar(
+		&deploymentFlag,
+		"deployment",
+		"",
+		"Deployment tag used for traces.")
+
+	GetTimelineCmd.Flags().StringVar(
+		&startTimeFlag,
+		"start",
+		"",
+		"Time start (default 1 week ago)")
+
+	GetTimelineCmd.Flags().StringVar(
+		&endTimeFlag,
+		"end",
+		"",
+		"Time end (default now)")
+
+	GetTimelineCmd.Flags().IntVar(
+		&limitFlag,
+		"limit",
+		100,
+		"Show N time points.")
+}
+
+// Heap interface
+type TimelineHeap []*rest.Timeline
+
+func (h TimelineHeap) Len() int {
+	return len(h)
+}
+
+func (h TimelineHeap) Less(i, j int) bool {
+	// Empty timelines go first, then find the one with the earliest remaining event
+	return len(h[i].Events) == 0 ||
+		(len(h[j].Events) != 0 &&
+			h[i].Events[0].Time.Before(h[j].Events[0].Time))
+}
+
+func (h TimelineHeap) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *TimelineHeap) Push(x interface{}) {
+	*h = append(*h, x.(*rest.Timeline))
+}
+
+func (h *TimelineHeap) Pop() interface{} {
+	old := *h
+	n := len(old)
+	*h = old[0 : n-1]
+	return old[n-1]
+}
+
+func getTimeline(cmd *cobra.Command, args []string) error {
+	// Accept these as either flags or arguments.
+	if serviceFlag == "" {
+		if len(args) == 0 {
+			return errors.New("Must specify a service and deployment name")
+		}
+		serviceFlag = args[0]
+		args = args[1:]
+	}
+	if deploymentFlag == "" {
+		if len(args) == 0 {
+			return errors.New("Must specify a deployment name")
+		}
+		deploymentFlag = args[0]
+		args = args[1:]
+	}
+
+	if len(args) > 0 {
+		return errors.New("Too many command line parameters.")
+	}
+
+	end := time.Now()
+	start := end.Add(-7 * 24 * time.Hour)
+	var err error
+	// TODO: more variations of start time?
+	if startTimeFlag != "" {
+		start, err = time.Parse(time.RFC3339, startTimeFlag)
+		if err != nil {
+			return errors.Wrapf(err, "Couldn't parse start time.")
+		}
+	}
+
+	if endTimeFlag != "" {
+		end, err = time.Parse(time.RFC3339, endTimeFlag)
+		if err != nil {
+			return errors.Wrapf(err, "Couldn't parse start time.")
+		}
+	}
+
+	printer.Debugf("Loading service %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
+
+	clientID := akid.GenerateClientID()
+	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	serviceID, err := util.GetServiceIDByName(frontClient, serviceFlag)
+	if err != nil {
+		return cmderr.AkitaErr{Err: err}
+	}
+
+	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, limitFlag)
+	if err != nil {
+		return cmderr.AkitaErr{Err: err}
+	}
+	h := TimelineHeap(make([]*rest.Timeline, len(resp.Timelines)))
+	for i := range resp.Timelines {
+		h[i] = &resp.Timelines[i]
+	}
+
+	heap.Init(&h)
+
+	for h.Len() > 0 {
+		timeline := h[0]
+		event := timeline.Events[0]
+		fmt.Printf("%s %9.3fms %6s %s %s %s\n",
+			event.Time.Format(time.RFC3339),
+			event.Values["latency"],
+			timeline.Method,
+			timeline.Host,
+			timeline.PathTemplate,
+			timeline.ResponseCode)
+		timeline.Events = timeline.Events[1:]
+		if len(timeline.Events) == 0 {
+			heap.Pop(&h)
+		} else {
+			heap.Fix(&h, 0)
+		}
+	}
+
+	return nil
+}
