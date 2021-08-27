@@ -12,6 +12,7 @@ import (
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -50,13 +51,13 @@ func init() {
 		&startTimeFlag,
 		"start",
 		"",
-		"Time start (default 1 week ago)")
+		"Time start (default 1 week ago). Must be given in RFC3339 format, as YYYY-MM-DDTHH:MM:SS+00:00")
 
 	GetTimelineCmd.Flags().StringVar(
 		&endTimeFlag,
 		"end",
 		"",
-		"Time end (default now)")
+		"Time end (default now), must be RFC3339 format")
 
 	GetTimelineCmd.Flags().IntVar(
 		&limitFlag,
@@ -65,8 +66,10 @@ func init() {
 		"Show N time points.")
 }
 
-// Heap interface
-type TimelineHeap []*rest.Timeline
+// Implements Heap interface
+type TimelineHeap []*api_schema.Timeline
+
+var _ heap.Interface = (*TimelineHeap)(nil)
 
 func (h TimelineHeap) Len() int {
 	return len(h)
@@ -84,7 +87,7 @@ func (h TimelineHeap) Swap(i, j int) {
 }
 
 func (h *TimelineHeap) Push(x interface{}) {
-	*h = append(*h, x.(*rest.Timeline))
+	*h = append(*h, x.(*api_schema.Timeline))
 }
 
 func (h *TimelineHeap) Pop() interface{} {
@@ -129,7 +132,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	if endTimeFlag != "" {
 		end, err = time.Parse(time.RFC3339, endTimeFlag)
 		if err != nil {
-			return errors.Wrapf(err, "Couldn't parse start time.")
+			return errors.Wrapf(err, "Couldn't parse end time.")
 		}
 	}
 
@@ -149,7 +152,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cmderr.AkitaErr{Err: err}
 	}
-	h := TimelineHeap(make([]*rest.Timeline, len(resp.Timelines)))
+	h := TimelineHeap(make([]*api_schema.Timeline, len(resp.Timelines)))
 	for i := range resp.Timelines {
 		h[i] = &resp.Timelines[i]
 	}

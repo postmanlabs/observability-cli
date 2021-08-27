@@ -185,38 +185,8 @@ func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpe
 	return c.post(ctx, path, req, &resp)
 }
 
-// TODO: move all these to api_schema
-type TimelineEvent struct {
-	Time   time.Time          `json:"time"`
-	Values map[string]float32 `json:"values"`
-}
-
-type Timeline struct {
-	// Key
-	Method       string `json:"method"`
-	Host         string `json:"host"`
-	PathTemplate string `json:"path_template"`
-	ResponseCode string `json:"reponse_code"`
-
-	// Events in time order
-	Events []TimelineEvent `json:"events"`
-}
-
-type TimelineResponse struct {
-	// If there's no data in a given period, we report what time
-	// range is actually available.
-	ActualStartTime time.Time `json:"actual_start_time"`
-	ActualEndTime   time.Time `json:"actual_end_time"`
-
-	// One timeline per selected endpoint
-	Timelines []Timeline `json:"timelines"`
-
-	// If incomplete due to limit, the first unreported start time
-	NextStartTime *time.Time `json:"next_start_time"`
-}
-
 // Returns individual events
-func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int) (TimelineResponse, error) {
+func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int) (kgxapi.TimelineResponse, error) {
 	path := fmt.Sprintf("/v1/services/%s/timeline/%s/query",
 		akid.String(serviceID), deployment)
 	q := url.Values{}
@@ -229,7 +199,7 @@ func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID
 	q.Add("key", "path")
 	q.Add("key", "code")
 
-	var resp TimelineResponse
+	var resp kgxapi.TimelineResponse
 	err := c.getWithQuery(ctx, path, q, &resp)
 	return resp, err
 }
