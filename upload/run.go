@@ -147,7 +147,7 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 
 	for _, harFileName := range args.FilePaths {
 		printer.Stderr.Infof("Uploading %q...\n", harFileName)
-		if err := apispec.ProcessHAR(inboundCollector, outboundCollector, harFileName); err != nil {
+		if _, err := apispec.ProcessHAR(inboundCollector, outboundCollector, harFileName); err != nil {
 			return errors.Wrapf(err, "failed to process HAR file %q", harFileName)
 		}
 	}

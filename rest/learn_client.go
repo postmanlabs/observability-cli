@@ -46,6 +46,20 @@ func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.Servic
 	return resp.Sessions, nil
 }
 
+func (c *learnClientImpl) ListLearnSessionsWithStats(ctx context.Context, svc akid.ServiceID, limit int) ([]*kgxapi.ListedLearnSession, error) {
+	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
+	q := url.Values{}
+	q.Add("limit", fmt.Sprintf("%d", limit))
+	q.Add("get_stats", "true")
+
+	var resp kgxapi.ListSessionsResponse
+	err := c.getWithQuery(ctx, p, q, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Sessions, nil
+}
+
 func (c *learnClientImpl) GetLearnSession(ctx context.Context, svc akid.ServiceID, lrn akid.LearnSessionID) (*kgxapi.LearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn))
 	var resp kgxapi.LearnSession
