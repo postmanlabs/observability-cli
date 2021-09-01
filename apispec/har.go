@@ -15,6 +15,7 @@ import (
 )
 
 // Extract witnesses from a local HAR file and send them to the collector.
+// Returns the number of entries extracted.
 func ProcessHAR(inboundCol, outboundCol trace.Collector, p string) (int, error) {
 	harContent, err := hl.LoadCustomHARFromFile(p)
 	if err != nil {
