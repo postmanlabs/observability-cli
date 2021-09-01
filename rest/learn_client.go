@@ -123,6 +123,11 @@ func (c *learnClientImpl) GetSpec(ctx context.Context, api akid.APISpecID, opts 
 
 func (c *learnClientImpl) ListSpecs(ctx context.Context) ([]kgxapi.SpecInfo, error) {
 	qs := make(url.Values)
+
+	// Set limit to 0 to ensure no pagination is applied.
+	qs.Add("limit", "0")
+	qs.Add("offset", "0")
+
 	p := path.Join("/v1/services", akid.String(c.serviceID), "specs")
 
 	var resp kgxapi.ListSpecsResponse
