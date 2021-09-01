@@ -254,8 +254,8 @@ func Run(args Args) error {
 	// around.
 	outURI := akiuri.URI{
 		ServiceName: serviceName,
-		ObjectName: outSpecName,
-		ObjectType: akiuri.SPEC.Ptr(),
+		ObjectName:  outSpecName,
+		ObjectType:  akiuri.SPEC.Ptr(),
 	}
 	printer.Stderr.Infof("Your API spec URI is: ")
 	fmt.Println(outURI.String())
@@ -399,6 +399,14 @@ func resolveTraceURI(domain string, clientID akid.ClientID, uri akiuri.URI) (aki
 func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID, localPaths []string, includeTrackers bool, plugins []plugin.AkitaPlugin) ([]akid.LearnSessionID, error) {
 	learnClient := rest.NewLearnClient(domain, clientID, svc)
 	lrns := make([]akid.LearnSessionID, 0, len(localPaths))
+	numWitnesses := make([]int, 0, len(localPaths))
+
+	// This is done as a defer so that it runs after all the BackendCollectors have been closed.
+	// TODO: refactor single upload into its own function to avoid this?
+	defer func() {
+		waitForWitnesses(learnClient, svc, lrns, numWitnesses)
+	}()
+
 	for _, p := range localPaths {
 		// Include the original path in the tags for ease of debugging, and tag the
 		// trace as being uploaded.
@@ -445,14 +453,71 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 		defer inboundCol.Close()
 		defer outboundCol.Close()
 
-		if err := ProcessHAR(inboundCol, outboundCol, p); err != nil {
+		witnessCount, err := ProcessHAR(inboundCol, outboundCol, p)
+		if err != nil {
 			return nil, errors.Wrapf(err, "failed to process HAR file %s", p)
-		} else {
-			lrns = append(lrns, lrn)
 		}
+		lrns = append(lrns, lrn)
+		numWitnesses = append(numWitnesses, witnessCount)
 	}
 
 	return lrns, nil
+}
+
+// Wait for the reported number of witnesses in each learn session to match the number uploaded.
+// Poll at 5 seconds, 15 seconds, and 30 seconds and give up after three tries.
+const numWaitAttempts = 3
+
+var waitDelay [numWaitAttempts]time.Duration = [numWaitAttempts]time.Duration{
+	5 * time.Second,
+	10 * time.Second,
+	15 * time.Second,
+}
+
+func waitForWitnesses(learnClient rest.LearnClient, svc akid.ServiceID, sessions []akid.LearnSessionID, numWitnesses []int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	numWitnessesExpected := 0
+	for _, w := range numWitnesses {
+		numWitnessesExpected += w
+	}
+
+	printer.Infof("Waiting for witness upload to complete...\n")
+
+	var numWitnessesActual int
+	var numOK int
+	for attempt := 0; attempt < numWaitAttempts; attempt++ {
+		time.Sleep(waitDelay[attempt])
+
+		allSessions, err := learnClient.ListLearnSessionsWithStats(ctx, svc, 100)
+		if err != nil {
+			printer.Errorf("Error listing learn sessions: %v\n", err)
+			continue // Try again
+		}
+		numWitnessesActual = 0
+		numOK = 0
+		for _, s := range allSessions {
+			for j, s2 := range sessions {
+				if s.ID == s2 {
+					printer.Debugf("%v has %v/%v witnesses\n", akid.String(s.ID), s.Stats.NumWitnesses, numWitnesses[j])
+					if s.Stats.NumWitnesses >= numWitnesses[j] {
+						numOK += 1
+					}
+					numWitnessesActual += s.Stats.NumWitnesses
+					break
+				}
+			}
+		}
+		if numOK == len(sessions) {
+			printer.Infof("%d witnesses uploaded.\n", numWitnessesActual)
+			return
+		}
+	}
+
+	printer.Warningf("%d witnesses out of %d uploaded; %d of %d traces complete.\n",
+		numWitnessesActual, numWitnessesExpected, numOK, len(sessions))
+	printer.Warningf("Continuing with spec creation, but it may be incomplete.\n")
 }
 
 func sha256FileChecksum(p string) ([]byte, error) {

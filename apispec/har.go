@@ -15,10 +15,11 @@ import (
 )
 
 // Extract witnesses from a local HAR file and send them to the collector.
-func ProcessHAR(inboundCol, outboundCol trace.Collector, p string) error {
+// Returns the number of entries extracted.
+func ProcessHAR(inboundCol, outboundCol trace.Collector, p string) (int, error) {
 	harContent, err := hl.LoadCustomHARFromFile(p)
 	if err != nil {
-		return errors.Wrapf(err, "failed to load HAR file %s", p)
+		return 0, errors.Wrapf(err, "failed to load HAR file %s", p)
 	}
 
 	col := inboundCol
@@ -38,7 +39,7 @@ func ProcessHAR(inboundCol, outboundCol trace.Collector, p string) error {
 		}
 	}
 
-	return nil
+	return successCount, nil
 }
 
 // ReconstructedTimestamps holds times we can use to fill in
