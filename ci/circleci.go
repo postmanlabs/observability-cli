@@ -7,30 +7,38 @@ import (
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
+const (
+	CircleRepositoryURL = "CIRCLE_REPOSITORY_URL"
+	CircleBranch = "CIRCLE_BRANCH"
+	CircleSHA1 = "CIRCLE_SHA1"
+	CirclePullRequest = "CIRCLE_PULL_REQUEST"
+	CircleBuildURL = "CIRCLE_BUILD_URL"
+)
+
 // https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
 func circleCIInfo() (*github.PullRequest, map[tags.Key]string) {
-	pr, err := github.ParsePullRequestURL(os.Getenv("CIRCLE_PULL_REQUEST"))
+	pr, err := github.ParsePullRequestURL(os.Getenv(CirclePullRequest))
 	if err == nil {
-		pr.Branch = os.Getenv("CIRCLE_BRANCH")
-		pr.Commit = os.Getenv("CIRCLE_SHA1")
+		pr.Branch = os.Getenv(CircleBranch)
+		pr.Commit = os.Getenv(CircleSHA1)
 	} else {
 		debugln("Unable to determine GitHub PR from environment. Is `CIRCLE_PULL_REQUEST` set correctly?")
 	}
 
 	tags := map[tags.Key]string{
 		tags.XAkitaCI:               CircleCI.String(),
-		tags.XAkitaGitRepoURL:       os.Getenv("CIRCLE_REPOSITORY_URL"),
-		tags.XAkitaGitBranch:        os.Getenv("CIRCLE_BRANCH"),
-		tags.XAkitaGitCommit:        os.Getenv("CIRCLE_SHA1"),
-		tags.XAkitaGitHubPRURL:      os.Getenv("CIRCLE_PULL_REQUEST"),
-		tags.XAkitaCircleCIBuildURL: os.Getenv("CIRCLE_BUILD_URL"),
+		tags.XAkitaGitRepoURL:       os.Getenv(CircleRepositoryURL),
+		tags.XAkitaGitBranch:        os.Getenv(CircleBranch),
+		tags.XAkitaGitCommit:        os.Getenv(CircleSHA1),
+		tags.XAkitaGitHubPRURL:      os.Getenv(CirclePullRequest),
+		tags.XAkitaCircleCIBuildURL: os.Getenv(CircleBuildURL),
 	}
 	debugDumpEnv([]string{
-		"CIRCLE_CI_REPOSITORY_URL",
-		"CIRCLE_BRANCH",
-		"CIRCLE_SHA1",
-		"CIRCLE_PULL_REQUEST",
-		"CIRCLE_BUILD_URL",
+		CircleRepositoryURL,
+		CircleBranch,
+		CircleSHA1,
+		CirclePullRequest,
+		CircleBuildURL,
 	})
 	return pr, tags
 }
