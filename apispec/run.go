@@ -57,6 +57,7 @@ type Args struct {
 	IncludeTrackers            bool
 	PathParams                 []string
 	PathExclusions             []string
+	Timeout                    *time.Duration
 	TimeRange                  *time_span.TimeSpan
 
 	GitHubBranch string
@@ -67,6 +68,9 @@ type Args struct {
 	GitLabMR *gitlab.MRInfo
 
 	Plugins []plugin.AkitaPlugin
+
+	// Legacy -- used by `akita learn-sessions checkpoint`.
+	LearnSessionID *akid.LearnSessionID
 }
 
 // Collect the tag set to apply to the specification.
@@ -218,6 +222,11 @@ func Run(args Args) error {
 		}
 	}
 
+	// Handle legacy input from `akita learn-sessions checkpoint`.
+	if args.LearnSessionID != nil {
+		learnSessions = append(learnSessions, *args.LearnSessionID)
+	}
+
 	// Turn local traces into learn sessions.
 	if len(localPaths) > 0 {
 		if lrns, err := uploadLocalTraces(args.Domain, args.ClientID, serviceID, localPaths, args.IncludeTrackers, args.Plugins); err != nil {
@@ -233,7 +242,11 @@ func Run(args Args) error {
 	if args.Out.AkitaURI != nil && args.Out.AkitaURI.ObjectName != "" {
 		outSpecName = args.Out.AkitaURI.ObjectName
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	timeout := 10*time.Second
+	if args.Timeout != nil {
+		timeout = *args.Timeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	outSpecID, err := learnClient.CreateSpec(ctx, outSpecName, learnSessions, rest.CreateSpecOptions{
 		Tags:           specTags,

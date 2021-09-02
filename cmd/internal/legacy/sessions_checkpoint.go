@@ -8,10 +8,10 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/akitasoftware/akita-cli/rest"
 )
 
 var checkpointSessionCmd = &cobra.Command{
@@ -51,19 +51,18 @@ func runCheckpointSession(rawSessionID string) error {
 		return errors.Wrapf(err, "failed to parse learn session ID %s", rawSessionID)
 	}
 
-	clientID := akiflag.GetClientID()
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	args := apispec.Args{
+		ClientID:       akiflag.GetClientID(),
+		Domain:         akiflag.Domain,
+		Service:        sessionsServiceFlag,
+		Timeout:        &checkpointSessionTimeoutFlag,
 
-	serviceID, err := getServiceIDByName(frontClient, sessionsServiceFlag)
-	if err != nil {
-		return err
-	}
+		GetSpecEnableRelatedFields: getSpecEnableRelatedFieldsFlag,
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
-	specID, specName, err := checkpointWithProgress(learnClient, sessionID, checkpointSessionTimeoutFlag)
-	if err != nil {
-		return err
+		LearnSessionID: &sessionID,
 	}
-	printViewSpecMessage(serviceID, sessionsServiceFlag, specID, specName)
+	if err := apispec.Run(args); err != nil {
+		return cmderr.AkitaErr{Err: err}
+	}
 	return nil
 }
