@@ -8,6 +8,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/upload"
 	"github.com/akitasoftware/akita-cli/util"
 )
@@ -84,6 +85,11 @@ var Cmd = &cobra.Command{
 			return err
 		}
 
+		plugins, err := pluginloader.Load(pluginsFlag)
+		if err != nil {
+			return errors.Wrap(err, "failed to load plugins")
+		}
+
 		// Handle --append-by-tag
 		if appendByTagFlag {
 			if !destURI.ObjectType.IsTrace() {
@@ -114,6 +120,7 @@ var Cmd = &cobra.Command{
 			Tags:          tags,
 			Append:        appendFlag,
 			UploadTimeout: uploadTimeoutFlag,
+			Plugins:       plugins,
 		}
 
 		if err := upload.Run(uploadArgs); err != nil {
