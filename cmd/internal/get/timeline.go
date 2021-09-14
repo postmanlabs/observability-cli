@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
@@ -30,6 +31,8 @@ var (
 	deploymentFlag string
 	startTimeFlag  string
 	endTimeFlag    string
+	methodsFlag    string
+	hostsFlag      string
 )
 
 func init() {
@@ -64,6 +67,18 @@ func init() {
 		"limit",
 		100,
 		"Show N time points.")
+
+	GetTimelineCmd.Flags().StringVar(
+		&methodsFlag,
+		"method",
+		"",
+		"Show only the selected method(s). Accepts a comma-separated list.")
+
+	GetTimelineCmd.Flags().StringVar(
+		&hostsFlag,
+		"host",
+		"",
+		"Show only the selected host(s). Accepts a comma-separated list.")
 }
 
 // Implements Heap interface
@@ -136,6 +151,15 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var methods []string
+	var hosts []string
+	if methodsFlag != "" {
+		methods = strings.Split(methodsFlag, ",")
+	}
+	if hostsFlag != "" {
+		hosts = strings.Split(hostsFlag, ",")
+	}
+
 	printer.Debugf("Loading service %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
 
 	clientID := akid.GenerateClientID()
@@ -148,7 +172,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, limitFlag)
+	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, limitFlag, methods, hosts)
 	if err != nil {
 		return cmderr.AkitaErr{Err: err}
 	}

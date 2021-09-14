@@ -205,18 +205,31 @@ func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpe
 }
 
 // Returns individual events
-func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int) (kgxapi.TimelineResponse, error) {
+func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int, methods []string, hosts []string) (kgxapi.TimelineResponse, error) {
 	path := fmt.Sprintf("/v1/services/%s/timeline/%s/query",
 		akid.String(serviceID), deployment)
 	q := url.Values{}
 	q.Add("start", fmt.Sprintf("%d", start.Unix()*1000000))
 	q.Add("end", fmt.Sprintf("%d", end.Unix()*1000000))
 	q.Add("limit", fmt.Sprintf("%d", limit))
+
 	// Separate out by response code
 	q.Add("key", "host")
 	q.Add("key", "method")
 	q.Add("key", "path")
 	q.Add("key", "code")
+
+	if len(methods) > 0 {
+		for _, m := range methods {
+			q.Add("method", m)
+		}
+	}
+
+	if len(hosts) > 0 {
+		for _, m := range hosts {
+			q.Add("host", m)
+		}
+	}
 
 	var resp kgxapi.TimelineResponse
 	err := c.getWithQuery(ctx, path, q, &resp)
