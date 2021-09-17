@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -241,6 +242,14 @@ func (c *BackendCollector) uploadWitnesses(in []interface{}) {
 	defer cancel()
 	err := c.learnClient.ReportWitnesses(ctx, c.learnSessionID, reports)
 	if err != nil {
+		switch e := err.(type) {
+		case rest.HTTPError:
+			if e.StatusCode == http.StatusTooManyRequests {
+				// XXX Not all commands that call into this code have a --rate-limit
+				// option.
+				err = errors.Wrap(err, "your witness uploads are being throttled. Akita will generate partial results. Try reducing the --rate-limit value to avoid this.")
+			}
+		}
 		printer.Warningf("Failed to upload witnesses: %v\n", err)
 	}
 	printer.Debugf("Uploaded %d witnesses\n", len(in))
