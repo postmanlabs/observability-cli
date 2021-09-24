@@ -83,6 +83,52 @@ type Args struct {
 	Plugins []plugin.AkitaPlugin
 }
 
+func (args *Args) lint() {
+	// Modifies the input to remove empty strings. Returns true if the input was
+	// modified.
+	removeEmptyStrings := func(strings []string) ([]string, bool) {
+		i := 0
+		modified := false
+		for _, elt := range strings {
+			if len(elt) > 0 {
+				strings[i] = elt
+				i++
+			} else {
+				modified = true
+			}
+		}
+		strings = strings[:i]
+		return strings, modified
+	}
+
+	// Empty path/host-exclusion regular expressions will exclude everything.
+	// Ignore these and print a warning.
+	for paramName, argsPtr := range map[string]*[]string{
+		"--path-exclusions": &args.PathExclusions,
+		"--host-exclusions": &args.HostExclusions,
+	} {
+		modified := false
+		*argsPtr, modified = removeEmptyStrings(*argsPtr)
+		if modified {
+			printer.Stderr.Warningf("Ignoring empty regex in %s, which would otherwise exclude everything\n", paramName)
+		}
+	}
+
+	// Empty path/host-inclusion regular expressions will include everything. If
+	// there are any non-empty regular expressions, ignore the empty regexes and
+	// print a warning.
+	for paramName, argsPtr := range map[string]*[]string{
+		"--path-allow": &args.PathAllowlist,
+		"--host-allow": &args.HostAllowlist,
+	} {
+		modified := false
+		*argsPtr, modified = removeEmptyStrings(*argsPtr)
+		if modified && len(*argsPtr) > 0 {
+			printer.Stderr.Warningf("Ignoring empty regex in %s, which would otherwise include everything\n", paramName)
+		}
+	}
+}
+
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
 // at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
 // in the Run function below); all we really need are those names.
@@ -197,6 +243,8 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 // Captures packets from the network and adds them to a trace. The trace is
 // created if it doesn't already exist.
 func Run(args Args) error {
+	args.lint()
+
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
 	if err != nil {
