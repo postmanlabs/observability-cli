@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
@@ -165,10 +166,10 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s %9.3fms %6s %s %s %s\n",
 			event.Time.Format(time.RFC3339),
 			event.Values["latency"],
-			timeline.Method,
-			timeline.Host,
-			timeline.PathTemplate,
-			timeline.ResponseCode)
+			formatStringAttr(timeline.GroupAttributes.Method),
+			formatStringAttr(timeline.GroupAttributes.Host),
+			formatStringAttr(timeline.GroupAttributes.PathTemplate),
+			formatIntAttr(timeline.GroupAttributes.ResponseCode))
 		timeline.Events = timeline.Events[1:]
 		if len(timeline.Events) == 0 {
 			heap.Pop(&h)
@@ -178,4 +179,18 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func formatStringAttr(val string) string {
+	if val == "" {
+		return "*"
+	}
+	return val
+}
+
+func formatIntAttr(val int) string {
+	if val == 0 {
+		return "*"
+	}
+	return strconv.Itoa(val)
 }
