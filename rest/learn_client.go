@@ -222,3 +222,17 @@ func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID
 	err := c.getWithQuery(ctx, path, q, &resp)
 	return resp, err
 }
+
+// Return the edges of the service graph in the specified time window
+func (c *learnClientImpl) GetGraphEdges(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, graphType string) (kgxapi.GraphResponse, error) {
+	path := fmt.Sprintf("/v1/services/%s/servicegraph/%s/query",
+		akid.String(serviceID), deployment)
+	q := url.Values{}
+	q.Add("start", fmt.Sprintf("%d", start.Unix()*1000000))
+	q.Add("end", fmt.Sprintf("%d", end.Unix()*1000000))
+	q.Add("type", graphType)
+
+	var resp kgxapi.GraphResponse
+	err := c.getWithQuery(ctx, path, q, &resp)
+	return resp, err
+}
