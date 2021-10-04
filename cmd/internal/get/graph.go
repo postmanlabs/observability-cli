@@ -63,13 +63,13 @@ func init() {
 		&graphOutputFlag,
 		"output",
 		"source",
-		"Output format: source, target, dot")
+		"Output format: source (grouped by source), target (grouped by target), dot")
 
 	GetGraphCmd.Flags().StringVar(
 		&graphTypeFlag,
 		"vertices",
 		"services",
-		"Graph vertices: services, endpoints")
+		"Graph target vertices: services, endpoints")
 
 	GetGraphCmd.Flags().BoolVar(
 		&hideUnknownFlag,
@@ -83,21 +83,21 @@ func getGraph(cmd *cobra.Command, args []string) error {
 	// Accept these as either flags or arguments.
 	if serviceFlag == "" {
 		if len(args) == 0 {
-			return errors.New("Must specify a service and deployment name")
+			return errors.New("Must specify a service name.")
 		}
 		serviceFlag = args[0]
 		args = args[1:]
 	}
 	if deploymentFlag == "" {
 		if len(args) == 0 {
-			return errors.New("Must specify a deployment name")
+			return errors.New("Must specify a deployment name.")
 		}
 		deploymentFlag = args[0]
 		args = args[1:]
 	}
 
 	if len(args) > 0 {
-		return errors.New("Too many command line parameters.")
+		return errors.New("Too many command line arguments.")
 	}
 
 	end := time.Now()
