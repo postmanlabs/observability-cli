@@ -28,9 +28,10 @@ var GetTimelineCmd = &cobra.Command{
 }
 
 var (
-	deploymentFlag string
-	startTimeFlag  string
-	endTimeFlag    string
+	deploymentFlag    string
+	startTimeFlag     string
+	endTimeFlag       string
+	timelineLimitFlag int
 )
 
 func init() {
@@ -61,7 +62,7 @@ func init() {
 		"Time end (default now), must be RFC3339 format")
 
 	GetTimelineCmd.Flags().IntVar(
-		&limitFlag,
+		&timelineLimitFlag,
 		"limit",
 		100,
 		"Show N time points.")
@@ -149,7 +150,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, limitFlag)
+	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, timelineLimitFlag)
 	if err != nil {
 		return cmderr.AkitaErr{Err: err}
 	}
