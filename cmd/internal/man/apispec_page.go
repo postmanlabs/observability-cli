@@ -45,6 +45,10 @@ When specifying an AkitaURI, the format is "akita://{SERVICE}:spec" or "akita://
 
 Akita cloud service to use to generate the spec. Only needed if --out is not specified or is not an AkitaURI.
 
+## --cluster string
+
+Akita cloud cluster to use to generate the spec (alias for 'service'). Only needed if --out is not specified or is not an AkitaURI.
+
 ## --format {yaml|json}
 
 Output format for the OpenAPI 3 specification. Supports 'yaml' and 'json'.

@@ -44,6 +44,12 @@ func init() {
 		"Your Akita service.")
 
 	GetTimelineCmd.Flags().StringVar(
+		&serviceFlag,
+		"cluster",
+		"",
+		"Your Akita cluster (alias for 'service').")
+
+	GetTimelineCmd.Flags().StringVar(
 		&deploymentFlag,
 		"deployment",
 		"",

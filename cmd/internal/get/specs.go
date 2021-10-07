@@ -41,6 +41,12 @@ func init() {
 		"",
 		"Your Akita service.")
 
+	GetSpecsCmd.Flags().StringVar(
+		&serviceFlag,
+		"cluster",
+		"",
+		"Your Akita cluster (alias for 'service').")
+
 	GetSpecsCmd.Flags().StringSliceVar(
 		&tagsFlag,
 		"tags",

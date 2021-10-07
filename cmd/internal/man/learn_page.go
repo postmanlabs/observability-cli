@@ -31,6 +31,10 @@ When specifying an AkitaURI, the format is "akita://{SERVICE}:spec" or "akita://
 
 Your Akita service. Only needed if <bt>--out<bt> is not an AkitaURI.
 
+## --cluster string
+
+Your Akita cluster (alias for 'service'). Only needed if <bt>--out<bt> is not an AkitaURI.
+
 ## --filter string
 
 Used to match packets going to and coming from your API service.
