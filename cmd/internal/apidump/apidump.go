@@ -124,6 +124,12 @@ func init() {
 		"Your Akita service. Exactly one of --out or --service must be specified.")
 
 	Cmd.Flags().StringVar(
+		&serviceFlag,
+		"cluster",
+		"",
+		"Your Akita cluster (alias for 'service'). Exactly one of --out or --cluster must be specified.")
+
+	Cmd.Flags().StringVar(
 		&filterFlag,
 		"filter",
 		"",

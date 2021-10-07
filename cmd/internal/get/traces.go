@@ -35,6 +35,12 @@ func init() {
 		"",
 		"Your Akita service.")
 
+	GetTracesCmd.Flags().StringVar(
+		&serviceFlag,
+		"cluster",
+		"",
+		"Your Akita cluster (alias for 'service').")
+
 	GetTracesCmd.Flags().StringSliceVar(
 		&tagsFlag,
 		"tags",

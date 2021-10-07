@@ -42,6 +42,12 @@ func init() {
 		"Your Akita service.")
 
 	GetGraphCmd.Flags().StringVar(
+		&serviceFlag,
+		"cluster",
+		"",
+		"Your Akita cluster (alias for 'service').")
+
+	GetGraphCmd.Flags().StringVar(
 		&deploymentFlag,
 		"deployment",
 		"",
