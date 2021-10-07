@@ -115,19 +115,19 @@ func init() {
 	Cmd.Flags().Var(
 		&outFlag,
 		"out",
-		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out or --service must be specified.")
+		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out, --cluster, or --service must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service. Exactly one of --out or --service must be specified.")
+		"Your Akita service. Exactly one of --out, --cluster, or --service must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'service'). Exactly one of --out or --cluster must be specified.")
+		"Your Akita cluster (alias for 'service'). Exactly one of --out, --cluster, or --service must be specified.")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,
