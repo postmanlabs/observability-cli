@@ -45,6 +45,10 @@ func (sc *SamplingCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		key = c.StreamID.String() + strconv.Itoa(c.Seq)
 	case akinet.HTTPResponse:
 		key = c.StreamID.String() + strconv.Itoa(c.Seq)
+	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
+		// Let TCP metadata bypass sampling. TCP metadata is processed locally and
+		// is summarized on a per-connection basis before it reaches the back end.
+		return sc.Collector.Process(t)
 	default:
 		key = ""
 	}
@@ -96,6 +100,8 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			DstPort:       t.DstPort,
 			HTTPResponses: 1,
 		})
+	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
+		// Don't count TCP metadata.
 	default:
 		pc.PacketCounts.Update(PacketCounters{
 			Interface: t.Interface,

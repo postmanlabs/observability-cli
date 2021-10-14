@@ -97,7 +97,24 @@ func setupParseFromInterface(pcap pcapWrapper, signalClose <-chan struct{}, fact
 	p := NewNetworkTrafficParser(1.0)
 	p.pcap = pcap
 	p.clock = &fakeClock{testTime}
-	return p.ParseFromInterface("dummy0", "", signalClose, facts...)
+	rawOut, err := p.ParseFromInterface("dummy0", "", signalClose, facts...)
+	if err != nil {
+		return rawOut, err
+	}
+
+	// Filter out TCP packet metadata. The tests calling this were written before
+	// TCP packet metadata was introduced.
+	out := make(chan akinet.ParsedNetworkTraffic)
+	go func() {
+		for pkt := range rawOut {
+			if _, ignore := pkt.Content.(akinet.TCPPacketMetadata); !ignore {
+				out <- pkt
+			}
+		}
+		close(out)
+	}()
+
+	return out, nil
 }
 
 func TestTCPSingleDirection(t *testing.T) {

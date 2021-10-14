@@ -296,7 +296,7 @@ func TestMultipleInterfaces(t *testing.T) {
 // Demonstrate that periodic flush exits
 func TestFlushExit(t *testing.T) {
 	b := &BackendCollector{}
-	b.uploadBatch = batcher.NewInMemory(
+	b.uploadWitnessBatch = batcher.NewInMemory(
 		func(_ []interface{}) {},
 		uploadBatchMaxSize,
 		uploadBatchFlushDuration,

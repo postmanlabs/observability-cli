@@ -92,6 +92,17 @@ func (c *learnClientImpl) ReportWitnesses(ctx context.Context, lrn akid.LearnSes
 	return c.post(ctx, p, req, &resp)
 }
 
+func (c *learnClientImpl) ReportTCPConnections(ctx context.Context, lrn akid.LearnSessionID, reports []*kgxapi.TCPConnectionReport) error {
+	req := kgxapi.UploadTCPConnectionReportsRequest{
+		ClientID: c.clientID,
+		Reports:  reports,
+	}
+	resp := map[string]interface{}{}
+
+	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_tcp_reports")
+	return c.post(ctx, p, req, &resp)
+}
+
 func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []akid.LearnSessionID, opts CreateSpecOptions) (akid.APISpecID, error) {
 	// Go cannot marshal regexp into JSON unfortunately.
 	pathExclusions := make([]string, len(opts.PathExclusions))

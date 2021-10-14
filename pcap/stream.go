@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/memview"
 )
@@ -238,7 +239,7 @@ func newTCPStream(clock clockWrapper, netFlow gopacket.Flow, outChan chan<- akin
 	}
 }
 
-func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassembly.TCPFlowDirection, _ reassembly.Sequence, start *bool, _ reassembly.AssemblerContext) bool {
+func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassembly.TCPFlowDirection, _ reassembly.Sequence, start *bool, ac reassembly.AssemblerContext) bool {
 	// We always force the TCP stream to start because we cannot guarantee that we
 	// will ever observe the SYN packet. For example, we could be looking at an
 	// existing connection that is actively reused by HTTP traffic. Without the
@@ -259,6 +260,25 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 		c.flows = map[reassembly.TCPFlowDirection]*tcpFlow{
 			dir:           s1,
 			dir.Reverse(): s2,
+		}
+	}
+
+	// Output some metadata for the current packet.
+	{
+		srcE, dstE := c.netFlow.Endpoints()
+		c.outChan <- akinet.ParsedNetworkTraffic{
+			SrcIP:   net.IP(srcE.Raw()),
+			SrcPort: int(tcp.SrcPort),
+			DstIP:   net.IP(dstE.Raw()),
+			DstPort: int(tcp.DstPort),
+			Content: akinet.TCPPacketMetadata{
+				ConnectionID: akid.NewConnectionID(uuid.UUID(c.bidiID)),
+				SYN:          tcp.SYN,
+				ACK:          tcp.ACK,
+				FIN:          tcp.FIN,
+				RST:          tcp.RST,
+			},
+			ObservationTime: ac.GetCaptureInfo().Timestamp,
 		}
 	}
 

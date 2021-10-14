@@ -186,6 +186,11 @@ func readFromPcapFile(file string) ([]akinet.ParsedNetworkTraffic, error) {
 
 	collected := []akinet.ParsedNetworkTraffic{}
 	for c := range out {
+		// Remove TCP metadata, which was added after this test was written.
+		if _, ignore := c.Content.(akinet.TCPPacketMetadata); ignore {
+			continue
+		}
+
 		removeNonDeterministicField(&c)
 		collected = append(collected, c)
 	}

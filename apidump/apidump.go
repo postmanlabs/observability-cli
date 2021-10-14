@@ -21,6 +21,7 @@ import (
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/tcp_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -378,6 +379,9 @@ func Run(args Args) error {
 					return errors.Errorf("invalid output location")
 				}
 			}
+
+			// Process TCP-packet metadata.
+			collector = tcp_conn_tracker.NewCollector(collector)
 
 			// Build filters from the inside out (last to first)
 			//  3) statistics

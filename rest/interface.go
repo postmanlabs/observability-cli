@@ -35,6 +35,7 @@ type LearnClient interface {
 	GetLearnSession(context.Context, akid.ServiceID, akid.LearnSessionID) (*kgxapi.LearnSession, error)
 	CreateLearnSession(context.Context, *kgxapi.APISpecReference, string, map[tags.Key]string) (akid.LearnSessionID, error)
 	ReportWitnesses(context.Context, akid.LearnSessionID, []*kgxapi.WitnessReport) error
+	ReportTCPConnections(context.Context, akid.LearnSessionID, []*kgxapi.TCPConnectionReport) error
 
 	// Creates a spec from a set of learn sessions.
 	CreateSpec(context.Context, string, []akid.LearnSessionID, CreateSpecOptions) (akid.APISpecID, error)

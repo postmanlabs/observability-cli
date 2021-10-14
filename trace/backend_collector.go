@@ -119,8 +119,11 @@ type BackendCollector struct {
 	// akid.WitnessID -> *witnessWithInfo
 	pairCache sync.Map
 
-	// Batch of witnesses pending upload.
-	uploadBatch *batcher.InMemory
+	// Batch of REST witnesses pending upload.
+	uploadWitnessBatch *batcher.InMemory
+
+	// Batch of TCP-connection reports pending upload.
+	uploadTCPConnectionReportBatch *batcher.InMemory
 
 	// Channel controlling periodic cache flush
 	flushDone chan struct{}
@@ -140,11 +143,18 @@ func NewBackendCollector(svc akid.ServiceID,
 		plugins:        plugins,
 	}
 
-	col.uploadBatch = batcher.NewInMemory(
+	col.uploadWitnessBatch = batcher.NewInMemory(
 		col.uploadWitnesses,
 		uploadBatchMaxSize,
 		uploadBatchFlushDuration)
+	col.uploadTCPConnectionReportBatch = batcher.NewInMemory(
+		col.uploadTCPConnectionReports,
+		uploadBatchMaxSize,
+		uploadBatchFlushDuration,
+	)
+
 	go col.periodicFlush()
+
 	return col
 }
 
@@ -158,6 +168,8 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		partial, parseHTTPErr = learn.ParseHTTP(content)
 	case akinet.HTTPResponse:
 		partial, parseHTTPErr = learn.ParseHTTP(content)
+	case akinet.TCPConnectionMetadata:
+		return c.processTCPConnection(t, content)
 	default:
 		// Non-HTTP traffic not handled
 		return nil
@@ -204,6 +216,26 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	return nil
 }
 
+func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraffic, tcp akinet.TCPConnectionMetadata) error {
+	srcAddr, srcPort, dstAddr, dstPort := packet.SrcIP, packet.SrcPort, packet.DstIP, packet.DstPort
+	if tcp.Direction == akinet.DestToSource {
+		srcAddr, srcPort, dstAddr, dstPort = dstAddr, dstPort, srcAddr, srcPort
+	}
+
+	c.uploadTCPConnectionReportBatch.Add(&kgxapi.TCPConnectionReport{
+		ID:             tcp.ConnectionID,
+		SrcAddr:        srcAddr,
+		SrcPort:        uint16(srcPort),
+		DestAddr:       dstAddr,
+		DestPort:       uint16(dstPort),
+		FirstObserved:  packet.ObservationTime,
+		LastObserved:   packet.FinalPacketTime,
+		DirectionKnown: tcp.Direction != akinet.UnknownTCPConnectionDirection,
+		EndState:       tcp.EndState,
+	})
+	return nil
+}
+
 func (c *BackendCollector) queueUpload(w *witnessWithInfo) {
 	for _, p := range c.plugins {
 		if err := p.Transform(w.witness.GetMethod()); err != nil {
@@ -216,13 +248,14 @@ func (c *BackendCollector) queueUpload(w *witnessWithInfo) {
 	// Obfuscate the original value so type inference engine can use it on the
 	// backend without revealing the actual value.
 	obfuscate(w.witness.GetMethod())
-	c.uploadBatch.Add(w)
+	c.uploadWitnessBatch.Add(w)
 }
 
 func (c *BackendCollector) Close() error {
 	close(c.flushDone)
 	c.flushPairCache(time.Now())
-	c.uploadBatch.Close()
+	c.uploadWitnessBatch.Close()
+	c.uploadTCPConnectionReportBatch.Close()
 	return nil
 }
 
@@ -253,6 +286,30 @@ func (c *BackendCollector) uploadWitnesses(in []interface{}) {
 		printer.Warningf("Failed to upload witnesses: %v\n", err)
 	}
 	printer.Debugf("Uploaded %d witnesses\n", len(in))
+}
+
+func (c *BackendCollector) uploadTCPConnectionReports(in []interface{}) {
+	reports := make([]*kgxapi.TCPConnectionReport, 0, len(in))
+	for _, elt := range in {
+		reports = append(reports, elt.(*kgxapi.TCPConnectionReport))
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := c.learnClient.ReportTCPConnections(ctx, c.learnSessionID, reports)
+	if err != nil {
+		switch e := err.(type) {
+		case rest.HTTPError:
+			if e.StatusCode == http.StatusTooManyRequests {
+				// XXX Not all commands that call into this code have a --rate-limit
+				// option.
+				// TODO Would be nice to re-queue these reports and try again later.
+				err = errors.Wrap(err, "your witness uploads are being throttled. Akita will generate partial results. Try reducing the --rate-limit value to avoid this.")
+			}
+		}
+		printer.Warningf("Failed to upload connection reports: %v\n", err)
+	}
+	printer.Debugf("Uploaded %d connection reports\n", len(in))
 }
 
 func (c *BackendCollector) periodicFlush() {
