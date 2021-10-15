@@ -100,6 +100,9 @@ func (c *collector) close() sampled_err.Errors {
 			DstIP:   info.dstIP,
 			DstPort: info.dstPort,
 			Content: info.tcpMetadata,
+
+			ObservationTime: info.firstObservationTime,
+			FinalPacketTime: info.lastObservationTime,
 		})
 
 		if processErr != nil {
@@ -128,6 +131,9 @@ func (c *collector) flushConnection(connectionID akid.ConnectionID) (bool, error
 		DstIP:   info.dstIP,
 		DstPort: info.dstPort,
 		Content: info.tcpMetadata,
+
+		ObservationTime: info.firstObservationTime,
+		FinalPacketTime: info.lastObservationTime,
 	})
 
 	delete(c.activeConnections, connectionID)
