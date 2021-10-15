@@ -61,9 +61,10 @@ func (c *collector) Process(packet akinet.ParsedNetworkTraffic) error {
 			// that the TCP-reassembly layer thinks it hasn't seen before. However,
 			// the TCP-reassembly layer gets confused by the final "ACK" sent after a
 			// connection is closed, and thinks it is part of a new connection. We
-			// therefore ignore any packets having no payload and just the ACK flag
-			// set. This trades a small amount of accuracy in connection-observation
-			// times for greater accuracy in the set of connections observed.
+			// therefore ignore any packets having no payload and with just the ACK
+			// flag set. This trades a small amount of accuracy in
+			// connection-observation times for greater accuracy in the set of
+			// connections observed.
 			if tcp.PayloadLength_bytes == 0 && tcp.ACK && !(tcp.FIN || tcp.RST || tcp.SYN) {
 				return nil
 			}
