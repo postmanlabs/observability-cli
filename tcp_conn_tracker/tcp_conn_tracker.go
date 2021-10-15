@@ -17,6 +17,11 @@ import (
 func NewCollector(next trace.Collector) trace.Collector {
 	return &collector{
 		collector: next,
+
+		closed:            false,
+		activeConnections: make(map[akid.ConnectionID]*connectionInfo),
+
+		mutex: sync.Mutex{},
 	}
 }
 
