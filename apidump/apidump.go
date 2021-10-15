@@ -356,6 +356,17 @@ func Run(args Args) error {
 
 		for interfaceName, filter := range filters {
 			var collector trace.Collector
+
+			// Build collectors from the inside out (last applied to first applied).
+			//  7. Back-end collector (sink).
+			//  6. Statistics.
+			//  5. Subsampling.
+			//  4. Path and host filters.
+			//  3. Eliminate Akita CLI traffic.
+			//  2. Count packets before user filters for diagnostics.
+			//  1. Aggregate TCP-packet metadata into TCP-connection metadata.
+
+			// Back-end collector (sink).
 			{
 				var localCollector trace.Collector
 				if args.Out.LocalPath != nil {
@@ -380,16 +391,8 @@ func Run(args Args) error {
 				}
 			}
 
-			// Process TCP-packet metadata.
-			collector = tcp_conn_tracker.NewCollector(collector)
-
-			// Build filters from the inside out (last to first)
-			//  3) statistics
-			//  2) subsampling
-			//  1) path and host filters
-			//  0) Akita CLI traffic
+			// Statistics.
 			//
-
 			// Count packets that have *passed* filtering (so that we know whether the
 			// trace is empty or not.)  In the future we could add columns for both
 			// pre- and post-filtering.
@@ -398,10 +401,10 @@ func Run(args Args) error {
 				Collector:    collector,
 			}
 
-			// Subsampling
+			// Subsampling.
 			if args.SampleRate != 1.0 {
-				// This is a change from previous behavior: now we sample after filtering
-				// instead of before.
+				// This is a change from previous behavior: now we sample after
+				// filtering instead of before.
 				collector = &trace.SamplingCollector{
 					SampleRate: args.SampleRate,
 					Collector:  collector,
@@ -411,7 +414,7 @@ func Run(args Args) error {
 				collector = rateLimit.NewCollector(collector)
 			}
 
-			// Host and path
+			// Path and host filters.
 			if len(hostExclusions) > 0 {
 				collector = trace.NewHTTPHostFilterCollector(hostExclusions, collector)
 			}
@@ -432,13 +435,16 @@ func Run(args Args) error {
 				}
 			}
 
-			// Count packets before user filters for diagnostics
+			// Count packets before user filters for diagnostics.
 			if dir == kgxapi.Inbound && userFilters > 0 {
 				collector = &trace.PacketCountCollector{
 					PacketCounts: inboundPrefilter,
 					Collector:    collector,
 				}
 			}
+
+			// Process TCP-packet metadata into TCP-connection metadata.
+			collector = tcp_conn_tracker.NewCollector(collector)
 
 			// Compute the share of the page cache that each collection process may use.
 			// (gopacket does not currently permit a unified page cache for packet reassembly.)
