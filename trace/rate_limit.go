@@ -108,7 +108,7 @@ func (r *SharedRateLimit) run() {
 	defer r.intervalTimer.Stop()
 
 	// Main loop: handle time events or shutdown
-	for true {
+	for {
 		select {
 		case <-r.done:
 			return
@@ -249,10 +249,6 @@ func (r *rateLimitCollector) Process(pnt akinet.ParsedNetworkTraffic) error {
 			delete(r.RequestArrivalTimes, key)
 			r.NextCollector.Process(pnt)
 		}
-	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
-		// Don't rate-limit TCP metadata. This is processed locally and is
-		// summarized on a per-connection basis before it reaches the back end.
-		r.NextCollector.Process(pnt)
 	default:
 		if r.RateLimit.AllowOther() {
 			r.NextCollector.Process(pnt)
