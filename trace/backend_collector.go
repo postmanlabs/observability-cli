@@ -228,6 +228,7 @@ func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraff
 		SrcPort:        uint16(srcPort),
 		DestAddr:       dstAddr,
 		DestPort:       uint16(dstPort),
+		Direction:      c.dir,
 		FirstObserved:  packet.ObservationTime,
 		LastObserved:   packet.FinalPacketTime,
 		InitiatorKnown: tcp.Initiator != akinet.UnknownTCPConnectionInitiator,

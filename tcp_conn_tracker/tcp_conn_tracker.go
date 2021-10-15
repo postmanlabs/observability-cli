@@ -148,7 +148,7 @@ func (c *collector) addConnection(srcIP net.IP, srcPort int, dstIP net.IP, dstPo
 		tcpMetadata: akinet.TCPConnectionMetadata{
 			ConnectionID: metadata.ConnectionID,
 			Initiator:    akinet.UnknownTCPConnectionInitiator,
-			EndState:     akinet.StillOpen,
+			EndState:     akinet.ConnectionOpen,
 		},
 
 		timeout: time.AfterFunc(connectionTimeout, func() {
@@ -206,7 +206,7 @@ func (info *connectionInfo) augmentWith(packet akinet.ParsedNetworkTraffic, meta
 
 	// Set the closed state if the FIN flag is set, but don't let it override a
 	// previously observed connection reset.
-	if metadata.FIN && info.tcpMetadata.EndState == akinet.StillOpen {
+	if metadata.FIN && info.tcpMetadata.EndState == akinet.ConnectionOpen {
 		info.tcpMetadata.EndState = akinet.ConnectionClosed
 	}
 
