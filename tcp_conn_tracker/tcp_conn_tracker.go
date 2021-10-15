@@ -57,6 +57,17 @@ func (c *collector) Process(packet akinet.ParsedNetworkTraffic) error {
 
 		info, exists := c.activeConnections[tcp.ConnectionID]
 		if !exists {
+			// This is either a connection that we have timed out and flushed, or one
+			// that the TCP-reassembly layer thinks it hasn't seen before. However,
+			// the TCP-reassembly layer gets confused by the final "ACK" sent after a
+			// connection is closed, and thinks it is part of a new connection. We
+			// therefore ignore any packets having no payload and just the ACK flag
+			// set. This trades a small amount of accuracy in connection-observation
+			// times for greater accuracy in the set of connections observed.
+			if tcp.PayloadLength_bytes == 0 && tcp.ACK && !(tcp.FIN || tcp.RST || tcp.SYN) {
+				return nil
+			}
+
 			c.addConnection(packet.SrcIP, packet.SrcPort, packet.DstIP, packet.DstPort, packet.ObservationTime, tcp)
 			return nil
 		}

@@ -272,11 +272,12 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 			DstIP:   net.IP(dstE.Raw()),
 			DstPort: int(tcp.DstPort),
 			Content: akinet.TCPPacketMetadata{
-				ConnectionID: akid.NewConnectionID(uuid.UUID(c.bidiID)),
-				SYN:          tcp.SYN,
-				ACK:          tcp.ACK,
-				FIN:          tcp.FIN,
-				RST:          tcp.RST,
+				ConnectionID:        akid.NewConnectionID(uuid.UUID(c.bidiID)),
+				SYN:                 tcp.SYN,
+				ACK:                 tcp.ACK,
+				FIN:                 tcp.FIN,
+				RST:                 tcp.RST,
+				PayloadLength_bytes: len(tcp.LayerPayload()),
 			},
 			ObservationTime: ac.GetCaptureInfo().Timestamp,
 		}
