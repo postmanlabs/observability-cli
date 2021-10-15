@@ -218,7 +218,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 
 func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraffic, tcp akinet.TCPConnectionMetadata) error {
 	srcAddr, srcPort, dstAddr, dstPort := packet.SrcIP, packet.SrcPort, packet.DstIP, packet.DstPort
-	if tcp.Direction == akinet.DestToSource {
+	if tcp.Initiator == akinet.DestInitiator {
 		srcAddr, srcPort, dstAddr, dstPort = dstAddr, dstPort, srcAddr, srcPort
 	}
 
@@ -230,7 +230,7 @@ func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraff
 		DestPort:       uint16(dstPort),
 		FirstObserved:  packet.ObservationTime,
 		LastObserved:   packet.FinalPacketTime,
-		DirectionKnown: tcp.Direction != akinet.UnknownTCPConnectionDirection,
+		InitiatorKnown: tcp.Initiator != akinet.UnknownTCPConnectionInitiator,
 		EndState:       tcp.EndState,
 	})
 	return nil

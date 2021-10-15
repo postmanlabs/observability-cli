@@ -147,7 +147,7 @@ func (c *collector) addConnection(srcIP net.IP, srcPort int, dstIP net.IP, dstPo
 
 		tcpMetadata: akinet.TCPConnectionMetadata{
 			ConnectionID: metadata.ConnectionID,
-			Direction:    akinet.UnknownTCPConnectionDirection,
+			Initiator:    akinet.UnknownTCPConnectionInitiator,
 			EndState:     akinet.StillOpen,
 		},
 
@@ -185,21 +185,21 @@ func (info *connectionInfo) augmentWith(packet akinet.ParsedNetworkTraffic, meta
 		info.lastObservationTime = packet.ObservationTime
 	}
 
-	// Try to infer the connection's direction, if not already inferred.
-	if info.tcpMetadata.Direction == akinet.UnknownTCPConnectionDirection && metadata.SYN {
+	// Try to infer the connection's initiator, if not already inferred.
+	if info.tcpMetadata.Initiator == akinet.UnknownTCPConnectionInitiator && metadata.SYN {
 		if metadata.ACK {
 			// SYN-ACK packet. Packet's destination connected to packet's source.
 			if info.srcIP.Equal(packet.SrcIP) && info.srcPort == packet.SrcPort {
-				info.tcpMetadata.Direction = akinet.DestToSource
+				info.tcpMetadata.Initiator = akinet.DestInitiator
 			} else {
-				info.tcpMetadata.Direction = akinet.SourceToDest
+				info.tcpMetadata.Initiator = akinet.SourceInitiator
 			}
 		} else {
 			// SYN packet. Packet's source connected to packet's destination.
 			if info.srcIP.Equal(packet.SrcIP) && info.srcPort == packet.SrcPort {
-				info.tcpMetadata.Direction = akinet.SourceToDest
+				info.tcpMetadata.Initiator = akinet.SourceInitiator
 			} else {
-				info.tcpMetadata.Direction = akinet.DestToSource
+				info.tcpMetadata.Initiator = akinet.DestInitiator
 			}
 		}
 	}
