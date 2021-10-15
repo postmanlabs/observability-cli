@@ -402,14 +402,7 @@ func Run(args Args) error {
 			}
 
 			// Subsampling.
-			if args.SampleRate != 1.0 {
-				// This is a change from previous behavior: now we sample after
-				// filtering instead of before.
-				collector = &trace.SamplingCollector{
-					SampleRate: args.SampleRate,
-					Collector:  collector,
-				}
-			}
+			collector = trace.NewSamplingCollector(args.SampleRate, collector)
 			if rateLimit != nil {
 				collector = rateLimit.NewCollector(collector)
 			}
