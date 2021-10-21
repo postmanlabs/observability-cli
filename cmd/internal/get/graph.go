@@ -163,7 +163,7 @@ func getGraph(cmd *cobra.Command, args []string) error {
 		return cmderr.AkitaErr{Err: err}
 	}
 
-	if len(resp.Edges) == 0 {
+	if resp.IsEmpty() {
 		printer.Infof("No edges found.")
 		return nil
 	}
