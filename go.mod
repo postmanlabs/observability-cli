@@ -6,19 +6,17 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.2.7
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
-	github.com/akitasoftware/akita-ir v0.0.0-20210818150446-55531f1ef499
-	github.com/akitasoftware/akita-libs v0.0.0-20211015204600-5702c6503587
-	github.com/akitasoftware/objecthash-proto v0.0.0-20210728061301-b7904b31cc09 // indirect
+	github.com/akitasoftware/akita-ir v0.0.0-20211020161529-944af4d11d6e
+	github.com/akitasoftware/akita-libs v0.0.0-20211021191652-f5cdd95a45d7
+	github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 // indirect
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f // indirect
+	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
 	github.com/golang/mock v1.3.1
-	// Golang protobuf APIv1, needed to compatibility with objecthash-proto. See
-	// pb/README.md
-	github.com/golang/protobuf v1.3.4
-	github.com/google/go-cmp v0.5.4
+	github.com/golang/protobuf v1.5.2
+	github.com/google/go-cmp v0.5.6
 	github.com/google/gopacket v1.1.19
 	github.com/google/martian/v3 v3.0.1
 	github.com/google/uuid v1.2.0
@@ -26,8 +24,11 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/hashicorp/go-version v1.2.1
 	github.com/jpillora/backoff v1.0.0
+	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/onsi/ginkgo v1.16.5 // indirect
+	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/rivo/tview v0.0.0-20210217110421-8a8f78a6dd01
@@ -37,7 +38,8 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/yudai/gojsondiff v1.0.0
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
-	golang.org/x/text v0.3.5
+	github.com/yudai/pp v2.0.1+incompatible // indirect
+	golang.org/x/text v0.3.6
 	gopkg.in/yaml.v2 v2.4.0
 )
 

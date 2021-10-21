@@ -163,6 +163,11 @@ func getGraph(cmd *cobra.Command, args []string) error {
 		return cmderr.AkitaErr{Err: err}
 	}
 
+	if len(resp.Edges) == 0 {
+		printer.Infof("No edges found.")
+		return nil
+	}
+
 	if hideUnknownFlag {
 		replacementHTTPEdges := make([]api_schema.HTTPGraphEdge, 0, len(resp.HTTPEdges))
 		for _, e := range resp.HTTPEdges {
