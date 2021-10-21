@@ -164,13 +164,21 @@ func getGraph(cmd *cobra.Command, args []string) error {
 	}
 
 	if hideUnknownFlag {
-		replacementEdges := make([]api_schema.GraphEdge, 0, len(resp.Edges))
-		for _, e := range resp.Edges {
+		replacementHTTPEdges := make([]api_schema.HTTPGraphEdge, 0, len(resp.HTTPEdges))
+		for _, e := range resp.HTTPEdges {
 			if e.SourceAttributes.Host != "" {
-				replacementEdges = append(replacementEdges, e)
+				replacementHTTPEdges = append(replacementHTTPEdges, e)
 			}
 		}
-		resp.Edges = replacementEdges
+		resp.HTTPEdges = replacementHTTPEdges
+
+		replacementTCPEdges := make([]api_schema.TCPGraphEdge, 0, len(resp.TCPEdges))
+		for _, e := range resp.TCPEdges {
+			if e.Source != "" && e.Target != "" {
+				replacementTCPEdges = append(replacementTCPEdges, e)
+			}
+		}
+		resp.TCPEdges = replacementTCPEdges
 	}
 
 	outputFn(&resp)
@@ -205,15 +213,27 @@ func hostOrUnknown(h string) string {
 }
 
 func printGraphBySource(graph *api_schema.GraphResponse) {
-	sort.Slice(graph.Edges, func(i, j int) bool {
-		return endpointLessThan(graph.Edges[i].SourceAttributes, graph.Edges[j].SourceAttributes) ||
-			(graph.Edges[i].SourceAttributes == graph.Edges[j].SourceAttributes &&
-				endpointLessThan(graph.Edges[i].TargetAttributes, graph.Edges[j].TargetAttributes))
+	sort.Slice(graph.HTTPEdges, func(i, j int) bool {
+		return endpointLessThan(graph.HTTPEdges[i].SourceAttributes, graph.HTTPEdges[j].SourceAttributes) ||
+			(graph.HTTPEdges[i].SourceAttributes == graph.HTTPEdges[j].SourceAttributes &&
+				endpointLessThan(graph.HTTPEdges[i].TargetAttributes, graph.HTTPEdges[j].TargetAttributes))
+	})
+	sort.Slice(graph.TCPEdges, func(i, j int) bool {
+		edgeI, edgeJ := graph.TCPEdges[i], graph.TCPEdges[j]
+		if edgeI.Source != edgeJ.Source {
+			return edgeI.Source < edgeJ.Source
+		}
+		if edgeI.Target != edgeJ.Target {
+			return edgeI.Target < edgeJ.Target
+		}
+		return false
 	})
 
-	for i, e := range graph.Edges {
+	fmt.Println("HTTP edges")
+	fmt.Println("==========")
+	for i, e := range graph.HTTPEdges {
 		// TODO: this assumes service is the only supported source vertex, which is true right now.
-		if i > 0 && e.SourceAttributes != graph.Edges[i-1].SourceAttributes {
+		if i > 0 && e.SourceAttributes != graph.HTTPEdges[i-1].SourceAttributes {
 			fmt.Printf("\n%-30s -> ", hostOrUnknown(e.SourceAttributes.Host))
 		} else if i == 0 {
 			fmt.Printf("%-30s -> ", hostOrUnknown(e.SourceAttributes.Host))
@@ -229,24 +249,55 @@ func printGraphBySource(graph *api_schema.GraphResponse) {
 		}
 	}
 
+	fmt.Println()
+	fmt.Println("TCP edges")
+	fmt.Println("==========")
+	for i, e := range graph.TCPEdges {
+		connector := "--"
+		if e.InitiatorKnown {
+			connector = "->"
+		}
+		// TODO: this assumes service is the only supported source vertex, which is true right now.
+		if i > 0 && e.Source != graph.TCPEdges[i-1].Source {
+			fmt.Printf("\n%-30s %s ", hostOrUnknown(e.Source), connector)
+		} else if i == 0 {
+			fmt.Printf("%-30s %s ", hostOrUnknown(e.Source), connector)
+		} else {
+			// Don't repeat source information
+			fmt.Printf("%-30s %s ", "", connector)
+		}
+
+		fmt.Printf("%-30s\n", hostOrUnknown(e.Target))
+	}
+
 }
 
 func printGraphByTarget(graph *api_schema.GraphResponse) {
-	sort.Slice(graph.Edges, func(i, j int) bool {
-		return endpointLessThan(graph.Edges[i].TargetAttributes, graph.Edges[j].TargetAttributes) ||
-			(graph.Edges[i].TargetAttributes == graph.Edges[j].TargetAttributes &&
-				endpointLessThan(graph.Edges[i].SourceAttributes, graph.Edges[j].SourceAttributes))
+	sort.Slice(graph.HTTPEdges, func(i, j int) bool {
+		return endpointLessThan(graph.HTTPEdges[i].TargetAttributes, graph.HTTPEdges[j].TargetAttributes) ||
+			(graph.HTTPEdges[i].TargetAttributes == graph.HTTPEdges[j].TargetAttributes &&
+				endpointLessThan(graph.HTTPEdges[i].SourceAttributes, graph.HTTPEdges[j].SourceAttributes))
+	})
+	sort.Slice(graph.TCPEdges, func(i, j int) bool {
+		edgeI, edgeJ := graph.TCPEdges[i], graph.TCPEdges[j]
+		if edgeI.Target != edgeJ.Target {
+			return edgeI.Target < edgeJ.Target
+		}
+		if edgeI.Source != edgeJ.Source {
+			return edgeI.Source < edgeJ.Source
+		}
+		return false
 	})
 
-	for i, e := range graph.Edges {
-		if i > 0 && e.TargetAttributes != graph.Edges[i-1].TargetAttributes {
+	for i, e := range graph.HTTPEdges {
+		if i > 0 && e.TargetAttributes != graph.HTTPEdges[i-1].TargetAttributes {
 			fmt.Printf("\n")
 		}
 
 		// TODO: this assumes service is the only supported source vertex, which is true right now.
 		fmt.Printf("%-30s -> ", hostOrUnknown(e.SourceAttributes.Host))
 
-		if (i > 0 && e.TargetAttributes != graph.Edges[i-1].TargetAttributes) || i == 0 {
+		if (i > 0 && e.TargetAttributes != graph.HTTPEdges[i-1].TargetAttributes) || i == 0 {
 			if e.TargetAttributes.PathTemplate == "" {
 				fmt.Printf("%-30s\n", hostOrUnknown(e.TargetAttributes.Host))
 			} else {
@@ -256,11 +307,31 @@ func printGraphByTarget(graph *api_schema.GraphResponse) {
 			fmt.Printf("\n")
 		}
 	}
+
+	for i, e := range graph.TCPEdges {
+		connector := "--"
+		if e.InitiatorKnown {
+			connector = "->"
+		}
+
+		if i > 0 && e.Target != graph.TCPEdges[i-1].Target {
+			fmt.Printf("\n")
+		}
+
+		// TODO: this assumes service is the only supported source vertex, which is true right now.
+		fmt.Printf("%-30s %s ", hostOrUnknown(e.Source), connector)
+
+		if (i > 0 && e.Target != graph.TCPEdges[i-1].Target) || i == 0 {
+			fmt.Printf("%-30s\n", hostOrUnknown(e.Target))
+		} else {
+			fmt.Printf("\n")
+		}
+	}
 }
 
 func printDot(graph *api_schema.GraphResponse) {
 	fmt.Printf("digraph G {\n")
-	for _, e := range graph.Edges {
+	for _, e := range graph.HTTPEdges {
 		if e.TargetAttributes.PathTemplate == "" {
 			fmt.Printf("  %q -> %q [label=\"%v\"]\n",
 				hostOrUnknown(e.SourceAttributes.Host),
@@ -274,6 +345,18 @@ func printDot(graph *api_schema.GraphResponse) {
 				e.TargetAttributes.PathTemplate,
 				e.Values[api_schema.Event_Count])
 		}
+	}
+	for _, e := range graph.TCPEdges {
+		edgeProperty := "dir=none"
+		if e.InitiatorKnown {
+			edgeProperty = ""
+		}
+		fmt.Printf("  %q -> %q [label=\"%v\"%s]\n",
+			hostOrUnknown(e.Source),
+			e.Target,
+			e.Values[api_schema.Event_Count],
+			edgeProperty,
+		)
 	}
 	fmt.Printf("}\n")
 }
