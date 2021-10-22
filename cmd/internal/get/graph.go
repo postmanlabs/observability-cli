@@ -352,11 +352,11 @@ func printDot(graph *api_schema.GraphResponse) {
 		}
 	}
 	for _, e := range graph.TCPEdges {
-		edgeProperty := "dir=none"
+		edgeProperty := " dir=none"
 		if e.InitiatorKnown {
 			edgeProperty = ""
 		}
-		fmt.Printf("  %q -> %q [label=\"%v\"%s]\n",
+		fmt.Printf("  %q -> %q [label=\"%v\" style=\"dashed\"%s]\n",
 			hostOrUnknown(e.Source),
 			e.Target,
 			e.Values[api_schema.Event_Count],
