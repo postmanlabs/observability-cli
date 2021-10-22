@@ -256,7 +256,7 @@ func printGraphBySource(graph *api_schema.GraphResponse) {
 
 	fmt.Println()
 	fmt.Println("TCP edges")
-	fmt.Println("==========")
+	fmt.Println("=========")
 	for i, e := range graph.TCPEdges {
 		connector := "--"
 		if e.InitiatorKnown {
