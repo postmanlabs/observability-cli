@@ -93,7 +93,10 @@ func (w *KGXWitnessProcessor) uploadWitnesses(batch []interface{}) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), witnessUploadTimeout)
 	defer cancel()
-	if err := w.client.ReportWitnesses(ctx, w.learnSessionID, reports); err != nil {
+	req := &kgxapi.ReportsUploadRequest{
+		Witnesses: reports,
+	}
+	if err := w.client.AsyncReportsUpload(ctx, w.learnSessionID, req); err != nil {
 		printer.Debugf("Failed to upload witnesses count=%d: %v\n", len(batch), err)
 		printer.Warningf("Failed to upload some witnesses, Akita will generate partial results\n")
 	}

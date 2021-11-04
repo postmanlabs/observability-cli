@@ -81,25 +81,11 @@ func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *k
 	return resp.ID, nil
 }
 
-func (c *learnClientImpl) ReportWitnesses(ctx context.Context, lrn akid.LearnSessionID, reports []*kgxapi.WitnessReport) error {
-	req := kgxapi.UploadWitnessesRequest{
-		ClientID: c.clientID,
-		Reports:  reports,
-	}
+func (c *learnClientImpl) AsyncReportsUpload(ctx context.Context, lrn akid.LearnSessionID, req *kgxapi.ReportsUploadRequest) error {
+	req.ClientID = c.clientID
 	resp := map[string]interface{}{}
 
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_witnesses")
-	return c.post(ctx, p, req, &resp)
-}
-
-func (c *learnClientImpl) ReportTCPConnections(ctx context.Context, lrn akid.LearnSessionID, reports []*kgxapi.TCPConnectionReport) error {
-	req := kgxapi.UploadTCPConnectionReportsRequest{
-		ClientID: c.clientID,
-		Reports:  reports,
-	}
-	resp := map[string]interface{}{}
-
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_tcp_reports")
+	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_reports")
 	return c.post(ctx, p, req, &resp)
 }
 

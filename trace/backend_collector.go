@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -119,11 +120,8 @@ type BackendCollector struct {
 	// akid.WitnessID -> *witnessWithInfo
 	pairCache sync.Map
 
-	// Batch of REST witnesses pending upload.
-	uploadWitnessBatch *batcher.InMemory
-
-	// Batch of TCP-connection reports pending upload.
-	uploadTCPConnectionReportBatch *batcher.InMemory
+	// Batch of reports (witnesses, TCP-connection reports, etc.) pending upload.
+	uploadReportBatch *batcher.InMemory
 
 	// Channel controlling periodic cache flush
 	flushDone chan struct{}
@@ -143,15 +141,10 @@ func NewBackendCollector(svc akid.ServiceID,
 		plugins:        plugins,
 	}
 
-	col.uploadWitnessBatch = batcher.NewInMemory(
-		col.uploadWitnesses,
+	col.uploadReportBatch = batcher.NewInMemory(
+		col.uploadReports,
 		uploadBatchMaxSize,
 		uploadBatchFlushDuration)
-	col.uploadTCPConnectionReportBatch = batcher.NewInMemory(
-		col.uploadTCPConnectionReports,
-		uploadBatchMaxSize,
-		uploadBatchFlushDuration,
-	)
 
 	go col.periodicFlush()
 
@@ -222,7 +215,7 @@ func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraff
 		srcAddr, srcPort, dstAddr, dstPort = dstAddr, dstPort, srcAddr, srcPort
 	}
 
-	c.uploadTCPConnectionReportBatch.Add(&kgxapi.TCPConnectionReport{
+	c.uploadReportBatch.Add(&kgxapi.TCPConnectionReport{
 		ID:             tcp.ConnectionID,
 		SrcAddr:        srcAddr,
 		SrcPort:        uint16(srcPort),
@@ -249,32 +242,45 @@ func (c *BackendCollector) queueUpload(w *witnessWithInfo) {
 	// Obfuscate the original value so type inference engine can use it on the
 	// backend without revealing the actual value.
 	obfuscate(w.witness.GetMethod())
-	c.uploadWitnessBatch.Add(w)
+	c.uploadReportBatch.Add(w)
 }
 
 func (c *BackendCollector) Close() error {
 	close(c.flushDone)
 	c.flushPairCache(time.Now())
-	c.uploadWitnessBatch.Close()
-	c.uploadTCPConnectionReportBatch.Close()
+	c.uploadReportBatch.Close()
 	return nil
 }
 
-func (c *BackendCollector) uploadWitnesses(in []interface{}) {
-	reports := make([]*kgxapi.WitnessReport, 0, len(in))
+func (c *BackendCollector) uploadReports(in []interface{}) {
+	witnesses := make([]*kgxapi.WitnessReport, 0, len(in))
+	tcpConnections := make([]*kgxapi.TCPConnectionReport, 0, len(in))
 	for _, i := range in {
-		w := i.(*witnessWithInfo)
-		r, err := w.toReport(c.dir)
-		if err == nil {
-			reports = append(reports, r)
-		} else {
-			printer.Warningf("Failed to convert witness to report: %v\n", err)
+		switch i := i.(type) {
+		case *witnessWithInfo:
+			r, err := i.toReport(c.dir)
+			if err == nil {
+				witnesses = append(witnesses, r)
+			} else {
+				printer.Warningf("Failed to convert witness to report: %v\n", err)
+			}
+
+		case *kgxapi.TCPConnectionReport:
+			tcpConnections = append(tcpConnections, i)
+
+		default:
+			printer.Warningf("Ignoring unknown report type %s. (This is an internal error.)\n", reflect.TypeOf(i).Name())
 		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err := c.learnClient.ReportWitnesses(ctx, c.learnSessionID, reports)
+
+	upload := kgxapi.ReportsUploadRequest{
+		Witnesses:      witnesses,
+		TCPConnections: tcpConnections,
+	}
+	err := c.learnClient.AsyncReportsUpload(ctx, c.learnSessionID, &upload)
 	if err != nil {
 		switch e := err.(type) {
 		case rest.HTTPError:
@@ -284,33 +290,9 @@ func (c *BackendCollector) uploadWitnesses(in []interface{}) {
 				err = errors.Wrap(err, "your witness uploads are being throttled. Akita will generate partial results. Try reducing the --rate-limit value to avoid this.")
 			}
 		}
-		printer.Warningf("Failed to upload witnesses: %v\n", err)
+		printer.Warningf("Failed to upload to Akita Cloud: %v\n", err)
 	}
-	printer.Debugf("Uploaded %d witnesses\n", len(in))
-}
-
-func (c *BackendCollector) uploadTCPConnectionReports(in []interface{}) {
-	reports := make([]*kgxapi.TCPConnectionReport, 0, len(in))
-	for _, elt := range in {
-		reports = append(reports, elt.(*kgxapi.TCPConnectionReport))
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	err := c.learnClient.ReportTCPConnections(ctx, c.learnSessionID, reports)
-	if err != nil {
-		switch e := err.(type) {
-		case rest.HTTPError:
-			if e.StatusCode == http.StatusTooManyRequests {
-				// XXX Not all commands that call into this code have a --rate-limit
-				// option.
-				// TODO Would be nice to re-queue these reports and try again later.
-				err = errors.Wrap(err, "your witness uploads are being throttled. Akita will generate partial results. Try reducing the --rate-limit value to avoid this.")
-			}
-		}
-		printer.Warningf("Failed to upload connection reports: %v\n", err)
-	}
-	printer.Debugf("Uploaded %d connection reports\n", len(in))
+	printer.Debugf("Uploaded %d witnesses and %d TCP connection reports\n", len(witnesses), len(tcpConnections))
 }
 
 func (c *BackendCollector) periodicFlush() {
