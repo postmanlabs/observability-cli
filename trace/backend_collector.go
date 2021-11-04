@@ -276,7 +276,7 @@ func (c *BackendCollector) uploadReports(in []interface{}) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	upload := kgxapi.ReportsUploadRequest{
+	upload := kgxapi.UploadReportsRequest{
 		Witnesses:      witnesses,
 		TCPConnections: tcpConnections,
 	}

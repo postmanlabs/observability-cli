@@ -93,7 +93,7 @@ func (w *KGXWitnessProcessor) uploadWitnesses(batch []interface{}) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), witnessUploadTimeout)
 	defer cancel()
-	req := &kgxapi.ReportsUploadRequest{
+	req := &kgxapi.UploadReportsRequest{
 		Witnesses: reports,
 	}
 	if err := w.client.AsyncReportsUpload(ctx, w.learnSessionID, req); err != nil {

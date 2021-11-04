@@ -81,7 +81,7 @@ func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *k
 	return resp.ID, nil
 }
 
-func (c *learnClientImpl) AsyncReportsUpload(ctx context.Context, lrn akid.LearnSessionID, req *kgxapi.ReportsUploadRequest) error {
+func (c *learnClientImpl) AsyncReportsUpload(ctx context.Context, lrn akid.LearnSessionID, req *kgxapi.UploadReportsRequest) error {
 	req.ClientID = c.clientID
 	resp := map[string]interface{}{}
 

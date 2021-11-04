@@ -32,7 +32,7 @@ type witnessRecorder struct {
 
 // Record a call to LearnClient.AsyncReportsUpload
 func (wr *witnessRecorder) recordAsyncReportsUpload(args ...interface{}) {
-	reports := args[2].(*kgxapi.ReportsUploadRequest)
+	reports := args[2].(*kgxapi.UploadReportsRequest)
 	for _, r := range reports.Witnesses {
 		bs, err := base64.URLEncoding.DecodeString(r.WitnessProto)
 		if err != nil {

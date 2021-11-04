@@ -37,7 +37,7 @@ type LearnClient interface {
 
 	// Uploads a batch of reports to Akita Cloud. This method is responsible for
 	// filling in the ClientID in the given ReportsUploadRequest.
-	AsyncReportsUpload(context.Context, akid.LearnSessionID, *kgxapi.ReportsUploadRequest) error
+	AsyncReportsUpload(context.Context, akid.LearnSessionID, *kgxapi.UploadReportsRequest) error
 
 	// Creates a spec from a set of learn sessions.
 	CreateSpec(context.Context, string, []akid.LearnSessionID, CreateSpecOptions) (akid.APISpecID, error)
