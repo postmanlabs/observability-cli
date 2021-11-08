@@ -284,6 +284,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		Out:                traceOut,
 		Interfaces:         interfacesFlag,
 		Filter:             packetFilter,
+		EnableOutbound:     enableOutboundFlag,
 		Tags:               tagsMap,
 		SampleRate:         sampleRate,
 		WitnessesPerMinute: rateLimitFlag,

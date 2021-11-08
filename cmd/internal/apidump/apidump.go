@@ -19,6 +19,7 @@ var (
 	serviceFlag         string
 	interfacesFlag      []string
 	filterFlag          string
+	enableOutboundFlag  bool
 	sampleRateFlag      float64
 	rateLimitFlag       float64
 	tagsFlag            []string
@@ -96,6 +97,7 @@ var Cmd = &cobra.Command{
 			WitnessesPerMinute: rateLimitFlag,
 			Interfaces:         interfacesFlag,
 			Filter:             filterFlag,
+			EnableOutbound:     enableOutboundFlag,
 			PathExclusions:     pathExclusionsFlag,
 			HostExclusions:     hostExclusionsFlag,
 			PathAllowlist:      pathAllowlistFlag,
@@ -134,6 +136,15 @@ func init() {
 		"filter",
 		"",
 		"Used to match packets going to and coming from your API service.")
+
+	// Collection of "outbound" traffic is now disabled by default. This is here
+	// in case anyone relies on the old behaviour.
+	Cmd.Flags().BoolVar(
+		&enableOutboundFlag,
+		"enable-outbound-collection",
+		false,
+		"Collect packets that don't match the filter and upload them to Akita Cloud as \"outbound\" traffic.")
+	Cmd.Flags().MarkHidden("enable-outbound-collection")
 
 	Cmd.Flags().StringSliceVar(
 		&interfacesFlag,
