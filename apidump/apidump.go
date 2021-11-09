@@ -246,10 +246,15 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 func Run(args Args) error {
 	args.lint()
 
+	// Capture outbound packets during debugging so we can report statistics for
+	// packets not matching the user's filters.
 	debugEnabled := viper.GetBool("debug")
+	capturingOutbound := args.EnableOutbound || debugEnabled
 
 	if args.EnableOutbound {
 		printer.Warningln("Enabling collection of outbound traffic. The \"--enable-outbound-collection\" flag is deprecated and may be removed in a future release.")
+	} else if debugEnabled {
+		printer.Debugln("Capturing filtered traffic for debugging.")
 	}
 
 	// Get the interfaces to listen on.
@@ -259,12 +264,12 @@ func Run(args Args) error {
 	}
 
 	// Build inbound and outbound filters for each interface.
-	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, args.EnableOutbound || debugEnabled, 0)
+	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, capturingOutbound, 0)
 	if err != nil {
 		return err
 	}
 	printer.Debugln("Inbound BPF filters:", inboundFilters)
-	if args.EnableOutbound {
+	if capturingOutbound {
 		printer.Debugln("Outbound BPF filters:", outboundFilters)
 	}
 
@@ -576,7 +581,7 @@ func Run(args Args) error {
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
 		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
-			if outboundSummary.Total().TCPPackets == 0 {
+			if capturingOutbound && outboundSummary.Total().TCPPackets == 0 {
 				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
