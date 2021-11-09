@@ -119,7 +119,7 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			acForFirstByte := sg.AssemblerContext(ignoreCount + int(discardFront))
 			ctx, ok := acForFirstByte.(*assemblerCtxWithSeq)
 			if !ok {
-				// Previous we errored in this case:
+				// Previously we errored in this case:
 				printer.V(6).Infof("received AssemblerContext %v without TCP seq info, treating %s data as raw bytes\n", acForFirstByte, fact.Name())
 				// but a user ran into quite a lot of them.  One theory is that this occurs when the HTTP response is in the
 				// second (or later) page of a reassembly buffer.  A test validates that, but there might be other causes
