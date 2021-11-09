@@ -119,7 +119,7 @@ func checkPcapPermissions(interfaces map[string]interfaceInfo) map[string]error 
 	}
 
 	wg.Wait()
-	printer.Debugf("Check pcap permission done after %s\n", time.Now().Sub(start))
+	printer.Debugf("Check pcap permission done after %s\n", time.Since(start))
 	close(errChan)
 	errs := map[string]error{}
 	for pe := range errChan {
@@ -201,7 +201,7 @@ func getInboundBPFFilter(interfaces map[string]interfaceInfo, bpfFilter string, 
 	return results, nil
 }
 
-func createBPFFilters(interfaces map[string]interfaceInfo, bpfFilter string, port uint16) (map[string]string, map[string]string, error) {
+func createBPFFilters(interfaces map[string]interfaceInfo, bpfFilter string, createOutbound bool, port uint16) (map[string]string, map[string]string, error) {
 	inboundFilters, err := getInboundBPFFilter(interfaces, bpfFilter, port)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to build BPF filters for inbound traffic")
@@ -210,11 +210,13 @@ func createBPFFilters(interfaces map[string]interfaceInfo, bpfFilter string, por
 	// for random traffic on the machine, but is the best we can do without an
 	// explicit outbound filter flag.
 	outboundFilters := make(map[string]string, len(inboundFilters))
-	for n, f := range inboundFilters {
-		// No inbound filter means that we can't differentiate between inbound and
-		// outbound (i.e. user didn't set --port or --bpf-filter).
-		if f != "" {
-			outboundFilters[n] = fmt.Sprintf("not (%s)", f)
+	if createOutbound {
+		for n, f := range inboundFilters {
+			// No inbound filter means that we can't differentiate between inbound and
+			// outbound (i.e. user didn't set --port or --bpf-filter).
+			if f != "" {
+				outboundFilters[n] = fmt.Sprintf("not (%s)", f)
+			}
 		}
 	}
 

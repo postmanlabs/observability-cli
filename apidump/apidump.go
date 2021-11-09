@@ -60,6 +60,7 @@ type Args struct {
 
 	Interfaces     []string
 	Filter         string
+	EnableOutbound bool
 	Tags           map[tags.Key]string
 	PathExclusions []string
 	HostExclusions []string
@@ -245,6 +246,17 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 func Run(args Args) error {
 	args.lint()
 
+	// Capture outbound packets during debugging so we can report statistics for
+	// packets not matching the user's filters.
+	debugEnabled := viper.GetBool("debug")
+	capturingOutbound := args.EnableOutbound || debugEnabled
+
+	if args.EnableOutbound {
+		printer.Warningln("Enabling collection of outbound traffic. The \"--enable-outbound-collection\" flag is deprecated and may be removed in a future release.")
+	} else if debugEnabled {
+		printer.Debugln("Capturing filtered traffic for debugging.")
+	}
+
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
 	if err != nil {
@@ -252,12 +264,14 @@ func Run(args Args) error {
 	}
 
 	// Build inbound and outbound filters for each interface.
-	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, 0)
+	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, capturingOutbound, 0)
 	if err != nil {
 		return err
 	}
 	printer.Debugln("Inbound BPF filters:", inboundFilters)
-	printer.Debugln("Outbound BPF filters:", outboundFilters)
+	if capturingOutbound {
+		printer.Debugln("Outbound BPF filters:", outboundFilters)
+	}
 
 	traceTags := collectTraceTags(&args)
 
@@ -355,7 +369,13 @@ func Run(args Args) error {
 
 		for interfaceName, filter := range filters {
 			var collector trace.Collector
-			{
+			if dir == kgxapi.Outbound && !args.EnableOutbound {
+				// During debugging, we enable outbound filters regardless of whether
+				// the user has enabled outbound collection. This allows us to report
+				// statistics for packets not matching the user's filters. We need to
+				// avoid sending this traffic to the back end, however.
+				collector = trace.NewDummyCollector()
+			} else {
 				var localCollector trace.Collector
 				if args.Out.LocalPath != nil {
 					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, dir, traceTags); err == nil {
@@ -457,10 +477,20 @@ func Run(args Args) error {
 		}
 		printer.Stderr.Infof("Running learn mode on interfaces %s\n", strings.Join(iNames, ", "))
 	}
-	if len(outboundFilters) == 0 {
+
+	unfiltered := true
+	for _, f := range inboundFilters {
+		if f != "" {
+			unfiltered = false
+			break
+		}
+	}
+	if unfiltered {
 		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that:"))
 		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - all network traffic is treated as your API traffic"))
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - outbound witness collection is disabled"))
+		if args.EnableOutbound {
+			printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - outbound witness collection is disabled"))
+		}
 	}
 
 	var stopErr error
@@ -551,7 +581,7 @@ func Run(args Args) error {
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
 		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
-			if outboundSummary.Total().TCPPackets == 0 {
+			if capturingOutbound && outboundSummary.Total().TCPPackets == 0 {
 				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
