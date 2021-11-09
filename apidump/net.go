@@ -119,7 +119,7 @@ func checkPcapPermissions(interfaces map[string]interfaceInfo) map[string]error 
 	}
 
 	wg.Wait()
-	printer.Debugf("Check pcap permission done after %s\n", time.Now().Sub(start))
+	printer.Debugf("Check pcap permission done after %s\n", time.Since(start))
 	close(errChan)
 	errs := map[string]error{}
 	for pe := range errChan {
