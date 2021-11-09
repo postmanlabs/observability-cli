@@ -8,7 +8,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20211020161529-944af4d11d6e
 	github.com/akitasoftware/akita-libs v0.0.0-20211029235557-9c877fa43915
-	github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 // indirect
+	github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
 	github.com/gdamore/tcell/v2 v2.1.0
@@ -24,11 +24,8 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.6.8
 	github.com/hashicorp/go-version v1.2.1
 	github.com/jpillora/backoff v1.0.0
-	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/onsi/ginkgo v1.16.5 // indirect
-	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/rivo/tview v0.0.0-20210217110421-8a8f78a6dd01
@@ -37,8 +34,6 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/yudai/gojsondiff v1.0.0
-	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
-	github.com/yudai/pp v2.0.1+incompatible // indirect
 	golang.org/x/text v0.3.6
 	gopkg.in/yaml.v2 v2.4.0
 )
