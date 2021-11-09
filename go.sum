@@ -37,8 +37,6 @@ github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de/go.mod 
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020004800-9990a7ea5dc0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 h1:moMrhfDCjrBbuIVBmmjhnm0eTWfJyk4S0HEXxR7YO9k=
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
-github.com/akitasoftware/plugin-flickr v0.0.0-20211109004546-789152deb447 h1:Fsab61bOC3sPd8xIRospdCEkHGe36b1Lu8TxOgggPR8=
-github.com/akitasoftware/plugin-flickr v0.0.0-20211109004546-789152deb447/go.mod h1:vcJSgM7bVIZLRshtne1arKhuznDPl6Ak0NdIYFqXWD0=
 github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f h1:mk6bFsTv25eBAq9ysLZYA5pnZ1Bsl7Id/DM0fHeUTmA=
 github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f/go.mod h1:vcJSgM7bVIZLRshtne1arKhuznDPl6Ak0NdIYFqXWD0=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 h1:smF2tmSOzy2Mm+0dGI2AIUHY+w0BUc+4tn40djz7+6U=
