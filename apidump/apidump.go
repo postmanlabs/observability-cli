@@ -18,6 +18,7 @@ import (
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -574,6 +575,15 @@ func Run(args Args) error {
 			DumpPacketCounters(interfaces, inboundPrefilter, nil, false)
 		}
 
+	}
+
+	// Report on recoverable error counts during trace
+	if pcap.CountNilAssemblerContext > 0 || pcap.CountNilAssemblerContextAfterParse > 0 || pcap.CountBadAssemblerContextType > 0 {
+		printer.Stderr.Infof("Detected packet assembly context problems during capture: %v empty, %v bad type, %v empty after parse",
+			pcap.CountNilAssemblerContext,
+			pcap.CountBadAssemblerContextType,
+			pcap.CountNilAssemblerContextAfterParse)
+		printer.Stderr.Infof("These errors may cause some packets to be missing from the trace.")
 	}
 
 	// Check summary to see if the inbound trace will have anything in it.

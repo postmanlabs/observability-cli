@@ -3,6 +3,7 @@ package pcap
 import (
 	"encoding/binary"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/gopacket"
@@ -14,6 +15,20 @@ import (
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/memview"
 )
+
+// These error counters don't seem to have a comfortable home, can we somehow get them back up to the
+// normal packet counter?  They can't go in tcpFlow because that's ephemeral.
+
+// Nunmber of times we got a nil assembler context; this can happen when the payload
+// resides in a page other than the first in the reassembly buffer.
+var CountNilAssemblerContext uint64
+
+// or when we flush old data?
+var CountNilAssemblerContextAfterParse uint64
+
+// Number of times we got an assembler context of the wrong type; this probably shouldn't
+// happen at all.
+var CountBadAssemblerContextType uint64
 
 // tcpFlow represents a uni-directional flow of TCP segments along with a
 // bidirectional ID that identifies the tcpFlow in the opposite direction.
@@ -104,7 +119,17 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			acForFirstByte := sg.AssemblerContext(ignoreCount + int(discardFront))
 			ctx, ok := acForFirstByte.(*assemblerCtxWithSeq)
 			if !ok {
-				printer.Errorf("received AssemblerContext without TCP seq info, treating %s data as raw bytes\n", fact.Name())
+				// Previous we errored in this case:
+				printer.V(6).Infof("received AssemblerContext %v without TCP seq info, treating %s data as raw bytes\n", acForFirstByte, fact.Name())
+				// but a user ran into quite a lot of them.  One theory is that this occurs when the HTTP response is in the
+				// second (or later) page of a reassembly buffer.  A test validates that, but there might be other causes
+				// that we don't yet understand.
+				// So, track the error count but don't spam the log.
+				if acForFirstByte == nil {
+					atomic.AddUint64(&CountNilAssemblerContext, 1)
+				} else {
+					atomic.AddUint64(&CountBadAssemblerContextType, 1)
+				}
 				f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData)
 				return
 			}
@@ -137,7 +162,8 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			// appear when we have called FlushCloseOlderThan, it would
 			// probably be misleading.
 			// TODO: what else can we log here to help identify what's going on?
-			printer.Errorf("AssemblerContext is nil for packet started at %v\n", parseStart)
+			printer.V(6).Infof("AssemblerContext is nil for packet started at %v\n", parseStart)
+			atomic.AddUint64(&CountNilAssemblerContextAfterParse, 1)
 			parseEnd = parseStart
 		}
 		f.outChan <- f.toPNT(parseStart, parseEnd, pnc)
