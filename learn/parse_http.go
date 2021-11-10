@@ -358,19 +358,40 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 			return nil, errors.Wrapf(err, "could not parse YAML body")
 		}
 		pbContentType = pb.HTTPBody_YAML
+	case "text/html":
+		body, err := limitedBufferBody(bodyStream)
+		if err != nil {
+			return nil, err
+		}
+		// This is a fairly cheesy way of handling the body, is there a better one?
+		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
+		pbContentType = pb.HTTPBody_TEXT_HTML
 	case "multipart/form-data":
 		return parseMultipartBody("form-data", mediaParams["boundary"], bodyStream, statusCode)
 	case "multipart/mixed":
 		return parseMultipartBody("mixed", mediaParams["boundary"], bodyStream, statusCode)
 	default:
-		return nil, ParseAPISpecError(fmt.Sprintf("could not parse body with media type: %s", mediaType))
+		// If an unknown type, handle it like text/plain or text/html, but record
+		// the original content-type in the witness.
+		body, err := limitedBufferBody(bodyStream)
+		if err != nil {
+			return nil, err
+		}
+		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
+		pbContentType = pb.HTTPBody_OTHER
+	}
+
+	bodyMeta := &pb.HTTPBody{
+		ContentType: pbContentType,
+	}
+
+	if pbContentType == pb.HTTPBody_OTHER {
+		bodyMeta.OtherType = mediaType
 	}
 
 	httpMeta := &pb.HTTPMeta{
 		Location: &pb.HTTPMeta_Body{
-			Body: &pb.HTTPBody{
-				ContentType: pbContentType,
-			},
+			Body: bodyMeta,
 		},
 		ResponseCode: int32(statusCode),
 	}
