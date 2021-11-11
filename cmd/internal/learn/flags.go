@@ -52,9 +52,6 @@ var (
 	legacyHARDirFlag    string
 	legacyHARSampleFlag float64
 	legacyGitHubURLFlag string
-
-	// Whether to enable the old behaviour of collecting "outbound" witnesses.
-	enableOutboundFlag bool
 )
 
 func init() {
@@ -89,15 +86,6 @@ func registerOptionalFlags() {
 		"filter",
 		"",
 		"Used to match packets going to and coming from your API service.")
-
-	// Collection of "outbound" traffic is now disabled by default. This is here
-	// in case anyone relies on the old behaviour.
-	Cmd.Flags().BoolVar(
-		&enableOutboundFlag,
-		"enable-outbound-collection",
-		false,
-		"Collect packets that don't match the filter and upload them to Akita Cloud as \"outbound\" traffic.")
-	Cmd.Flags().MarkHidden("enable-outbound-collection")
 
 	Cmd.Flags().StringSliceVar(
 		&tagsFlag,
