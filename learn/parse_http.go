@@ -47,9 +47,13 @@ const (
 	MaxFallbackInput  = 1 * 1024 * 1024
 	MaxFallbackOutput = 10 * 1024 * 1024
 
-	// This is used for non-JSON and non-YAML types where there is no point in reading more
-	// than a little bit anyway.
+	// This limit is used for non-YAML and non-JSON types that we can have some hope of parsing.
 	MaxBufferedBody = 5 * 1024 * 1024
+
+	// For types where we just return a string (or maybe an int) then it doesn't make
+	// sense to pull in a lot of data, just to hash it anyway.  The only reason to have more than
+	// a few bytes is so we can more reliably distinguish whether responses are identical.
+	SmallBodySample = 10 * 1024
 )
 
 // These need to be constructors, rather than a global var that's reused, so
@@ -272,8 +276,8 @@ func decodeBody(headers http.Header, body io.Reader, bodyDecompressed bool) (io.
 	return body, nil
 }
 
-func limitedBufferBody(bodyStream io.Reader) ([]byte, error) {
-	body, err := ioutil.ReadAll(io.LimitReader(bodyStream, MaxBufferedBody))
+func limitedBufferBody(bodyStream io.Reader, limit int64) ([]byte, error) {
+	body, err := ioutil.ReadAll(io.LimitReader(bodyStream, limit))
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading body")
 	}
@@ -299,6 +303,20 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 
 	var bodyData *pb.Data
 	var pbContentType pb.HTTPBody_ContentType
+
+	// Handle unstructured types, but use this local value to signal
+	// errors so we can do the check just once
+	var blobErr error = nil
+	handleAsBlob := func(interpret spec_util.InterpretStrings) {
+		// Grab a small sample
+		body, err := limitedBufferBody(bodyStream, SmallBodySample)
+		if err != nil {
+			blobErr = err
+			return
+		}
+		bodyData = parseElem(string(body), interpret)
+	}
+
 	switch mediaType {
 	case "application/json":
 		bodyData, err = parseHTTPBodyJSON(bodyStream)
@@ -307,7 +325,7 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 		}
 		pbContentType = pb.HTTPBody_JSON
 	case "application/x-www-form-urlencoded":
-		body, err := limitedBufferBody(bodyStream)
+		body, err := limitedBufferBody(bodyStream, MaxBufferedBody)
 		if err != nil {
 			return nil, err
 		}
@@ -336,49 +354,34 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 		// to be smart about re-interpreting values.
 		bodyData = parseElem(m, spec_util.INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_FORM_URL_ENCODED
-	case "application/octet-stream":
-		// Whether we interpret strings here doesn't matter, since the body is just
-		// a bitstring.
-		body, err := limitedBufferBody(bodyStream)
-		if err != nil {
-			return nil, err
-		}
-		bodyData = parseElem(body, spec_util.NO_INTERPRET_STRINGS)
-		pbContentType = pb.HTTPBody_OCTET_STREAM
-	case "text/plain", "text/csv":
-		body, err := limitedBufferBody(bodyStream)
-		if err != nil {
-			return nil, err
-		}
-		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
-		pbContentType = pb.HTTPBody_TEXT_PLAIN
 	case "application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml":
 		bodyData, err = parseHTTPBodyYAML(bodyStream)
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not parse YAML body")
 		}
 		pbContentType = pb.HTTPBody_YAML
-	case "text/html":
-		body, err := limitedBufferBody(bodyStream)
-		if err != nil {
-			return nil, err
-		}
-		// This is a fairly cheesy way of handling the body, is there a better one?
-		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
-		pbContentType = pb.HTTPBody_TEXT_HTML
 	case "multipart/form-data":
 		return parseMultipartBody("form-data", mediaParams["boundary"], bodyStream, statusCode)
 	case "multipart/mixed":
 		return parseMultipartBody("mixed", mediaParams["boundary"], bodyStream, statusCode)
+	case "application/octet-stream":
+		handleAsBlob(spec_util.NO_INTERPRET_STRINGS)
+		pbContentType = pb.HTTPBody_OCTET_STREAM
+	case "text/plain", "text/csv":
+		// If the text is just a number, report its type
+		handleAsBlob(spec_util.INTERPRET_STRINGS)
+		pbContentType = pb.HTTPBody_TEXT_PLAIN
+	case "text/html":
+		handleAsBlob(spec_util.NO_INTERPRET_STRINGS)
+		pbContentType = pb.HTTPBody_TEXT_HTML
 	default:
-		// If an unknown type, handle it like text/plain or text/html, but record
-		// the original content-type in the witness.
-		body, err := limitedBufferBody(bodyStream)
-		if err != nil {
-			return nil, err
-		}
-		bodyData = parseElem(string(body), spec_util.INTERPRET_STRINGS)
+		handleAsBlob(spec_util.NO_INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_OTHER
+	}
+
+	if blobErr != nil {
+		// Error from handleAsBlob cases above
+		return nil, blobErr
 	}
 
 	bodyMeta := &pb.HTTPBody{
