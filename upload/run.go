@@ -125,29 +125,21 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 	outboundCount := trace.NewPacketCountSummary()
 
 	// Create collector for ingesting the trace events.
-	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Inbound, args.Plugins)
-	outboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, api_schema.Outbound, args.Plugins)
+	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, args.Plugins)
 	defer inboundCollector.Close()
-	defer outboundCollector.Close()
 
 	inboundCollector = &trace.PacketCountCollector{
 		PacketCounts: inboundCount,
 		Collector:    inboundCollector,
 	}
 
-	outboundCollector = &trace.PacketCountCollector{
-		PacketCounts: outboundCount,
-		Collector:    outboundCollector,
-	}
-
 	if !args.IncludeTrackers {
 		inboundCollector = trace.New3PTrackerFilterCollector(inboundCollector)
-		outboundCollector = trace.New3PTrackerFilterCollector(outboundCollector)
 	}
 
 	for _, harFileName := range args.FilePaths {
 		printer.Stderr.Infof("Uploading %q...\n", harFileName)
-		if _, err := apispec.ProcessHAR(inboundCollector, outboundCollector, harFileName); err != nil {
+		if _, err := apispec.ProcessHAR(inboundCollector, harFileName); err != nil {
 			return errors.Wrapf(err, "failed to process HAR file %q", harFileName)
 		}
 	}

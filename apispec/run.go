@@ -242,7 +242,7 @@ func Run(args Args) error {
 	if args.Out.AkitaURI != nil && args.Out.AkitaURI.ObjectName != "" {
 		outSpecName = args.Out.AkitaURI.ObjectName
 	}
-	timeout := 10*time.Second
+	timeout := 10 * time.Second
 	if args.Timeout != nil {
 		timeout = *args.Timeout
 	}
@@ -457,16 +457,13 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 			return nil, errors.Wrap(err, "failed to create backend learn session")
 		}
 
-		inboundCol := trace.NewBackendCollector(svc, lrn, learnClient, kgxapi.Inbound, plugins)
-		outboundCol := trace.NewBackendCollector(svc, lrn, learnClient, kgxapi.Outbound, plugins)
+		collector := trace.NewBackendCollector(svc, lrn, learnClient, plugins)
 		if !includeTrackers {
-			inboundCol = trace.New3PTrackerFilterCollector(inboundCol)
-			outboundCol = trace.New3PTrackerFilterCollector(outboundCol)
+			collector = trace.New3PTrackerFilterCollector(collector)
 		}
-		defer inboundCol.Close()
-		defer outboundCol.Close()
+		defer collector.Close()
 
-		witnessCount, err := ProcessHAR(inboundCol, outboundCol, p)
+		witnessCount, err := ProcessHAR(collector, p)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to process HAR file %s", p)
 		}
