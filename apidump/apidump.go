@@ -374,7 +374,7 @@ func Run(args Args) error {
 			} else {
 				var localCollector trace.Collector
 				if args.Out.LocalPath != nil {
-					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, dir, traceTags); err == nil {
+					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, traceTags); err == nil {
 						localCollector = lc
 					} else {
 						return err
@@ -618,7 +618,7 @@ func Run(args Args) error {
 	return nil
 }
 
-func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDirection, tags map[tags.Key]string) (trace.Collector, error) {
+func createLocalCollector(interfaceName, outDir string, tags map[tags.Key]string) (trace.Collector, error) {
 	if fi, err := os.Stat(outDir); err == nil {
 		// File exists, check if it's a directory.
 		if !fi.IsDir() {
@@ -639,5 +639,5 @@ func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDir
 		}
 	}
 
-	return trace.NewHARCollector(interfaceName, outDir, netDir == kgxapi.Outbound, tags), nil
+	return trace.NewHARCollector(interfaceName, outDir, tags), nil
 }
