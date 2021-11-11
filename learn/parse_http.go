@@ -307,7 +307,19 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 	// Handle unstructured types, but use this local value to signal
 	// errors so we can do the check just once
 	var blobErr error = nil
-	handleAsBlob := func(interpret spec_util.InterpretStrings) {
+
+	// Interpret as []byte
+	handleAsBlob := func() {
+		// Grab a small sample
+		body, err := limitedBufferBody(bodyStream, SmallBodySample)
+		if err != nil {
+			blobErr = err
+			return
+		}
+		bodyData = parseElem(body, spec_util.NO_INTERPRET_STRINGS)
+	}
+	// Interpret as string, optionally attempt to parse into another type
+	handleAsString := func(interpret spec_util.InterpretStrings) {
 		// Grab a small sample
 		body, err := limitedBufferBody(bodyStream, SmallBodySample)
 		if err != nil {
@@ -365,17 +377,17 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 	case "multipart/mixed":
 		return parseMultipartBody("mixed", mediaParams["boundary"], bodyStream, statusCode)
 	case "application/octet-stream":
-		handleAsBlob(spec_util.NO_INTERPRET_STRINGS)
+		handleAsBlob()
 		pbContentType = pb.HTTPBody_OCTET_STREAM
 	case "text/plain", "text/csv":
 		// If the text is just a number, report its type
-		handleAsBlob(spec_util.INTERPRET_STRINGS)
+		handleAsString(spec_util.INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_TEXT_PLAIN
 	case "text/html":
-		handleAsBlob(spec_util.NO_INTERPRET_STRINGS)
+		handleAsString(spec_util.NO_INTERPRET_STRINGS)
 		pbContentType = pb.HTTPBody_TEXT_HTML
 	default:
-		handleAsBlob(spec_util.NO_INTERPRET_STRINGS)
+		handleAsBlob()
 		pbContentType = pb.HTTPBody_OTHER
 	}
 
