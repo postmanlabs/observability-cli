@@ -61,7 +61,6 @@ type Args struct {
 
 	Interfaces     []string
 	Filter         string
-	EnableOutbound bool
 	Tags           map[tags.Key]string
 	PathExclusions []string
 	HostExclusions []string
@@ -247,14 +246,11 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 func Run(args Args) error {
 	args.lint()
 
-	// Capture outbound packets during debugging so we can report statistics for
-	// packets not matching the user's filters.
-	debugEnabled := viper.GetBool("debug")
-	capturingOutbound := args.EnableOutbound || debugEnabled
+	// During debugging, capture packets not matching the user's filters so we can
+	// report statistics on those packets.
+	capturingOutbound := viper.GetBool("debug")
 
-	if args.EnableOutbound {
-		printer.Warningln("Enabling collection of outbound traffic. The \"--enable-outbound-collection\" flag is deprecated and may be removed in a future release.")
-	} else if debugEnabled {
+	if capturingOutbound {
 		printer.Debugln("Capturing filtered traffic for debugging.")
 	}
 
@@ -370,16 +366,15 @@ func Run(args Args) error {
 
 		for interfaceName, filter := range filters {
 			var collector trace.Collector
-			if dir == kgxapi.Outbound && !args.EnableOutbound {
-				// During debugging, we enable outbound filters regardless of whether
-				// the user has enabled outbound collection. This allows us to report
-				// statistics for packets not matching the user's filters. We need to
-				// avoid sending this traffic to the back end, however.
+			if dir == kgxapi.Outbound {
+				// During debugging, we enable outbound filters. This allows us to
+				// report statistics for packets not matching the user's filters. We
+				// need to avoid sending this traffic to the back end, however.
 				collector = trace.NewDummyCollector()
 			} else {
 				var localCollector trace.Collector
 				if args.Out.LocalPath != nil {
-					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, dir, traceTags); err == nil {
+					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, traceTags); err == nil {
 						localCollector = lc
 					} else {
 						return err
@@ -388,11 +383,11 @@ func Run(args Args) error {
 
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
 					collector = trace.TeeCollector{
-						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins),
+						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins),
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins)
+					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
 				} else {
@@ -487,11 +482,7 @@ func Run(args Args) error {
 		}
 	}
 	if unfiltered {
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that:"))
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - all network traffic is treated as your API traffic"))
-		if args.EnableOutbound {
-			printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - outbound witness collection is disabled"))
-		}
+		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that all network traffic is treated as your API traffic"))
 	}
 
 	var stopErr error
@@ -627,7 +618,7 @@ func Run(args Args) error {
 	return nil
 }
 
-func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDirection, tags map[tags.Key]string) (trace.Collector, error) {
+func createLocalCollector(interfaceName, outDir string, tags map[tags.Key]string) (trace.Collector, error) {
 	if fi, err := os.Stat(outDir); err == nil {
 		// File exists, check if it's a directory.
 		if !fi.IsDir() {
@@ -648,5 +639,5 @@ func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDir
 		}
 	}
 
-	return trace.NewHARCollector(interfaceName, outDir, netDir == kgxapi.Outbound, tags), nil
+	return trace.NewHARCollector(interfaceName, outDir, tags), nil
 }

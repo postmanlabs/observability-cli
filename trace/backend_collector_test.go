@@ -90,7 +90,7 @@ func TestObfuscate(t *testing.T) {
 		},
 	}
 
-	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, nil)
 	assert.NoError(t, col.Process(req))
 	assert.NoError(t, col.Process(resp))
 	assert.NoError(t, col.Close())
@@ -225,7 +225,7 @@ func TestTiming(t *testing.T) {
 		FinalPacketTime: startTime.Add(13 * time.Millisecond),
 	}
 
-	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, nil)
 	assert.NoError(t, col.Process(req))
 	assert.NoError(t, col.Process(resp))
 	assert.NoError(t, col.Close())
@@ -247,7 +247,7 @@ func TestMultipleInterfaces(t *testing.T) {
 		AnyTimes().
 		Return(nil)
 
-	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, kgxapi.Inbound, nil)
+	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, nil)
 
 	var wg sync.WaitGroup
 	fakeTrace := func(count int, start_seq int) {

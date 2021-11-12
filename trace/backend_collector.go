@@ -51,7 +51,7 @@ type witnessWithInfo struct {
 	witness *pb.Witness
 }
 
-func (r witnessWithInfo) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessReport, error) {
+func (r witnessWithInfo) toReport() (*kgxapi.WitnessReport, error) {
 	// Hash algorithm defined in
 	// https://docs.google.com/document/d/1ZANeoLTnsO10DcuzsAt6PBCt2MWLYW8oeu_A6d9bTJk/edit#heading=h.tbvm9waph6eu
 	hash := ir_hash.HashWitnessToString(r.witness)
@@ -62,7 +62,7 @@ func (r witnessWithInfo) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessR
 	}
 
 	return &kgxapi.WitnessReport{
-		Direction:       dir,
+		Direction:       kgxapi.Inbound,
 		OriginAddr:      r.srcIP,
 		OriginPort:      r.srcPort,
 		DestinationAddr: r.dstIP,
@@ -113,7 +113,6 @@ type BackendCollector struct {
 	serviceID      akid.ServiceID
 	learnSessionID akid.LearnSessionID
 	learnClient    rest.LearnClient
-	dir            kgxapi.NetworkDirection
 
 	// Cache un-paired partial witnesses by pair key.
 	// akid.WitnessID -> *witnessWithInfo
@@ -129,13 +128,12 @@ type BackendCollector struct {
 }
 
 func NewBackendCollector(svc akid.ServiceID,
-	lrn akid.LearnSessionID, lc rest.LearnClient, dir kgxapi.NetworkDirection,
+	lrn akid.LearnSessionID, lc rest.LearnClient,
 	plugins []plugin.AkitaPlugin) Collector {
 	col := &BackendCollector{
 		serviceID:      svc,
 		learnSessionID: lrn,
 		learnClient:    lc,
-		dir:            dir,
 		flushDone:      make(chan struct{}),
 		plugins:        plugins,
 	}
@@ -230,7 +228,7 @@ func (c *BackendCollector) uploadWitnesses(in []interface{}) {
 	reports := make([]*kgxapi.WitnessReport, 0, len(in))
 	for _, i := range in {
 		w := i.(*witnessWithInfo)
-		r, err := w.toReport(c.dir)
+		r, err := w.toReport()
 		if err == nil {
 			reports = append(reports, r)
 		} else {

@@ -35,7 +35,7 @@ type witnessResult struct {
 	id              akid.WitnessID
 }
 
-func (r witnessResult) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessReport, error) {
+func (r witnessResult) toReport() (*kgxapi.WitnessReport, error) {
 	// Hash algorithm defined in
 	// https://docs.google.com/document/d/1ZANeoLTnsO10DcuzsAt6PBCt2MWLYW8oeu_A6d9bTJk/edit#heading=h.tbvm9waph6eu
 	hash := ir_hash.HashWitnessToString(r.witness)
@@ -46,7 +46,7 @@ func (r witnessResult) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessRep
 	}
 
 	return &kgxapi.WitnessReport{
-		Direction:       dir,
+		Direction:       kgxapi.Inbound,
 		OriginAddr:      r.srcIP,
 		OriginPort:      r.srcPort,
 		DestinationAddr: r.dstIP,

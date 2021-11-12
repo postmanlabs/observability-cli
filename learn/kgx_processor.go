@@ -57,7 +57,7 @@ func NewKGXWitnessProcessor(lrn akid.LearnSessionID, client rest.LearnClient, bu
 }
 
 func (w *KGXWitnessProcessor) ProcessWitness(r *witnessResult) error {
-	report, err := r.toReport(w.dir)
+	report, err := r.toReport()
 	if err != nil {
 		return err
 	}

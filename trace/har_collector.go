@@ -21,16 +21,14 @@ type HARCollector struct {
 	interfaceName string
 	outDir        string
 
-	isOutbound bool
-	tags       map[tags.Key]string
+	tags map[tags.Key]string
 }
 
-func NewHARCollector(interfaceName, outDir string, isOutbound bool, tags map[tags.Key]string) *HARCollector {
+func NewHARCollector(interfaceName, outDir string, tags map[tags.Key]string) *HARCollector {
 	return &HARCollector{
 		logger:        har.NewLogger(),
 		interfaceName: interfaceName,
 		outDir:        outDir,
-		isOutbound:    isOutbound,
 		tags:          tags,
 	}
 }
@@ -64,7 +62,7 @@ func (h *HARCollector) Close() error {
 
 	// Record AkitaExtension
 	harContent.AkitaExt = har.AkitaExtension{
-		Outbound: h.isOutbound,
+		Outbound: false,
 		Tags:     h.tags,
 	}
 
