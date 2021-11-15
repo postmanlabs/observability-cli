@@ -18,6 +18,7 @@ import (
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -246,6 +247,14 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 func Run(args Args) error {
 	args.lint()
 
+	// During debugging, capture packets not matching the user's filters so we can
+	// report statistics on those packets.
+	capturingOutbound := viper.GetBool("debug")
+
+	if capturingOutbound {
+		printer.Debugln("Capturing filtered traffic for debugging.")
+	}
+
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
 	if err != nil {
@@ -253,12 +262,14 @@ func Run(args Args) error {
 	}
 
 	// Build inbound and outbound filters for each interface.
-	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, 0)
+	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, capturingOutbound, 0)
 	if err != nil {
 		return err
 	}
 	printer.Debugln("Inbound BPF filters:", inboundFilters)
-	printer.Debugln("Outbound BPF filters:", outboundFilters)
+	if capturingOutbound {
+		printer.Debugln("Outbound BPF filters:", outboundFilters)
+	}
 
 	traceTags := collectTraceTags(&args)
 
@@ -367,10 +378,15 @@ func Run(args Args) error {
 			//  1. Aggregate TCP-packet metadata into TCP-connection metadata.
 
 			// Back-end collector (sink).
-			{
+			if dir == kgxapi.Outbound {
+				// During debugging, we enable outbound filters. This allows us to
+				// report statistics for packets not matching the user's filters. We
+				// need to avoid sending this traffic to the back end, however.
+				collector = trace.NewDummyCollector()
+			} else {
 				var localCollector trace.Collector
 				if args.Out.LocalPath != nil {
-					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, dir, traceTags); err == nil {
+					if lc, err := createLocalCollector(interfaceName, *args.Out.LocalPath, traceTags); err == nil {
 						localCollector = lc
 					} else {
 						return err
@@ -379,11 +395,11 @@ func Run(args Args) error {
 
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
 					collector = trace.TeeCollector{
-						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins),
+						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins),
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, dir, args.Plugins)
+					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
 				} else {
@@ -460,10 +476,16 @@ func Run(args Args) error {
 		}
 		printer.Stderr.Infof("Running learn mode on interfaces %s\n", strings.Join(iNames, ", "))
 	}
-	if len(outboundFilters) == 0 {
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that:"))
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - all network traffic is treated as your API traffic"))
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("  - outbound witness collection is disabled"))
+
+	unfiltered := true
+	for _, f := range inboundFilters {
+		if f != "" {
+			unfiltered = false
+			break
+		}
+	}
+	if unfiltered {
+		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that all network traffic is treated as your API traffic"))
 	}
 
 	var stopErr error
@@ -549,12 +571,21 @@ func Run(args Args) error {
 
 	}
 
+	// Report on recoverable error counts during trace
+	if pcap.CountNilAssemblerContext > 0 || pcap.CountNilAssemblerContextAfterParse > 0 || pcap.CountBadAssemblerContextType > 0 {
+		printer.Stderr.Infof("Detected packet assembly context problems during capture: %v empty, %v bad type, %v empty after parse",
+			pcap.CountNilAssemblerContext,
+			pcap.CountBadAssemblerContextType,
+			pcap.CountNilAssemblerContextAfterParse)
+		printer.Stderr.Infof("These errors may cause some packets to be missing from the trace.")
+	}
+
 	// Check summary to see if the inbound trace will have anything in it.
 	totalCount := inboundSummary.Total()
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
 		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
-			if outboundSummary.Total().TCPPackets == 0 {
+			if capturingOutbound && outboundSummary.Total().TCPPackets == 0 {
 				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
@@ -590,7 +621,7 @@ func Run(args Args) error {
 	return nil
 }
 
-func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDirection, tags map[tags.Key]string) (trace.Collector, error) {
+func createLocalCollector(interfaceName, outDir string, tags map[tags.Key]string) (trace.Collector, error) {
 	if fi, err := os.Stat(outDir); err == nil {
 		// File exists, check if it's a directory.
 		if !fi.IsDir() {
@@ -611,5 +642,5 @@ func createLocalCollector(interfaceName, outDir string, netDir kgxapi.NetworkDir
 		}
 	}
 
-	return trace.NewHARCollector(interfaceName, outDir, netDir == kgxapi.Outbound, tags), nil
+	return trace.NewHARCollector(interfaceName, outDir, tags), nil
 }

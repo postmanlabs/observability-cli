@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"reflect"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/google/gopacket"
 
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/akitasoftware/akita-libs/akinet/http"
 	"github.com/akitasoftware/akita-libs/memview"
 )
 
@@ -475,5 +477,39 @@ func TestUDP(t *testing.T) {
 
 	if diff := netParseCmp(expected, actual); diff != "" {
 		t.Errorf("mismatch: %s", diff)
+	}
+}
+
+// This test triggers a nil assembly context in tcpFlow.reassembledWithIgnore.
+// Currently we have an error counter, but maybe we should come up with a better long-term solution.
+func XXX_TestHTTPResponseInJumboframe(t *testing.T) {
+	firstResponse := "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2000\r\n\r\n"
+	secondBody := "<html><body>This is some extra text</body></html>"
+	actualResponse := fmt.Sprintf("HTTP/1.1 400 Not Found\r\nContent-Type: text/html\r\nContent-Length: %d\r\n\r\n%s", len(secondBody), secondBody)
+	secondPacket := fmt.Sprintf("%02000d%s", 17, actualResponse)
+
+	pkts := []gopacket.Packet{
+		// Create a response that is in the second page of a jumbo frame packet, and arrived out of order
+		CreatePacketWithSeq(ip2, ip1, port2, port1, []byte(firstResponse[:1]), 0),
+		CreatePacketWithSeq(ip2, ip1, port2, port1, []byte(secondPacket), uint32(len(firstResponse))),
+		CreatePacketWithSeq(ip2, ip1, port2, port1, []byte(firstResponse[1:]), 1),
+		CreatePacketWithSeq(ip2, ip1, port2, port1, []byte("Extra junk"), uint32(len(firstResponse)+len(secondPacket))),
+	}
+
+	closeChan := make(chan struct{})
+	defer close(closeChan)
+	out, err := setupParseFromInterface(fakePcap(pkts), closeChan, http.NewHTTPResponseParserFactory())
+	if err != nil {
+		t.Errorf("unexpected error setting up listener: %v", err)
+		return
+	}
+
+	actual := make([]akinet.ParsedNetworkTraffic, 0, 3)
+	for nt := range out {
+		fmt.Printf("Packet %v: %v\n", len(actual), reflect.TypeOf(nt.Content))
+		actual = append(actual, nt)
+	}
+	if len(actual) != 3 {
+		t.Errorf("Expected three parsed packets")
 	}
 }

@@ -24,10 +24,13 @@ github.com/OneOfOne/xxhash v1.2.8 h1:31czK/TI9sNkxIKfaUfGlU47BAxQ0ztGgd9vPyqimf8
 github.com/OneOfOne/xxhash v1.2.8/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
 github.com/Pallinder/go-randomdata v1.2.0 h1:DZ41wBchNRb/0GfsePLiSwb0PHZmT67XY00lCDlaYPg=
 github.com/Pallinder/go-randomdata v1.2.0/go.mod h1:yHmJgulpD2Nfrm0cR9tI/+oAgRqCQQixsA8HyRZfV9Y=
-github.com/akitasoftware/akita-ir v0.0.0-20211020161529-944af4d11d6e h1:zBjVbWV3ZHEv4N+TXfitP10gdAUdAWIECsVH0WhHAms=
+github.com/akitasoftware/akita-cli v0.18.5/go.mod h1:xWKdto84IENKjzmS3ctCQWGetfYYhGDW3XNZY2/RduY=
 github.com/akitasoftware/akita-ir v0.0.0-20211020161529-944af4d11d6e/go.mod h1:WEWPzhZtxlJnov3MxcqSDiZaHHf00vs3aJwCdt3OwzA=
-github.com/akitasoftware/akita-libs v0.0.0-20211104222914-c1d92d73d691 h1:9GuSvWb6WvwwxWQAPqBzLgZc31F58wibQumhsdsnusw=
-github.com/akitasoftware/akita-libs v0.0.0-20211104222914-c1d92d73d691/go.mod h1:YLFCjhwQ0ZFfYWSUD2c9KYKEeBn+R+Cz+A5SitXvJz8=
+github.com/akitasoftware/akita-ir v0.0.0-20211111012430-2a7dcb20a144 h1:mcrsbJ/+2PJ4HOZ3ZodyevF3SL/al34+cmk044Sr1tk=
+github.com/akitasoftware/akita-ir v0.0.0-20211111012430-2a7dcb20a144/go.mod h1:WEWPzhZtxlJnov3MxcqSDiZaHHf00vs3aJwCdt3OwzA=
+github.com/akitasoftware/akita-libs v0.0.0-20211020162041-fe02207174fb/go.mod h1:YLFCjhwQ0ZFfYWSUD2c9KYKEeBn+R+Cz+A5SitXvJz8=
+github.com/akitasoftware/akita-libs v0.0.0-20211115202001-fb8e052dcaca h1:8AeN+tyBDAD86u2zgGFuhLsgehSd9ZvP3GbIN1fGOV0=
+github.com/akitasoftware/akita-libs v0.0.0-20211115202001-fb8e052dcaca/go.mod h1:VCOuaIO3Zly/tntC+FOubxneqwBNDwBjHSR/eTR0h2A=
 github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b h1:toBhS5rhCjo/N4YZ1cYtlsdSTGjMFH+gbJGCc+OmZiY=
 github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b/go.mod h1:wteInquxIdgWpGJEJmJEMJVtqM2i2vFZJ4W7B8G9ex8=
 github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de h1:rWkji88f/EWUY+qGc6pEyhpjgFbpsXwrnlTDTu5mLjY=
@@ -35,6 +38,8 @@ github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de/go.mod 
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020004800-9990a7ea5dc0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 h1:moMrhfDCjrBbuIVBmmjhnm0eTWfJyk4S0HEXxR7YO9k=
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
+github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f h1:mk6bFsTv25eBAq9ysLZYA5pnZ1Bsl7Id/DM0fHeUTmA=
+github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f/go.mod h1:vcJSgM7bVIZLRshtne1arKhuznDPl6Ak0NdIYFqXWD0=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 h1:smF2tmSOzy2Mm+0dGI2AIUHY+w0BUc+4tn40djz7+6U=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38/go.mod h1:r7bzyVFMNntcxPZXK3/+KdruV1H5KSlyVY0gc+NgInI=
 github.com/alecthomas/chroma v0.7.3 h1:NfdAERMy+esYQs8OXk0I868/qDxxCEo7FMz1WIqMAeI=

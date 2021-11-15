@@ -52,7 +52,7 @@ type witnessWithInfo struct {
 	witness *pb.Witness
 }
 
-func (r witnessWithInfo) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessReport, error) {
+func (r witnessWithInfo) toReport() (*kgxapi.WitnessReport, error) {
 	// Hash algorithm defined in
 	// https://docs.google.com/document/d/1ZANeoLTnsO10DcuzsAt6PBCt2MWLYW8oeu_A6d9bTJk/edit#heading=h.tbvm9waph6eu
 	hash := ir_hash.HashWitnessToString(r.witness)
@@ -63,7 +63,7 @@ func (r witnessWithInfo) toReport(dir kgxapi.NetworkDirection) (*kgxapi.WitnessR
 	}
 
 	return &kgxapi.WitnessReport{
-		Direction:       dir,
+		Direction:       kgxapi.Inbound,
 		OriginAddr:      r.srcIP,
 		OriginPort:      r.srcPort,
 		DestinationAddr: r.dstIP,
@@ -114,7 +114,6 @@ type BackendCollector struct {
 	serviceID      akid.ServiceID
 	learnSessionID akid.LearnSessionID
 	learnClient    rest.LearnClient
-	dir            kgxapi.NetworkDirection
 
 	// Cache un-paired partial witnesses by pair key.
 	// akid.WitnessID -> *witnessWithInfo
@@ -130,13 +129,12 @@ type BackendCollector struct {
 }
 
 func NewBackendCollector(svc akid.ServiceID,
-	lrn akid.LearnSessionID, lc rest.LearnClient, dir kgxapi.NetworkDirection,
+	lrn akid.LearnSessionID, lc rest.LearnClient,
 	plugins []plugin.AkitaPlugin) Collector {
 	col := &BackendCollector{
 		serviceID:      svc,
 		learnSessionID: lrn,
 		learnClient:    lc,
-		dir:            dir,
 		flushDone:      make(chan struct{}),
 		plugins:        plugins,
 	}
@@ -221,7 +219,6 @@ func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraff
 		SrcPort:        uint16(srcPort),
 		DestAddr:       dstAddr,
 		DestPort:       uint16(dstPort),
-		Direction:      c.dir,
 		FirstObserved:  packet.ObservationTime,
 		LastObserved:   packet.FinalPacketTime,
 		InitiatorKnown: tcp.Initiator != akinet.UnknownTCPConnectionInitiator,
@@ -258,7 +255,7 @@ func (c *BackendCollector) uploadReports(in []interface{}) {
 	for _, i := range in {
 		switch i := i.(type) {
 		case *witnessWithInfo:
-			r, err := i.toReport(c.dir)
+			r, err := i.toReport()
 			if err == nil {
 				witnesses = append(witnesses, r)
 			} else {
