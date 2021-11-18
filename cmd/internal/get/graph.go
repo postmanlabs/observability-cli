@@ -184,6 +184,14 @@ func getGraph(cmd *cobra.Command, args []string) error {
 			}
 		}
 		resp.TCPEdges = replacementTCPEdges
+
+		replacementTLSEdges := make([]api_schema.TLSGraphEdge, 0, len(resp.TLSEdges))
+		for _, e := range resp.TLSEdges {
+			if e.Source != "" && e.Target != "" {
+				replacementTLSEdges = append(replacementTLSEdges, e)
+			}
+		}
+		resp.TLSEdges = replacementTLSEdges
 	}
 
 	outputFn(&resp)
@@ -233,6 +241,26 @@ func printGraphBySource(graph *api_schema.GraphResponse) {
 		}
 		return false
 	})
+	sort.Slice(graph.TLSEdges, func(i, j int) bool {
+		edgeI, edgeJ := graph.TLSEdges[i], graph.TLSEdges[j]
+		if edgeI.Source != edgeJ.Source {
+			return edgeI.Source < edgeJ.Source
+		}
+		if edgeI.Target != edgeJ.Target {
+			return edgeI.Target < edgeJ.Target
+		}
+		if edgeI.TLSVersion != edgeJ.TLSVersion {
+			return edgeI.TLSVersion < edgeJ.TLSVersion
+		}
+		if (edgeI.NegotiatedApplicationProtocol == nil) != (edgeJ.NegotiatedApplicationProtocol == nil) {
+			// Sort known protocols first.
+			return edgeI.NegotiatedApplicationProtocol != nil
+		}
+		if edgeI.NegotiatedApplicationProtocol != nil && edgeJ.NegotiatedApplicationProtocol != nil && *edgeI.NegotiatedApplicationProtocol != *edgeJ.NegotiatedApplicationProtocol {
+			return *edgeI.NegotiatedApplicationProtocol < *edgeJ.NegotiatedApplicationProtocol
+		}
+		return false
+	})
 
 	fmt.Println("HTTP edges")
 	fmt.Println("==========")
@@ -275,6 +303,27 @@ func printGraphBySource(graph *api_schema.GraphResponse) {
 		fmt.Printf("%-30s\n", hostOrUnknown(e.Target))
 	}
 
+	fmt.Println()
+	fmt.Println("TLS edges")
+	fmt.Println("=========")
+	for i, e := range graph.TLSEdges {
+		// TODO: this assumes service is the only supported source vertex, which is true right now.
+		if i > 0 && e.Source != graph.TLSEdges[i-1].Source {
+			fmt.Printf("\n%-30s -> ", hostOrUnknown(e.Source))
+		} else if i == 0 {
+			fmt.Printf("%-30s -> ", hostOrUnknown(e.Source))
+		} else {
+			// Don't repeat source information
+			fmt.Printf("%-30s -> ", "")
+		}
+
+		if e.NegotiatedApplicationProtocol == nil {
+			fmt.Printf("%-30s (TLS %s)\n", hostOrUnknown(e.Target), e.TLSVersion)
+		} else {
+			fmt.Printf("%-30s (TLS %s; %s)\n", hostOrUnknown(e.Target), e.TLSVersion, *e.NegotiatedApplicationProtocol)
+		}
+	}
+
 }
 
 func printGraphByTarget(graph *api_schema.GraphResponse) {
@@ -290,6 +339,26 @@ func printGraphByTarget(graph *api_schema.GraphResponse) {
 		}
 		if edgeI.Source != edgeJ.Source {
 			return edgeI.Source < edgeJ.Source
+		}
+		return false
+	})
+	sort.Slice(graph.TLSEdges, func(i, j int) bool {
+		edgeI, edgeJ := graph.TLSEdges[i], graph.TLSEdges[j]
+		if edgeI.Source != edgeJ.Source {
+			return edgeI.Source < edgeJ.Source
+		}
+		if edgeI.Target != edgeJ.Target {
+			return edgeI.Target < edgeJ.Target
+		}
+		if edgeI.TLSVersion != edgeJ.TLSVersion {
+			return edgeI.TLSVersion < edgeJ.TLSVersion
+		}
+		if (edgeI.NegotiatedApplicationProtocol == nil) != (edgeJ.NegotiatedApplicationProtocol == nil) {
+			// Sort known protocols first.
+			return edgeI.NegotiatedApplicationProtocol != nil
+		}
+		if edgeI.NegotiatedApplicationProtocol != nil && edgeJ.NegotiatedApplicationProtocol != nil && *edgeI.NegotiatedApplicationProtocol != *edgeJ.NegotiatedApplicationProtocol {
+			return *edgeI.NegotiatedApplicationProtocol < *edgeJ.NegotiatedApplicationProtocol
 		}
 		return false
 	})
@@ -332,6 +401,25 @@ func printGraphByTarget(graph *api_schema.GraphResponse) {
 			fmt.Printf("\n")
 		}
 	}
+
+	for i, e := range graph.TLSEdges {
+		if i > 0 && e.Target != graph.TLSEdges[i-1].Target {
+			fmt.Printf("\n")
+		}
+
+		// TODO: this assumes service is the only supported source vertex, which is true right now.
+		fmt.Printf("%-30s -> ", hostOrUnknown(e.Source))
+
+		if (i > 0 && e.Target != graph.TLSEdges[i-1].Target) || i == 0 {
+			if e.NegotiatedApplicationProtocol == nil {
+				fmt.Printf("%-30s (TLS %s)\n", hostOrUnknown(e.Target), e.TLSVersion)
+			} else {
+				fmt.Printf("%-30s (TLS %s; %s)\n", hostOrUnknown(e.Target), e.TLSVersion, *e.NegotiatedApplicationProtocol)
+			}
+		} else {
+			fmt.Printf("\n")
+		}
+	}
 }
 
 func printDot(graph *api_schema.GraphResponse) {
@@ -361,6 +449,13 @@ func printDot(graph *api_schema.GraphResponse) {
 			e.Target,
 			e.Values[api_schema.Event_Count],
 			edgeProperty,
+		)
+	}
+	for _, e := range graph.TLSEdges {
+		fmt.Printf("  %q -> %q [label=\"%v\" style=\"dotted\"]\n",
+			hostOrUnknown(e.Source),
+			e.Target,
+			e.Values[api_schema.Event_Count],
 		)
 	}
 	fmt.Printf("}\n")
