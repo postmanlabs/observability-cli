@@ -69,6 +69,12 @@ func (c *collector) Process(packet akinet.ParsedNetworkTraffic) error {
 				return nil
 			}
 
+			// Spurious RSTs have been observed on a connection after it has been
+			// closed. Ignore those too.
+			if tcp.RST {
+				return nil
+			}
+
 			c.addConnection(packet.SrcIP, packet.SrcPort, packet.DstIP, packet.DstPort, packet.ObservationTime, tcp)
 			return nil
 		}
