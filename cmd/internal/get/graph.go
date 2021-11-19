@@ -344,11 +344,11 @@ func printGraphByTarget(graph *api_schema.GraphResponse) {
 	})
 	sort.Slice(graph.TLSEdges, func(i, j int) bool {
 		edgeI, edgeJ := graph.TLSEdges[i], graph.TLSEdges[j]
-		if edgeI.Source != edgeJ.Source {
-			return edgeI.Source < edgeJ.Source
-		}
 		if edgeI.Target != edgeJ.Target {
 			return edgeI.Target < edgeJ.Target
+		}
+		if edgeI.Source != edgeJ.Source {
+			return edgeI.Source < edgeJ.Source
 		}
 		if edgeI.TLSVersion != edgeJ.TLSVersion {
 			return edgeI.TLSVersion < edgeJ.TLSVersion
