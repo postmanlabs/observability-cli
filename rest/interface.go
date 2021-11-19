@@ -34,7 +34,10 @@ type LearnClient interface {
 	ListLearnSessionsWithStats(context.Context, akid.ServiceID, int) ([]*kgxapi.ListedLearnSession, error)
 	GetLearnSession(context.Context, akid.ServiceID, akid.LearnSessionID) (*kgxapi.LearnSession, error)
 	CreateLearnSession(context.Context, *kgxapi.APISpecReference, string, map[tags.Key]string) (akid.LearnSessionID, error)
-	ReportWitnesses(context.Context, akid.LearnSessionID, []*kgxapi.WitnessReport) error
+
+	// Uploads a batch of reports to Akita Cloud. This method is responsible for
+	// filling in the ClientID in the given ReportsUploadRequest.
+	AsyncReportsUpload(context.Context, akid.LearnSessionID, *kgxapi.UploadReportsRequest) error
 
 	// Creates a spec from a set of learn sessions.
 	CreateSpec(context.Context, string, []akid.LearnSessionID, CreateSpecOptions) (akid.APISpecID, error)

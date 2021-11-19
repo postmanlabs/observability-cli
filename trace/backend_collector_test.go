@@ -30,10 +30,10 @@ type witnessRecorder struct {
 	witnesses []*pb.Witness
 }
 
-// Record a call to LearnClient.ReportWitnesses
-func (wr *witnessRecorder) recordReportWitnesses(args ...interface{}) {
-	reports := args[2].([]*kgxapi.WitnessReport)
-	for _, r := range reports {
+// Record a call to LearnClient.AsyncReportsUpload
+func (wr *witnessRecorder) recordAsyncReportsUpload(args ...interface{}) {
+	reports := args[2].(*kgxapi.UploadReportsRequest)
+	for _, r := range reports.Witnesses {
 		bs, err := base64.URLEncoding.DecodeString(r.WitnessProto)
 		if err != nil {
 			panic(err)
@@ -56,8 +56,8 @@ func TestObfuscate(t *testing.T) {
 	var rec witnessRecorder
 	mockClient.
 		EXPECT().
-		ReportWitnesses(gomock.Any(), gomock.Any(), gomock.Any()).
-		Do(rec.recordReportWitnesses).
+		AsyncReportsUpload(gomock.Any(), gomock.Any(), gomock.Any()).
+		Do(rec.recordAsyncReportsUpload).
 		AnyTimes().
 		Return(nil)
 
@@ -193,8 +193,8 @@ func TestTiming(t *testing.T) {
 	var rec witnessRecorder
 	mockClient.
 		EXPECT().
-		ReportWitnesses(gomock.Any(), gomock.Any(), gomock.Any()).
-		Do(rec.recordReportWitnesses).
+		AsyncReportsUpload(gomock.Any(), gomock.Any(), gomock.Any()).
+		Do(rec.recordAsyncReportsUpload).
 		AnyTimes().
 		Return(nil)
 
@@ -243,7 +243,7 @@ func TestMultipleInterfaces(t *testing.T) {
 	mockClient := mockrest.NewMockLearnClient(ctrl)
 	defer ctrl.Finish()
 	mockClient.EXPECT().
-		ReportWitnesses(gomock.Any(), gomock.Any(), gomock.Any()).
+		AsyncReportsUpload(gomock.Any(), gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(nil)
 
@@ -296,7 +296,7 @@ func TestMultipleInterfaces(t *testing.T) {
 // Demonstrate that periodic flush exits
 func TestFlushExit(t *testing.T) {
 	b := &BackendCollector{}
-	b.uploadBatch = batcher.NewInMemory(
+	b.uploadReportBatch = batcher.NewInMemory(
 		func(_ []interface{}) {},
 		uploadBatchMaxSize,
 		uploadBatchFlushDuration,

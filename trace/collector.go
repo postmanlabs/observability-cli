@@ -7,6 +7,7 @@ import (
 	"github.com/OneOfOne/xxhash"
 
 	"github.com/akitasoftware/akita-cli/util"
+	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 )
 
@@ -23,19 +24,33 @@ type Collector interface {
 	Close() error
 }
 
-// Wraps a Collector and peforms sampling.
+// Wraps a Collector and performs sampling.
 type SamplingCollector struct {
-	SampleRate float64
-	Collector  Collector
+	// A sample is used if a coin flip is below this threshold.
+	sampleThreshold float64
+
+	collector Collector
+}
+
+// Wraps a collector and performs sampling. Returns the collector itself if the
+// given sampleRate is 1.0.
+func NewSamplingCollector(sampleRate float64, collector Collector) Collector {
+	if sampleRate == 1.0 {
+		return collector
+	}
+
+	return &SamplingCollector{
+		sampleThreshold: float64(math.MaxUint32) * sampleRate,
+		collector:       collector,
+	}
 }
 
 // Sample based on stream ID and seq so a pair of request and response are
 // either both selected or both excluded.
 func (sc *SamplingCollector) includeSample(key string) bool {
-	threshold := float64(math.MaxUint32) * sc.SampleRate
 	h := xxhash.New32()
 	h.WriteString(key)
-	return float64(h.Sum32()) < threshold
+	return float64(h.Sum32()) < sc.sampleThreshold
 }
 
 func (sc *SamplingCollector) Process(t akinet.ParsedNetworkTraffic) error {
@@ -45,17 +60,21 @@ func (sc *SamplingCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		key = c.StreamID.String() + strconv.Itoa(c.Seq)
 	case akinet.HTTPResponse:
 		key = c.StreamID.String() + strconv.Itoa(c.Seq)
+	case akinet.TCPConnectionMetadata:
+		key = akid.String(c.ConnectionID)
+	case akinet.TLSHandshakeMetadata:
+		key = akid.String(c.ConnectionID)
 	default:
 		key = ""
 	}
 	if sc.includeSample(key) {
-		return sc.Collector.Process(t)
+		return sc.collector.Process(t)
 	}
 	return nil
 }
 
 func (sc *SamplingCollector) Close() error {
-	return sc.Collector.Close()
+	return sc.collector.Close()
 }
 
 // Filters out CLI's own traffic to Akita APIs.
@@ -96,6 +115,10 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			DstPort:       t.DstPort,
 			HTTPResponses: 1,
 		})
+	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
+		// Don't count TCP metadata.
+	case akinet.TLSHandshakeMetadata:
+		// Don't count TLS metadata.
 	default:
 		pc.PacketCounts.Update(PacketCounters{
 			Interface: t.Interface,
