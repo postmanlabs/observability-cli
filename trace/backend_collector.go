@@ -161,6 +161,8 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		partial, parseHTTPErr = learn.ParseHTTP(content)
 	case akinet.TCPConnectionMetadata:
 		return c.processTCPConnection(t, content)
+	case akinet.TLSHandshakeMetadata:
+		return c.processTLSHandshake(content)
 	default:
 		// Non-HTTP traffic not handled
 		return nil
@@ -227,6 +229,18 @@ func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraff
 	return nil
 }
 
+func (c *BackendCollector) processTLSHandshake(tls akinet.TLSHandshakeMetadata) error {
+	c.uploadReportBatch.Add(&kgxapi.TLSHandshakeReport{
+		ID:                      tls.ConnectionID,
+		Version:                 tls.Version,
+		SNIHostname:             tls.SNIHostname,
+		SupportedProtocols:      tls.SupportedProtocols,
+		SelectedProtocol:        tls.SelectedProtocol,
+		SubjectAlternativeNames: tls.SubjectAlternativeNames,
+	})
+	return nil
+}
+
 func (c *BackendCollector) queueUpload(w *witnessWithInfo) {
 	for _, p := range c.plugins {
 		if err := p.Transform(w.witness.GetMethod()); err != nil {
@@ -252,6 +266,7 @@ func (c *BackendCollector) Close() error {
 func (c *BackendCollector) uploadReports(in []interface{}) {
 	witnesses := make([]*kgxapi.WitnessReport, 0, len(in))
 	tcpConnections := make([]*kgxapi.TCPConnectionReport, 0, len(in))
+	tlsHandshakes := make([]*kgxapi.TLSHandshakeReport, 0, len(in))
 	for _, i := range in {
 		switch i := i.(type) {
 		case *witnessWithInfo:
@@ -265,6 +280,9 @@ func (c *BackendCollector) uploadReports(in []interface{}) {
 		case *kgxapi.TCPConnectionReport:
 			tcpConnections = append(tcpConnections, i)
 
+		case *kgxapi.TLSHandshakeReport:
+			tlsHandshakes = append(tlsHandshakes, i)
+
 		default:
 			printer.Warningf("Ignoring unknown report type %s. (This is an internal error.)\n", reflect.TypeOf(i).Name())
 		}
@@ -276,6 +294,7 @@ func (c *BackendCollector) uploadReports(in []interface{}) {
 	upload := kgxapi.UploadReportsRequest{
 		Witnesses:      witnesses,
 		TCPConnections: tcpConnections,
+		TLSHandshakes:  tlsHandshakes,
 	}
 	err := c.learnClient.AsyncReportsUpload(ctx, c.learnSessionID, &upload)
 	if err != nil {

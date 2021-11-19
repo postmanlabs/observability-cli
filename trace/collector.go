@@ -62,6 +62,8 @@ func (sc *SamplingCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		key = c.StreamID.String() + strconv.Itoa(c.Seq)
 	case akinet.TCPConnectionMetadata:
 		key = akid.String(c.ConnectionID)
+	case akinet.TLSHandshakeMetadata:
+		key = akid.String(c.ConnectionID)
 	default:
 		key = ""
 	}
@@ -115,6 +117,8 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		})
 	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
 		// Don't count TCP metadata.
+	case akinet.TLSHandshakeMetadata:
+		// Don't count TLS metadata.
 	default:
 		pc.PacketCounts.Update(PacketCounters{
 			Interface: t.Interface,

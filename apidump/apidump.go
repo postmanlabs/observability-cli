@@ -23,6 +23,7 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/tcp_conn_tracker"
+	"github.com/akitasoftware/akita-cli/tls_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -369,12 +370,13 @@ func Run(args Args) error {
 			var collector trace.Collector
 
 			// Build collectors from the inside out (last applied to first applied).
-			//  7. Back-end collector (sink).
-			//  6. Statistics.
-			//  5. Subsampling.
-			//  4. Path and host filters.
-			//  3. Eliminate Akita CLI traffic.
-			//  2. Count packets before user filters for diagnostics.
+			//  8. Back-end collector (sink).
+			//  7. Statistics.
+			//  6. Subsampling.
+			//  5. Path and host filters.
+			//  4. Eliminate Akita CLI traffic.
+			//  3. Count packets before user filters for diagnostics.
+			//  2. Process TLS traffic into TLS-connection metadata.
 			//  1. Aggregate TCP-packet metadata into TCP-connection metadata.
 
 			// Back-end collector (sink).
@@ -451,6 +453,9 @@ func Run(args Args) error {
 					Collector:    collector,
 				}
 			}
+
+			// Process TLS traffic into TLS-connection metadata.
+			collector = tls_conn_tracker.NewCollector(collector)
 
 			// Process TCP-packet metadata into TCP-connection metadata.
 			collector = tcp_conn_tracker.NewCollector(collector)

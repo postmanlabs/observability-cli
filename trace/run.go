@@ -6,6 +6,7 @@ import (
 	col "github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-libs/akinet"
 	akihttp "github.com/akitasoftware/akita-libs/akinet/http"
+	"github.com/akitasoftware/akita-libs/akinet/tls"
 )
 
 func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc Collector, packetCount PacketCountConsumer) error {
@@ -14,6 +15,8 @@ func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, 
 	facts := []akinet.TCPParserFactory{
 		akihttp.NewHTTPRequestParserFactory(),
 		akihttp.NewHTTPResponseParserFactory(),
+		tls.NewTLSClientParserFactory(),
+		tls.NewTLSServerParserFactory(),
 	}
 
 	parser := col.NewNetworkTrafficParser(bufferShare)
