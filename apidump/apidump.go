@@ -28,7 +28,6 @@ import (
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akiuri"
-	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/tags"
 )
 
@@ -47,6 +46,13 @@ const (
 
 const (
 	subcommandOutputDelimiter = "======= _AKITA_SUBCOMMAND_ ======="
+)
+
+type filterState string
+
+const (
+	matchedFilter    filterState = "MATCHED"
+	notMatchedFilter filterState = "UNMATCHED"
 )
 
 type Args struct {
@@ -135,12 +141,12 @@ func (args *Args) lint() {
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
 // at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
 // in the Run function below); all we really need are those names.
-func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *trace.PacketCountSummary, outboundSummary *trace.PacketCountSummary, showInterface bool) {
+func DumpPacketCounters(interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCountSummary, unmatchedSummary *trace.PacketCountSummary, showInterface bool) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
-	directions := []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound}
-	toReport := []*trace.PacketCountSummary{inboundSummary}
-	if outboundSummary != nil {
-		toReport = append(toReport, outboundSummary)
+	filterStates := []filterState{matchedFilter, notMatchedFilter}
+	toReport := []*trace.PacketCountSummary{matchedSummary}
+	if unmatchedSummary != nil {
+		toReport = append(toReport, unmatchedSummary)
 	}
 
 	if showInterface {
@@ -151,9 +157,9 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 		for n := range interfaces {
 			for i, summary := range toReport {
 				count := summary.TotalOnInterface(n)
-				printer.Stderr.Debugf("%15s %8s %7d %5d %5d %5d\n",
+				printer.Stderr.Debugf("%15s %9s %7d %5d %5d %5d\n",
 					n,
-					directions[i],
+					filterStates[i],
 					count.TCPPackets,
 					count.HTTPRequests,
 					count.HTTPResponses,
@@ -168,14 +174,15 @@ func DumpPacketCounters(interfaces map[string]interfaceInfo, inboundSummary *tra
 	printer.Stderr.Debugf("%8v %7v %11v %5v\n", "", "TCP  ", "HTTP   ", "")
 	printer.Stderr.Debugf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
 	for i, summary := range toReport {
-		if directions[i] == kgxapi.Inbound {
+		if filterStates[i] == matchedFilter {
 			printer.Stderr.Debugf("--------- matching filter --------\n")
 		} else {
 			printer.Stderr.Debugf("------- not matching filter ------\n")
 		}
 		byPort := summary.AllPorts()
-		// We don't really know what's in the BPF filter; we know every packet in inbound
-		// must have matched, but that could be multiple ports, or some other criteria.
+		// We don't really know what's in the BPF filter; we know every packet in
+		// matchedSummary must have matched, but that could be multiple ports, or
+		// some other criteria.
 		for _, count := range byPort {
 			printer.Stderr.Debugf("%8d %7d %5d %5d %5d\n",
 				count.SrcPort,
@@ -250,9 +257,9 @@ func Run(args Args) error {
 
 	// During debugging, capture packets not matching the user's filters so we can
 	// report statistics on those packets.
-	capturingOutbound := viper.GetBool("debug")
+	capturingNegation := viper.GetBool("debug")
 
-	if capturingOutbound {
+	if capturingNegation {
 		printer.Debugln("Capturing filtered traffic for debugging.")
 	}
 
@@ -262,14 +269,14 @@ func Run(args Args) error {
 		return errors.Wrap(err, "failed to list network interfaces")
 	}
 
-	// Build inbound and outbound filters for each interface.
-	inboundFilters, outboundFilters, err := createBPFFilters(interfaces, args.Filter, capturingOutbound, 0)
+	// Build the user-specified filter and its negation for each interface.
+	userFilters, negationFilters, err := createBPFFilters(interfaces, args.Filter, capturingNegation, 0)
 	if err != nil {
 		return err
 	}
-	printer.Debugln("Inbound BPF filters:", inboundFilters)
-	if capturingOutbound {
-		printer.Debugln("Outbound BPF filters:", outboundFilters)
+	printer.Debugln("User-specified BPF filters:", userFilters)
+	if capturingNegation {
+		printer.Debugln("Negation BPF filters:", negationFilters)
 	}
 
 	traceTags := collectTraceTags(&args)
@@ -337,11 +344,11 @@ func Run(args Args) error {
 	}
 
 	// Initialize packet counts
-	inboundSummary := trace.NewPacketCountSummary()
-	outboundSummary := trace.NewPacketCountSummary()
+	filterSummary := trace.NewPacketCountSummary()
+	negationSummary := trace.NewPacketCountSummary()
 
-	userFilters := len(pathExclusions) + len(hostExclusions) + len(pathAllowlist) + len(hostAllowlist)
-	inboundPrefilter := trace.NewPacketCountSummary()
+	numUserFilters := len(pathExclusions) + len(hostExclusions) + len(pathAllowlist) + len(hostAllowlist)
+	prefilterSummary := trace.NewPacketCountSummary()
 
 	// Initialized shared rate object, if we are configured with a rate limit
 	var rateLimit *trace.SharedRateLimit
@@ -352,18 +359,18 @@ func Run(args Args) error {
 
 	// Start collecting
 	var doneWG sync.WaitGroup
-	doneWG.Add(len(inboundFilters) + len(outboundFilters))
-	errChan := make(chan error, len(inboundFilters)+len(outboundFilters)) // buffered enough so it never blocks
+	doneWG.Add(len(userFilters) + len(negationFilters))
+	errChan := make(chan error, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
-	for _, dir := range []kgxapi.NetworkDirection{kgxapi.Inbound, kgxapi.Outbound} {
+	for _, filterState := range []filterState{matchedFilter, notMatchedFilter} {
 		var summary *trace.PacketCountSummary
 		var filters map[string]string
-		if dir == kgxapi.Inbound {
-			filters = inboundFilters
-			summary = inboundSummary
+		if filterState == matchedFilter {
+			filters = userFilters
+			summary = filterSummary
 		} else {
-			filters = outboundFilters
-			summary = outboundSummary
+			filters = negationFilters
+			summary = negationSummary
 		}
 
 		for interfaceName, filter := range filters {
@@ -380,10 +387,11 @@ func Run(args Args) error {
 			//  1. Aggregate TCP-packet metadata into TCP-connection metadata.
 
 			// Back-end collector (sink).
-			if dir == kgxapi.Outbound {
-				// During debugging, we enable outbound filters. This allows us to
-				// report statistics for packets not matching the user's filters. We
-				// need to avoid sending this traffic to the back end, however.
+			if filterState == notMatchedFilter {
+				// During debugging, we capture the negation of the user's filters. This
+				// allows us to report statistics for packets not matching the user's
+				// filters. We need to avoid sending this traffic to the back end,
+				// however.
 				collector = trace.NewDummyCollector()
 			} else {
 				var localCollector trace.Collector
@@ -446,10 +454,10 @@ func Run(args Args) error {
 				}
 			}
 
-			// Count packets before user filters for diagnostics.
-			if dir == kgxapi.Inbound && userFilters > 0 {
+			// Count packets before user filters for diagnostics
+			if filterState == matchedFilter && numUserFilters > 0 {
 				collector = &trace.PacketCountCollector{
-					PacketCounts: inboundPrefilter,
+					PacketCounts: prefilterSummary,
 					Collector:    collector,
 				}
 			}
@@ -462,7 +470,7 @@ func Run(args Args) error {
 
 			// Compute the share of the page cache that each collection process may use.
 			// (gopacket does not currently permit a unified page cache for packet reassembly.)
-			bufferShare := 1.0 / float32(len(outboundFilters)+len(inboundFilters))
+			bufferShare := 1.0 / float32(len(negationFilters)+len(userFilters))
 
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
@@ -483,7 +491,7 @@ func Run(args Args) error {
 	}
 
 	unfiltered := true
-	for _, f := range inboundFilters {
+	for _, f := range userFilters {
 		if f != "" {
 			unfiltered = false
 			break
@@ -563,15 +571,15 @@ func Run(args Args) error {
 	}
 
 	if viper.GetBool("debug") {
-		if len(outboundFilters) == 0 {
-			DumpPacketCounters(interfaces, inboundSummary, nil, true)
+		if len(negationFilters) == 0 {
+			DumpPacketCounters(interfaces, filterSummary, nil, true)
 		} else {
-			DumpPacketCounters(interfaces, inboundSummary, outboundSummary, true)
+			DumpPacketCounters(interfaces, filterSummary, negationSummary, true)
 		}
 
-		if userFilters > 0 {
+		if numUserFilters > 0 {
 			printer.Stderr.Debugf("+++ Counts before allow and exclude filters and sampling +++\n")
-			DumpPacketCounters(interfaces, inboundPrefilter, nil, false)
+			DumpPacketCounters(interfaces, prefilterSummary, nil, false)
 		}
 
 	}
@@ -585,12 +593,12 @@ func Run(args Args) error {
 		printer.Stderr.Infof("These errors may cause some packets to be missing from the trace.")
 	}
 
-	// Check summary to see if the inbound trace will have anything in it.
-	totalCount := inboundSummary.Total()
+	// Check summary to see if the trace will have anything in it.
+	totalCount := filterSummary.Total()
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
 		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
-			if capturingOutbound && outboundSummary.Total().TCPPackets == 0 {
+			if capturingNegation && negationSummary.Total().TCPPackets == 0 {
 				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
@@ -606,12 +614,12 @@ func Run(args Args) error {
 			printer.Stderr.Infof("for instructions on using a proxy, or generate a HAR file with\n")
 			printer.Stderr.Infof("your browser as described in\n")
 			printer.Stderr.Infof("https://docs.akita.software/docs/collect-client-side-traffic-2\n")
-		} else if userFilters > 0 && inboundPrefilter.Total().HTTPRequests != 0 {
+		} else if numUserFilters > 0 && prefilterSummary.Total().HTTPRequests != 0 {
 			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
-				inboundPrefilter.Total().HTTPRequests)
+				prefilterSummary.Total().HTTPRequests)
 		}
-		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No inbound HTTP calls captured!"))
-		return errors.New("incoming API trace is empty")
+		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No HTTP calls captured!"))
+		return errors.New("API trace is empty")
 	}
 	if totalCount.HTTPRequests == 0 {
 		printer.Stderr.Warningf("%s ⚠\n\n", printer.Color.Yellow("Saw HTTP responses, but not requests."))
