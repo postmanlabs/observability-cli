@@ -108,7 +108,7 @@ func (r *SharedRateLimit) run() {
 	defer r.intervalTimer.Stop()
 
 	// Main loop: handle time events or shutdown
-	for true {
+	for {
 		select {
 		case <-r.done:
 			return

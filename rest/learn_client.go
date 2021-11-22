@@ -81,14 +81,11 @@ func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *k
 	return resp.ID, nil
 }
 
-func (c *learnClientImpl) ReportWitnesses(ctx context.Context, lrn akid.LearnSessionID, reports []*kgxapi.WitnessReport) error {
-	req := kgxapi.UploadWitnessesRequest{
-		ClientID: c.clientID,
-		Reports:  reports,
-	}
+func (c *learnClientImpl) AsyncReportsUpload(ctx context.Context, lrn akid.LearnSessionID, req *kgxapi.UploadReportsRequest) error {
+	req.ClientID = c.clientID
 	resp := map[string]interface{}{}
 
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_witnesses")
+	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_reports")
 	return c.post(ctx, p, req, &resp)
 }
 

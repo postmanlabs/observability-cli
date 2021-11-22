@@ -22,6 +22,8 @@ import (
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/tcp_conn_tracker"
+	"github.com/akitasoftware/akita-cli/tls_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -373,6 +375,18 @@ func Run(args Args) error {
 
 		for interfaceName, filter := range filters {
 			var collector trace.Collector
+
+			// Build collectors from the inside out (last applied to first applied).
+			//  8. Back-end collector (sink).
+			//  7. Statistics.
+			//  6. Subsampling.
+			//  5. Path and host filters.
+			//  4. Eliminate Akita CLI traffic.
+			//  3. Count packets before user filters for diagnostics.
+			//  2. Process TLS traffic into TLS-connection metadata.
+			//  1. Aggregate TCP-packet metadata into TCP-connection metadata.
+
+			// Back-end collector (sink).
 			if filterState == notMatchedFilter {
 				// During debugging, we capture the negation of the user's filters. This
 				// allows us to report statistics for packets not matching the user's
@@ -403,13 +417,8 @@ func Run(args Args) error {
 				}
 			}
 
-			// Build filters from the inside out (last to first)
-			//  3) statistics
-			//  2) subsampling
-			//  1) path and host filters
-			//  0) Akita CLI traffic
+			// Statistics.
 			//
-
 			// Count packets that have *passed* filtering (so that we know whether the
 			// trace is empty or not.)  In the future we could add columns for both
 			// pre- and post-filtering.
@@ -418,20 +427,13 @@ func Run(args Args) error {
 				Collector:    collector,
 			}
 
-			// Subsampling
-			if args.SampleRate != 1.0 {
-				// This is a change from previous behavior: now we sample after filtering
-				// instead of before.
-				collector = &trace.SamplingCollector{
-					SampleRate: args.SampleRate,
-					Collector:  collector,
-				}
-			}
+			// Subsampling.
+			collector = trace.NewSamplingCollector(args.SampleRate, collector)
 			if rateLimit != nil {
 				collector = rateLimit.NewCollector(collector)
 			}
 
-			// Host and path
+			// Path and host filters.
 			if len(hostExclusions) > 0 {
 				collector = trace.NewHTTPHostFilterCollector(hostExclusions, collector)
 			}
@@ -459,6 +461,12 @@ func Run(args Args) error {
 					Collector:    collector,
 				}
 			}
+
+			// Process TLS traffic into TLS-connection metadata.
+			collector = tls_conn_tracker.NewCollector(collector)
+
+			// Process TCP-packet metadata into TCP-connection metadata.
+			collector = tcp_conn_tracker.NewCollector(collector)
 
 			// Compute the share of the page cache that each collection process may use.
 			// (gopacket does not currently permit a unified page cache for packet reassembly.)
