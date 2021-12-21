@@ -17,6 +17,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidiff"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apispec"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ascii"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/daemon"
@@ -253,4 +254,7 @@ func init() {
 	rootCmd.AddCommand(legacy.SessionsCmd)
 	legacy.SpecsCmd.Hidden = true
 	rootCmd.AddCommand(legacy.SpecsCmd)
+
+	// Special hidden comands
+	rootCmd.AddCommand(ascii.Cmd)
 }
