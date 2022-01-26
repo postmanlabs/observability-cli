@@ -29,8 +29,8 @@ github.com/akitasoftware/akita-ir v0.0.0-20211020161529-944af4d11d6e/go.mod h1:W
 github.com/akitasoftware/akita-ir v0.0.0-20211111012430-2a7dcb20a144 h1:mcrsbJ/+2PJ4HOZ3ZodyevF3SL/al34+cmk044Sr1tk=
 github.com/akitasoftware/akita-ir v0.0.0-20211111012430-2a7dcb20a144/go.mod h1:WEWPzhZtxlJnov3MxcqSDiZaHHf00vs3aJwCdt3OwzA=
 github.com/akitasoftware/akita-libs v0.0.0-20211020162041-fe02207174fb/go.mod h1:YLFCjhwQ0ZFfYWSUD2c9KYKEeBn+R+Cz+A5SitXvJz8=
-github.com/akitasoftware/akita-libs v0.0.0-20211123030339-683a89e14579 h1:ml0jgCAdgzwdmTXwqiykIPyUo24QNRsUp+phaPIWTXU=
-github.com/akitasoftware/akita-libs v0.0.0-20211123030339-683a89e14579/go.mod h1:VCOuaIO3Zly/tntC+FOubxneqwBNDwBjHSR/eTR0h2A=
+github.com/akitasoftware/akita-libs v0.0.0-20220125063335-1c77deee480e h1:eoI2FIZiVVU9P83PI7R5Iz5ilE0cUmtC73kgKbvRA5M=
+github.com/akitasoftware/akita-libs v0.0.0-20220125063335-1c77deee480e/go.mod h1:VCOuaIO3Zly/tntC+FOubxneqwBNDwBjHSR/eTR0h2A=
 github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b h1:toBhS5rhCjo/N4YZ1cYtlsdSTGjMFH+gbJGCc+OmZiY=
 github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b/go.mod h1:wteInquxIdgWpGJEJmJEMJVtqM2i2vFZJ4W7B8G9ex8=
 github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de h1:rWkji88f/EWUY+qGc6pEyhpjgFbpsXwrnlTDTu5mLjY=
@@ -38,8 +38,6 @@ github.com/akitasoftware/martian/v3 v3.0.1-0.20210608174341-829c1134e9de/go.mod 
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020004800-9990a7ea5dc0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 h1:moMrhfDCjrBbuIVBmmjhnm0eTWfJyk4S0HEXxR7YO9k=
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
-github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f h1:mk6bFsTv25eBAq9ysLZYA5pnZ1Bsl7Id/DM0fHeUTmA=
-github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f/go.mod h1:vcJSgM7bVIZLRshtne1arKhuznDPl6Ak0NdIYFqXWD0=
 github.com/akitasoftware/plugin-flickr v0.2.0 h1:69nvlN01iZBV/cJNlvvGRtg+DQr0oXJT/kplasx0v9o=
 github.com/akitasoftware/plugin-flickr v0.2.0/go.mod h1:eeHJPGcOJbfrpqDiVleZlGhUORG80mDimf7QgX6wTeA=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 h1:smF2tmSOzy2Mm+0dGI2AIUHY+w0BUc+4tn40djz7+6U=
