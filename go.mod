@@ -8,7 +8,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20211111012430-2a7dcb20a144
 	github.com/akitasoftware/akita-libs v0.0.0-20211123030339-683a89e14579
-	github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f
+	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
 	github.com/gdamore/tcell/v2 v2.1.0

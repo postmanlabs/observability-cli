@@ -40,6 +40,8 @@ github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 h1:
 github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0/go.mod h1:5/6U7s9Kj5GXRZBiQejikd06mPYYWC+C1RoO8ehvifs=
 github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f h1:mk6bFsTv25eBAq9ysLZYA5pnZ1Bsl7Id/DM0fHeUTmA=
 github.com/akitasoftware/plugin-flickr v0.0.0-20211109005045-a66719c1e67f/go.mod h1:vcJSgM7bVIZLRshtne1arKhuznDPl6Ak0NdIYFqXWD0=
+github.com/akitasoftware/plugin-flickr v0.2.0 h1:69nvlN01iZBV/cJNlvvGRtg+DQr0oXJT/kplasx0v9o=
+github.com/akitasoftware/plugin-flickr v0.2.0/go.mod h1:eeHJPGcOJbfrpqDiVleZlGhUORG80mDimf7QgX6wTeA=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38 h1:smF2tmSOzy2Mm+0dGI2AIUHY+w0BUc+4tn40djz7+6U=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38/go.mod h1:r7bzyVFMNntcxPZXK3/+KdruV1H5KSlyVY0gc+NgInI=
 github.com/alecthomas/chroma v0.7.3 h1:NfdAERMy+esYQs8OXk0I868/qDxxCEo7FMz1WIqMAeI=
