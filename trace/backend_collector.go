@@ -9,8 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/akitasoftware/akita-libs/visitors"
+	"github.com/akitasoftware/akita-libs/visitors/http_rest"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/akitasoftware/akita-cli/learn"
 	"github.com/akitasoftware/akita-cli/plugin"
@@ -109,6 +112,31 @@ func (w witnessWithInfo) computeProcessingLatency(isRequest bool, t akinet.Parse
 	}
 }
 
+// Assigns tracking to all data in dst.
+func (w witnessWithInfo) setTracking() {
+	tracking := &pb.AkitaWitnessTracking{
+		Count: 1,
+		FirstSeen: timestamppb.New(w.observationTime),
+		LastSeenOffsetSeconds: 0,
+	}
+	visitor := &SetTrackingVisitor{
+		tracking: tracking,
+	}
+	http_rest.Apply(visitor, w.witness)
+}
+
+type SetTrackingVisitor struct {
+	http_rest.DefaultSpecVisitorImpl
+	tracking *pb.AkitaWitnessTracking
+}
+
+var _ http_rest.DefaultSpecVisitor = (*SetTrackingVisitor)(nil)
+
+func (v *SetTrackingVisitor) EnterData(self interface{}, c http_rest.SpecVisitorContext, d *pb.Data) visitors.Cont {
+	d.Tracking = proto.Clone(v.tracking).(*pb.AkitaWitnessTracking)
+	return visitors.Continue
+}
+
 // Sends witnesses up to akita cloud.
 type BackendCollector struct {
 	serviceID      akid.ServiceID
@@ -180,6 +208,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		// rather than the new partial.
 		learn.MergeWitness(pair.witness, partial.Witness)
 		pair.computeProcessingLatency(isRequest, t)
+		pair.setTracking()
 
 		// If partial is the request, flip the src/dst in the pair before
 		// reporting.
