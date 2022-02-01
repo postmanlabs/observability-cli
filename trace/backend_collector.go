@@ -13,7 +13,6 @@ import (
 	"github.com/akitasoftware/akita-libs/visitors/http_rest"
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/akitasoftware/akita-cli/learn"
 	"github.com/akitasoftware/akita-cli/plugin"
@@ -26,6 +25,7 @@ import (
 	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
+	"github.com/akitasoftware/akita-libs/tracking"
 )
 
 const (
@@ -114,17 +114,26 @@ func (w witnessWithInfo) computeProcessingLatency(isRequest bool, t akinet.Parse
 
 // Assigns tracking to all data in dst.
 func (w witnessWithInfo) setTracking() {
-	tracking := &pb.AkitaWitnessTracking{
+	// As a sanity check, don't add tracking data if the timestamp is before the
+	// start of the epoch where Akita began tracking these statistics.
+	// TODO(cns): report metrics when this happens.
+	if w.observationTime.Before(tracking.AkitaWitnessTrackingEpoch) {
+		return
+	}
+
+	trackingData := &pb.AkitaWitnessTracking{
 		// We set Count to 0 rather than 1 to save space; default values are
 		// encoded by omission.  Clients are responsible for treating 0 as 1
 		// when reading the count field.
-		Count: 0,
-		FirstSeen: timestamppb.New(w.observationTime),
+		Count:                 0,
+		FirstSeen:             uint32(tracking.AkitaWitnessTrackingEpoch.Sub(w.observationTime).Seconds()),
 		LastSeenOffsetSeconds: 0,
 	}
+
 	visitor := &SetTrackingVisitor{
-		tracking: tracking,
+		tracking: trackingData,
 	}
+
 	http_rest.Apply(visitor, w.witness)
 }
 
