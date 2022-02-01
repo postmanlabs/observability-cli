@@ -115,7 +115,10 @@ func (w witnessWithInfo) computeProcessingLatency(isRequest bool, t akinet.Parse
 // Assigns tracking to all data in dst.
 func (w witnessWithInfo) setTracking() {
 	tracking := &pb.AkitaWitnessTracking{
-		Count: 1,
+		// We set Count to 0 rather than 1 to save space; default values are
+		// encoded by omission.  Clients are responsible for treating 0 as 1
+		// when reading the count field.
+		Count: 0,
 		FirstSeen: timestamppb.New(w.observationTime),
 		LastSeenOffsetSeconds: 0,
 	}
