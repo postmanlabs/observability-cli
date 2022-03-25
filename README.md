@@ -30,7 +30,7 @@ The CLI is intended for use with the Akita SaaS tool: for instance, `apispec` co
 
 ### How to build
 Running the following commands will generate the `akita-cli` binary:
-1. Install [Go 1.15 or above](https://golang.org/doc/install). 
+1. Install [Go 1.18 or above](https://golang.org/doc/install). 
 2. Install `libpcap`
     - For Homebrew on mac: `brew install libpcap`
     - For Ubuntu/Debian: `apt-get install libpcap-dev`
