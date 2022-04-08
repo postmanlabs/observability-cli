@@ -17,11 +17,11 @@ jobs:
           name: Install pcap
           command: |
             sudo apt-get update -y
-            sudo apt-get install -y libpcap-dev mockgen
+            sudo apt-get install -y libpcap-dev
       - run:
           name: Install mockgen
           command: |
-            go get github.com/golang/mock/mockgen@v1.5.0
+            go install github.com/golang/mock/mockgen@v1.5.0
       - save_cache:
           key: go-mod-v4-{{ checksum "go.sum" }}
           paths:
