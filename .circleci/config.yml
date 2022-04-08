@@ -16,6 +16,7 @@ jobs:
       - run:
           name: Install pcap
           command: |
+            sudo apt-get update -y
             sudo apt-get install libpcap-dev
       - run:
           name: Install mockgen
