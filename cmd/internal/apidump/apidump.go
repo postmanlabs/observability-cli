@@ -1,6 +1,9 @@
 package apidump
 
 import (
+	"os"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -9,6 +12,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akiuri"
 )
@@ -30,6 +34,8 @@ var (
 	execCommandFlag     string
 	execCommandUserFlag string
 	pluginsFlag         []string
+	traceRotateFlag     string
+	deploymentFlag      string
 )
 
 var Cmd = &cobra.Command{
@@ -87,22 +93,51 @@ var Cmd = &cobra.Command{
 			}
 		}
 
+		// Allow specification of an alternate rotation time, default 1h.
+		// But, if the trace name is explicitly given (or selected by tag) then
+		// we cannot rotate.
+		var traceRotateInterval time.Duration
+		if traceRotateFlag != "" {
+			if outFlag.AkitaURI.ObjectName != "" {
+				return errors.New("Cannot specify trace rotation along with a specific trace.")
+			}
+			traceRotateInterval, err = time.ParseDuration(traceRotateFlag)
+			if err != nil {
+				return errors.Wrap(err, "Failed to parse trace rotation interval.")
+			}
+		} else {
+			if outFlag.AkitaURI.ObjectName == "" {
+				traceRotateInterval = time.Hour
+			} else {
+				traceRotateInterval = time.Duration(0)
+			}
+		}
+
+		if deploymentFlag != "default" && os.Getenv("AKITA_DEPLOYMENT") != deploymentFlag {
+			printer.Stderr.Warningf("Deployment in environment variable %q overrides the command line value %q.",
+				deploymentFlag,
+				os.Getenv("AKITA_DEPLOYMENT"),
+			)
+		}
+
 		args := apidump.Args{
-			ClientID:           akiflag.GetClientID(),
-			Domain:             akiflag.Domain,
-			Out:                outFlag,
-			Tags:               traceTags,
-			SampleRate:         sampleRateFlag,
-			WitnessesPerMinute: rateLimitFlag,
-			Interfaces:         interfacesFlag,
-			Filter:             filterFlag,
-			PathExclusions:     pathExclusionsFlag,
-			HostExclusions:     hostExclusionsFlag,
-			PathAllowlist:      pathAllowlistFlag,
-			HostAllowlist:      hostAllowlistFlag,
-			ExecCommand:        execCommandFlag,
-			ExecCommandUser:    execCommandUserFlag,
-			Plugins:            plugins,
+			ClientID:             akiflag.GetClientID(),
+			Domain:               akiflag.Domain,
+			Out:                  outFlag,
+			Tags:                 traceTags,
+			SampleRate:           sampleRateFlag,
+			WitnessesPerMinute:   rateLimitFlag,
+			Interfaces:           interfacesFlag,
+			Filter:               filterFlag,
+			PathExclusions:       pathExclusionsFlag,
+			HostExclusions:       hostExclusionsFlag,
+			PathAllowlist:        pathAllowlistFlag,
+			HostAllowlist:        hostAllowlistFlag,
+			ExecCommand:          execCommandFlag,
+			ExecCommandUser:      execCommandUserFlag,
+			Plugins:              plugins,
+			LearnSessionLifetime: traceRotateInterval,
+			Deployment:           deploymentFlag,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -219,4 +254,20 @@ func init() {
 		"Paths of third-party Akita plugins. They are executed in the order given.",
 	)
 	Cmd.Flags().MarkHidden("plugins")
+
+	Cmd.Flags().StringVar(
+		&traceRotateFlag,
+		"trace-rotate",
+		"",
+		"Interval at which the trace will be rotated to a new learn session.",
+	)
+	Cmd.Flags().MarkHidden("trace-rotate")
+
+	Cmd.Flags().StringVar(
+		&deploymentFlag,
+		"deployment",
+		"default",
+		"Deployment name to use; this distinguishes different instances of the same service.",
+	)
+
 }

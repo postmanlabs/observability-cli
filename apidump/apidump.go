@@ -90,6 +90,12 @@ type Args struct {
 	ExecCommandUser string
 
 	Plugins []plugin.AkitaPlugin
+
+	// How often to rotate learn sessions; set to zero to disable rotation.
+	LearnSessionLifetime time.Duration
+
+	// Deployment tag value; may come from an environment variable
+	Deployment string
 }
 
 func (args *Args) lint() {
@@ -227,6 +233,12 @@ func collectTraceTags(args *Args) map[tags.Key]string {
 	}
 
 	// Import information about production or staging environment
+	if args.Deployment != "" {
+		// A value in the environment value (the old way of doing things) will override
+		// the deployment name in the arguments, or "default" which is the default.
+		traceTags[tags.XAkitaDeployment] = args.Deployment
+		traceTags[tags.XAkitaSource] = tags.DeploymentSource
+	}
 	deployment.UpdateTags(traceTags)
 
 	// Set source to user by default (if not CI or deployment)
@@ -248,6 +260,31 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 		result[i] = r
 	}
 	return result, nil
+}
+
+// Periodically create a new learn session with a random name.
+func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.LearnSessionCollector, learnClient rest.LearnClient, backendSvc akid.ServiceID, traceTags map[tags.Key]string) {
+	t := time.NewTicker(args.LearnSessionLifetime)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+
+		case <-t.C:
+			traceName := util.RandomLearnSessionName()
+			backendLrn, err := util.NewLearnSession(args.Domain, args.ClientID, backendSvc, traceName, traceTags, nil)
+			if err != nil {
+				printer.Errorf("Failed to create trace %s: %v\n", traceName, err)
+				break
+			}
+			printer.Infof("Rotating to new trace on Akita Cloud: %v\n", traceName)
+			for _, c := range collectors {
+				c.SwitchLearnSession(backendLrn)
+			}
+		}
+	}
 }
 
 // Captures packets from the network and adds them to a trace. The trace is
@@ -310,6 +347,10 @@ func Run(args Args) error {
 		// Use a random object name by default.
 		if uri.ObjectName == "" {
 			uri.ObjectName = util.RandomLearnSessionName()
+		} else {
+			if args.LearnSessionLifetime != time.Duration(0) {
+				return errors.Errorf("Cannot automatically rotate sessions when a session name is provided.")
+			}
 		}
 	}
 
@@ -357,6 +398,9 @@ func Run(args Args) error {
 		defer rateLimit.Stop()
 	}
 
+	// Backend collectors that need trace rotation
+	var toRotate []trace.LearnSessionCollector
+
 	// Start collecting
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(userFilters) + len(negationFilters))
@@ -403,17 +447,25 @@ func Run(args Args) error {
 					}
 				}
 
+				var backendCollector trace.Collector
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
+					backendCollector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
 					collector = trace.TeeCollector{
-						Dst1: trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins),
+						Dst1: backendCollector,
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					collector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
+					backendCollector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
+					collector = backendCollector
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
 				} else {
 					return errors.Errorf("invalid output location")
+				}
+
+				// If the backend collector supports rotation of learn session ID, then set that up.
+				if lsc, ok := backendCollector.(trace.LearnSessionCollector); ok && lsc != nil {
+					toRotate = append(toRotate, lsc)
 				}
 			}
 
@@ -480,6 +532,11 @@ func Run(args Args) error {
 				}
 			}(interfaceName, filter)
 		}
+	}
+
+	if len(toRotate) > 0 && args.LearnSessionLifetime != time.Duration(0) {
+		printer.Debugf("Rotating learn sessions with interval %v\n", args.LearnSessionLifetime)
+		go RotateLearnSession(&args, stop, toRotate, learnClient, backendSvc, traceTags)
 	}
 
 	{
