@@ -109,6 +109,14 @@ func (w witnessWithInfo) computeProcessingLatency(isRequest bool, t akinet.Parse
 	}
 }
 
+// An additional method supported by the backend collector to switch learn
+// sessions.
+type LearnSessionCollector interface {
+	Collector
+
+	SwitchLearnSession(akid.LearnSessionID)
+}
+
 // Sends witnesses up to akita cloud.
 type BackendCollector struct {
 	serviceID      akid.ServiceID
@@ -125,8 +133,13 @@ type BackendCollector struct {
 	// Channel controlling periodic cache flush
 	flushDone chan struct{}
 
+	// Mutex protecting learnSessionID
+	learnSessionMutex sync.Mutex
+
 	plugins []plugin.AkitaPlugin
 }
+
+var _ LearnSessionCollector = (*BackendCollector)(nil)
 
 func NewBackendCollector(svc akid.ServiceID,
 	lrn akid.LearnSessionID, lc rest.LearnClient,
@@ -263,6 +276,18 @@ func (c *BackendCollector) Close() error {
 	return nil
 }
 
+func (c *BackendCollector) SwitchLearnSession(session akid.LearnSessionID) {
+	c.learnSessionMutex.Lock()
+	defer c.learnSessionMutex.Unlock()
+	c.learnSessionID = session
+}
+
+func (c *BackendCollector) getLearnSession() akid.LearnSessionID {
+	c.learnSessionMutex.Lock()
+	defer c.learnSessionMutex.Unlock()
+	return c.learnSessionID
+}
+
 func (c *BackendCollector) uploadReports(in []interface{}) {
 	witnesses := make([]*kgxapi.WitnessReport, 0, len(in))
 	tcpConnections := make([]*kgxapi.TCPConnectionReport, 0, len(in))
@@ -296,7 +321,7 @@ func (c *BackendCollector) uploadReports(in []interface{}) {
 		TCPConnections: tcpConnections,
 		TLSHandshakes:  tlsHandshakes,
 	}
-	err := c.learnClient.AsyncReportsUpload(ctx, c.learnSessionID, &upload)
+	err := c.learnClient.AsyncReportsUpload(ctx, c.getLearnSession(), &upload)
 	if err != nil {
 		switch e := err.(type) {
 		case rest.HTTPError:
