@@ -109,7 +109,8 @@ func (w witnessWithInfo) computeProcessingLatency(isRequest bool, t akinet.Parse
 	}
 }
 
-// An additional method supported by the backend collector to switch
+// An additional method supported by the backend collector to switch learn
+// sessions.
 type LearnSessionCollector interface {
 	Collector
 
