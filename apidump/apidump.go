@@ -234,8 +234,6 @@ func collectTraceTags(args *Args) map[tags.Key]string {
 
 	// Import information about production or staging environment
 	if args.Deployment != "" {
-		// A value in the environment value (the old way of doing things) will override
-		// the deployment name in the arguments, or "default" which is the default.
 		traceTags[tags.XAkitaDeployment] = args.Deployment
 		traceTags[tags.XAkitaSource] = tags.DeploymentSource
 	}

@@ -119,7 +119,7 @@ var Cmd = &cobra.Command{
 				deploymentFlag = "default"
 			}
 		} else if deploymentFlag == "-" {
-			// Unodcumented feature to disable setting the flag, since
+			// Undocumented feature to disable setting the flag, since
 			// we can't re-use "" for this.
 			deploymentFlag = ""
 		} else {
