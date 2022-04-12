@@ -113,11 +113,22 @@ var Cmd = &cobra.Command{
 			}
 		}
 
-		if deploymentFlag != "default" && os.Getenv("AKITA_DEPLOYMENT") != deploymentFlag {
-			printer.Stderr.Warningf("Deployment in environment variable %q overrides the command line value %q.",
-				deploymentFlag,
-				os.Getenv("AKITA_DEPLOYMENT"),
-			)
+		if deploymentFlag == "" {
+			deploymentFlag = "default"
+			if os.Getenv("AKITA_DEPLOYMENT") != "" {
+				deploymentFlag = "default"
+			}
+		} else if deploymentFlag == "-" {
+			// Undocumented feature to disable setting the flag, since
+			// we can't re-use "" for this.
+			deploymentFlag = ""
+		} else {
+			if os.Getenv("AKITA_DEPLOYMENT") != "" && os.Getenv("AKITA_DEPLOYMENT") != deploymentFlag {
+				printer.Stderr.Warningf("Deployment in environment variable %q overridden by the command line value %q.",
+					os.Getenv("AKITA_DEPLOYMENT"),
+					deploymentFlag,
+				)
+			}
 		}
 
 		args := apidump.Args{
@@ -266,8 +277,8 @@ func init() {
 	Cmd.Flags().StringVar(
 		&deploymentFlag,
 		"deployment",
-		"default",
-		"Deployment name to use; this distinguishes different instances of the same service.",
+		"",
+		"Deployment name to use; this distinguishes different instances of the same service. 'default' if unspecified.",
 	)
 
 }
