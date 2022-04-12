@@ -24,7 +24,6 @@ const (
 // Map of environment variables to tags, grouped by deployment type.
 var environmentToTag map[Deployment]map[string]tags.Key = map[Deployment]map[string]tags.Key{
 	Any: {
-		"AKITA_DEPLOYMENT":        tags.XAkitaDeployment,
 		"AKITA_DEPLOYMENT_COMMIT": tags.XAkitaGitCommit,
 	},
 	AWS: {
