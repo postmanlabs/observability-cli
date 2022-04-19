@@ -8,9 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -21,6 +18,8 @@ import (
 	"github.com/akitasoftware/akita-libs/akiuri"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 var GetSpecsCmd = &cobra.Command{
@@ -60,21 +59,34 @@ func init() {
 		"Show latest N specs.")
 }
 
+// All expected tags and values are present in spec.  Other tags may be
+// present, and other values than the one provided may be present for
+// the given tags.
 func allTagsMatch(spec *kgxapi.SpecInfo, expected map[tags.Key]string) bool {
 	// handle nil tags from REST call
 	if len(spec.Tags) == 0 {
 		return len(expected) == 0
 	}
+
 	for k, v := range expected {
-		specValue, ok := spec.Tags[k]
-		if !ok {
-			return false
+		// Continue if k is present and v is in Tags[k]; return false
+		// otherwise.
+		specValues, ok := spec.Tags[k]
+		if ok && contains[string](specValues, v) {
+			continue
 		}
-		if specValue != v {
-			return false
-		}
+		return false
 	}
 	return true
+}
+
+func contains[T comparable](ts []T, t T) bool {
+	for _, x := range ts {
+		if x == t {
+			return true
+		}
+	}
+	return false
 }
 
 func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
