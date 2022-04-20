@@ -63,6 +63,12 @@ func init() {
 // present, and other values than the one provided may be present for
 // the given tags.
 func allTagsMatch(spec *kgxapi.SpecInfo, expected map[tags.Key]string) bool {
+	// Use the multi-valued tags map if present.  Fall back to the single
+	// valued map otherwise.
+	tagMap := spec.TagsSet
+	if len(tagMap) == 0 {
+		tagMap = spec.Tags.AsTags()
+	}
 	// handle nil tags from REST call
 	if len(spec.Tags) == 0 {
 		return len(expected) == 0
@@ -71,22 +77,14 @@ func allTagsMatch(spec *kgxapi.SpecInfo, expected map[tags.Key]string) bool {
 	for k, v := range expected {
 		// Continue if k is present and v is in Tags[k]; return false
 		// otherwise.
-		specValues, ok := spec.Tags[k]
-		if ok && contains[string](specValues, v) {
-			continue
+		if specValues, ok := tagMap[k]; ok {
+			if _, exists := specValues[v]; exists {
+				continue
+			}
 		}
 		return false
 	}
 	return true
-}
-
-func contains[T comparable](ts []T, t T) bool {
-	for _, x := range ts {
-		if x == t {
-			return true
-		}
-	}
-	return false
 }
 
 func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
