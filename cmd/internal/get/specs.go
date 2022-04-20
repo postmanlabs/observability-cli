@@ -61,7 +61,8 @@ func init() {
 
 // All expected tags and values are present in spec.  Other tags may be
 // present, and other values than the one provided may be present for
-// the given tags.
+// the given tags.  Uses the multi-valued tag set when present, falling
+// back to the deprecated single-valued tag set otherwise.
 func allTagsMatch(spec *kgxapi.SpecInfo, expected map[tags.Key]string) bool {
 	// Use the multi-valued tags map if present.  Fall back to the single
 	// valued map otherwise.
