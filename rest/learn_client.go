@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/api_schema"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
@@ -214,6 +215,7 @@ func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID
 	q.Add("key", "method")
 	q.Add("key", "path")
 	q.Add("key", "code")
+	q.Add("aggregate", string(api_schema.Aggr_99p))
 
 	var resp kgxapi.TimelineResponse
 	err := c.getWithQuery(ctx, path, q, &resp)
