@@ -156,7 +156,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, timelineLimitFlag)
+	resp, err := learnClient.GetTimeline(ctx, serviceID, deploymentFlag, start, end, timelineLimitFlag)
 	if err != nil {
 		return cmderr.AkitaErr{Err: err}
 	}
