@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/api_schema"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
@@ -201,19 +202,21 @@ func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpe
 	return c.post(ctx, path, req, &resp)
 }
 
-// Returns individual events
-func (c *learnClientImpl) GetUnaggregatedTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int) (kgxapi.TimelineResponse, error) {
+// Returns events aggregated in 1-minute intervals.
+func (c *learnClientImpl) GetTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int) (kgxapi.TimelineResponse, error) {
 	path := fmt.Sprintf("/v1/services/%s/timeline/%s/query",
 		akid.String(serviceID), deployment)
 	q := url.Values{}
 	q.Add("start", fmt.Sprintf("%d", start.Unix()*1000000))
 	q.Add("end", fmt.Sprintf("%d", end.Unix()*1000000))
 	q.Add("limit", fmt.Sprintf("%d", limit))
+	q.Add("bucket", "1m")
 	// Separate out by response code
 	q.Add("key", "host")
 	q.Add("key", "method")
 	q.Add("key", "path")
 	q.Add("key", "code")
+	q.Add("aggregate", string(api_schema.Aggr_99p))
 
 	var resp kgxapi.TimelineResponse
 	err := c.getWithQuery(ctx, path, q, &resp)

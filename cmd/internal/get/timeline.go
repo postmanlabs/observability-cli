@@ -156,7 +156,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	resp, err := learnClient.GetUnaggregatedTimeline(ctx, serviceID, deploymentFlag, start, end, timelineLimitFlag)
+	resp, err := learnClient.GetTimeline(ctx, serviceID, deploymentFlag, start, end, timelineLimitFlag)
 	if err != nil {
 		return cmderr.AkitaErr{Err: err}
 	}
@@ -172,7 +172,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 		event := timeline.Events[0]
 		fmt.Printf("%s %9.3fms %6s %s %s %s\n",
 			event.Time.Format(time.RFC3339),
-			event.Values["latency"],
+			float32Value(event.Values.P99Latency),
 			formatStringAttr(timeline.GroupAttributes.Method),
 			formatStringAttr(timeline.GroupAttributes.Host),
 			formatStringAttr(timeline.GroupAttributes.PathTemplate),
@@ -186,6 +186,13 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func float32Value(val *float32) float32 {
+	if val == nil {
+		return 0
+	}
+	return *val
 }
 
 func formatStringAttr(val string) string {
