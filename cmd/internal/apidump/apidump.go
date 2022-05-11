@@ -116,7 +116,7 @@ var Cmd = &cobra.Command{
 		if deploymentFlag == "" {
 			deploymentFlag = "default"
 			if os.Getenv("AKITA_DEPLOYMENT") != "" {
-				deploymentFlag = "default"
+				deploymentFlag = os.Getenv("AKITA_DEPLOYMENT")
 			}
 		} else if deploymentFlag == "-" {
 			// Undocumented feature to disable setting the flag, since
