@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20211111012430-2a7dcb20a144
-	github.com/akitasoftware/akita-libs v0.0.0-20220519221314-5b2596e23c2d
+	github.com/akitasoftware/akita-libs v0.0.0-20220521050917-3050bbfe44d3
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
 	github.com/charmbracelet/glamour v0.2.0
@@ -39,7 +39,7 @@ require (
 )
 
 require (
-	github.com/akitasoftware/go-utils v0.0.0-20220518053907-19a933e06e67 // indirect
+	github.com/akitasoftware/go-utils v0.0.0-20220521045242-cabe4c63daed // indirect
 	github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 // indirect
 	github.com/alecthomas/chroma v0.7.3 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
