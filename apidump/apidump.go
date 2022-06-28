@@ -18,7 +18,6 @@ import (
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
-	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -96,6 +95,9 @@ type Args struct {
 
 	// Deployment tag value; may come from an environment variable
 	Deployment string
+
+	// Print packet capture statistics after N seconds.
+	StatsLogDelay int
 }
 
 func (args *Args) lint() {
@@ -142,69 +144,6 @@ func (args *Args) lint() {
 			printer.Stderr.Warningf("Ignoring empty regex in %s, which would otherwise include everything\n", paramName)
 		}
 	}
-}
-
-// DumpPacketCounters prints the accumulated packet counts per interface and per port,
-// at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
-// in the Run function below); all we really need are those names.
-func DumpPacketCounters(interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCountSummary, unmatchedSummary *trace.PacketCountSummary, showInterface bool) {
-	// Using a map gives inconsistent order when iterating (even on the same run!)
-	filterStates := []filterState{matchedFilter, notMatchedFilter}
-	toReport := []*trace.PacketCountSummary{matchedSummary}
-	if unmatchedSummary != nil {
-		toReport = append(toReport, unmatchedSummary)
-	}
-
-	if showInterface {
-		printer.Stderr.Debugf("==================================================\n")
-		printer.Stderr.Debugf("Packets per interface:\n")
-		printer.Stderr.Debugf("%15v %8v %7v %11v %5v\n", "", "", "TCP  ", "HTTP   ", "")
-		printer.Stderr.Debugf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
-		for n := range interfaces {
-			for i, summary := range toReport {
-				count := summary.TotalOnInterface(n)
-				printer.Stderr.Debugf("%15s %9s %7d %5d %5d %5d\n",
-					n,
-					filterStates[i],
-					count.TCPPackets,
-					count.HTTPRequests,
-					count.HTTPResponses,
-					count.Unparsed,
-				)
-			}
-		}
-	}
-
-	printer.Stderr.Debugf("==================================================\n")
-	printer.Stderr.Debugf("Packets per port:\n")
-	printer.Stderr.Debugf("%8v %7v %11v %5v\n", "", "TCP  ", "HTTP   ", "")
-	printer.Stderr.Debugf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
-	for i, summary := range toReport {
-		if filterStates[i] == matchedFilter {
-			printer.Stderr.Debugf("--------- matching filter --------\n")
-		} else {
-			printer.Stderr.Debugf("------- not matching filter ------\n")
-		}
-		byPort := summary.AllPorts()
-		// We don't really know what's in the BPF filter; we know every packet in
-		// matchedSummary must have matched, but that could be multiple ports, or
-		// some other criteria.
-		for _, count := range byPort {
-			printer.Stderr.Debugf("%8d %7d %5d %5d %5d\n",
-				count.SrcPort,
-				count.TCPPackets,
-				count.HTTPRequests,
-				count.HTTPResponses,
-				count.Unparsed,
-			)
-		}
-		if len(byPort) == 0 {
-			printer.Stderr.Debugf("       no packets captured        \n")
-		}
-	}
-
-	printer.Stderr.Debugf("==================================================\n")
-
 }
 
 // args.Tags may be initialized via the command line, but automated settings
@@ -398,6 +337,30 @@ func Run(args Args) error {
 
 	// Backend collectors that need trace rotation
 	var toRotate []trace.LearnSessionCollector
+
+	dumpSummary := NewSummary(
+		capturingNegation,
+		interfaces,
+		negationFilters,
+		numUserFilters,
+		filterSummary,
+		prefilterSummary,
+		negationSummary,
+	)
+
+	// Print a summary after a short delay.  This ensures that statistics will
+	// appear in customer logs close to when the process is started.
+	go func() {
+		if args.StatsLogDelay <= 0 {
+			return
+		}
+
+		time.Sleep(time.Duration(args.StatsLogDelay) * time.Second)
+
+		printer.Stderr.Infof("Printing packet capture statistics after %d seconds of capture.\n", args.StatsLogDelay)
+		dumpSummary.PrintPacketCounts()
+		dumpSummary.PrintWarnings()
+	}()
 
 	// Start collecting
 	var doneWG sync.WaitGroup
@@ -625,64 +588,11 @@ func Run(args Args) error {
 		return errors.Wrap(stopErr, "trace collection failed")
 	}
 
-	if viper.GetBool("debug") {
-		if len(negationFilters) == 0 {
-			DumpPacketCounters(interfaces, filterSummary, nil, true)
-		} else {
-			DumpPacketCounters(interfaces, filterSummary, negationSummary, true)
-		}
+	// Print warnings
+	dumpSummary.PrintWarnings()
 
-		if numUserFilters > 0 {
-			printer.Stderr.Debugf("+++ Counts before allow and exclude filters and sampling +++\n")
-			DumpPacketCounters(interfaces, prefilterSummary, nil, false)
-		}
-
-	}
-
-	// Report on recoverable error counts during trace
-	if pcap.CountNilAssemblerContext > 0 || pcap.CountNilAssemblerContextAfterParse > 0 || pcap.CountBadAssemblerContextType > 0 {
-		printer.Stderr.Infof("Detected packet assembly context problems during capture: %v empty, %v bad type, %v empty after parse",
-			pcap.CountNilAssemblerContext,
-			pcap.CountBadAssemblerContextType,
-			pcap.CountNilAssemblerContextAfterParse)
-		printer.Stderr.Infof("These errors may cause some packets to be missing from the trace.")
-	}
-
-	// Check summary to see if the trace will have anything in it.
-	totalCount := filterSummary.Total()
-	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
-		// TODO: recognize TLS handshakes and count them separately!
-		if totalCount.TCPPackets == 0 {
-			if capturingNegation && negationSummary.Total().TCPPackets == 0 {
-				printer.Stderr.Infof("Did not capture any TCP packets during the trace.\n")
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
-			} else {
-				printer.Stderr.Infof("Did not capture any TCP packets matching the filter.\n")
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean your filter is incorrect, such as the wrong TCP port."))
-			}
-		} else if totalCount.Unparsed > 0 {
-			printer.Stderr.Infof("Captured %d TCP packets total; %d unparsed TCP segments.\n",
-				totalCount.TCPPackets, totalCount.Unparsed)
-			printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean you are trying to capture HTTPS traffic."))
-			printer.Stderr.Infof("See https://docs.akita.software/docs/proxy-for-encrypted-traffic\n")
-			printer.Stderr.Infof("for instructions on using a proxy, or generate a HAR file with\n")
-			printer.Stderr.Infof("your browser as described in\n")
-			printer.Stderr.Infof("https://docs.akita.software/docs/collect-client-side-traffic-2\n")
-		} else if numUserFilters > 0 && prefilterSummary.Total().HTTPRequests != 0 {
-			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
-				prefilterSummary.Total().HTTPRequests)
-		}
-		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No HTTP calls captured!"))
+	if dumpSummary.IsEmpty() {
 		return errors.New("API trace is empty")
-	}
-	if totalCount.HTTPRequests == 0 {
-		printer.Stderr.Warningf("%s ⚠\n\n", printer.Color.Yellow("Saw HTTP responses, but not requests."))
-		return nil
-	}
-	if totalCount.HTTPResponses == 0 {
-		printer.Stderr.Warningf("%s ⚠\n\n", printer.Color.Yellow("Saw HTTP requests, but not responses."))
-		return nil
 	}
 
 	printer.Stderr.Infof("%s 🎉\n\n", printer.Color.Green("Success!"))

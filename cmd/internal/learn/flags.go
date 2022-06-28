@@ -23,6 +23,7 @@ var (
 	hostExclusionsFlag []string
 	pathAllowlistFlag  []string
 	hostAllowlistFlag  []string
+	statsLogDelay      int
 
 	execCommandFlag     string
 	execCommandUserFlag string
@@ -172,6 +173,12 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 		"Allows only HTTP hosts matching regular expressions.",
 	)
 
+	Cmd.Flags().IntVar(
+		&statsLogDelay,
+		"stats-log-delay",
+		60,
+		"Print packet capture statistics after N seconds.",
+	)
 	// GitHub integration flags.
 	// Both underscore and dash versions are supported to support legacy behavior
 	// that uses underscore. Exception is --github-repo, which replaces

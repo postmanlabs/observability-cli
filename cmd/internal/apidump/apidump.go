@@ -36,6 +36,7 @@ var (
 	pluginsFlag         []string
 	traceRotateFlag     string
 	deploymentFlag      string
+	statsLogDelay       int
 )
 
 var Cmd = &cobra.Command{
@@ -149,6 +150,7 @@ var Cmd = &cobra.Command{
 			Plugins:              plugins,
 			LearnSessionLifetime: traceRotateInterval,
 			Deployment:           deploymentFlag,
+			StatsLogDelay:        statsLogDelay,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -281,4 +283,10 @@ func init() {
 		"Deployment name to use; this distinguishes different instances of the same service. 'default' if unspecified.",
 	)
 
+	Cmd.Flags().IntVar(
+		&statsLogDelay,
+		"stats-log-delay",
+		60,
+		"Print packet capture statistics after N seconds.",
+	)
 }
