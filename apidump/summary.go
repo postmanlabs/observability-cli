@@ -1,6 +1,8 @@
 package apidump
 
 import (
+	"fmt"
+
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/trace"
@@ -63,11 +65,11 @@ func (s *Summary) PrintPacketCounts() {
 func (s *Summary) PrintWarnings() {
 	// Report on recoverable error counts during trace
 	if pcap.CountNilAssemblerContext > 0 || pcap.CountNilAssemblerContextAfterParse > 0 || pcap.CountBadAssemblerContextType > 0 {
-		printer.Stderr.Infof("Detected packet assembly context problems during capture: %v empty, %v bad type, %v empty after parse",
+		printer.Stderr.Infof("Detected packet assembly context problems during capture: %v empty, %v bad type, %v empty after parse. ",
 			pcap.CountNilAssemblerContext,
 			pcap.CountBadAssemblerContextType,
 			pcap.CountNilAssemblerContextAfterParse)
-		printer.Stderr.Infof("These errors may cause some packets to be missing from the trace.")
+		printer.Stderr.Infof("These errors may cause some packets to be missing from the trace.\n")
 	}
 
 	// Check summary to see if the trace will have anything in it.
@@ -76,21 +78,23 @@ func (s *Summary) PrintWarnings() {
 		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
 			if s.CapturingNegation && s.NegationSummary.Total().TCPPackets == 0 {
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("Did not capture any TCP packets during the trace."))
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean the traffic is on a different interface, or that"))
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("there is a problem sending traffic to the API."))
+				msg := "Did not capture any TCP packets during the trace. " +
+					"This may mean the traffic is on a different interface, or that " +
+					"there is a problem sending traffic to the API."
+				printer.Stderr.Infof("%s\n", printer.Color.Yellow(msg))
 			} else {
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("Did not capture any TCP packets matching the filter."))
-				printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean your filter is incorrect, such as the wrong TCP port."))
+				msg := "Did not capture any TCP packets matching the filter. " +
+					"This may mean your filter is incorrect, such as the wrong TCP port."
+				printer.Stderr.Infof("%s\n", printer.Color.Yellow(msg))
 			}
 		} else if totalCount.Unparsed > 0 {
-			printer.Stderr.Infof("Captured %d TCP packets total; %d unparsed TCP segments.\n",
-				totalCount.TCPPackets, totalCount.Unparsed)
-			printer.Stderr.Infof("%s\n", printer.Color.Yellow("This may mean you are trying to capture HTTPS traffic."))
-			printer.Stderr.Infof("See https://docs.akita.software/docs/proxy-for-encrypted-traffic\n")
-			printer.Stderr.Infof("for instructions on using a proxy, or generate a HAR file with\n")
-			printer.Stderr.Infof("your browser as described in\n")
-			printer.Stderr.Infof("https://docs.akita.software/docs/collect-client-side-traffic-2\n")
+			msg := fmt.Sprintf("Captured %d TCP packets total; %d unparsed TCP segments. ", totalCount.TCPPackets, totalCount.Unparsed) +
+				"This may mean you are trying to capture HTTPS traffic." +
+				"See https://docs.akita.software/docs/proxy-for-encrypted-traffic " +
+				"for instructions on using a proxy, or generate a HAR file with " +
+				"your browser as described in " +
+				"https://docs.akita.software/docs/collect-client-side-traffic-2."
+			printer.Stderr.Infof("%s\n", msg)
 		} else if s.NumUserFilters > 0 && s.PrefilterSummary.Total().HTTPRequests != 0 {
 			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
 				s.PrefilterSummary.Total().HTTPRequests)
