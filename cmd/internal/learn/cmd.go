@@ -294,6 +294,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		ExecCommand:        execCommandFlag,
 		ExecCommandUser:    execCommandUserFlag,
 		Plugins:            plugins,
+		StatsLogDelay:      statsLogDelay,
 	}
 
 	return traceOut.AkitaURI, apidump.Run(args)
