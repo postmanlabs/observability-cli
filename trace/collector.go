@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/OneOfOne/xxhash"
+	"github.com/akitasoftware/akita-libs/agent_telemetry"
 
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
@@ -95,21 +96,21 @@ func (sc *UserTrafficCollector) Close() error {
 
 // This is a shim to add packet counts based on payload type.
 type PacketCountCollector struct {
-	PacketCounts PacketCountConsumer
+	PacketCounts agent_telemetry.PacketCountConsumer
 	Collector    Collector
 }
 
 func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	switch t.Content.(type) {
 	case akinet.HTTPRequest:
-		pc.PacketCounts.Update(PacketCounters{
+		pc.PacketCounts.Update(agent_telemetry.PacketCounters{
 			Interface:    t.Interface,
 			SrcPort:      t.SrcPort,
 			DstPort:      t.DstPort,
 			HTTPRequests: 1,
 		})
 	case akinet.HTTPResponse:
-		pc.PacketCounts.Update(PacketCounters{
+		pc.PacketCounts.Update(agent_telemetry.PacketCounters{
 			Interface:     t.Interface,
 			SrcPort:       t.SrcPort,
 			DstPort:       t.DstPort,
@@ -120,7 +121,7 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	case akinet.TLSHandshakeMetadata:
 		// Don't count TLS metadata.
 	default:
-		pc.PacketCounts.Update(PacketCounters{
+		pc.PacketCounts.Update(agent_telemetry.PacketCounters{
 			Interface: t.Interface,
 			SrcPort:   t.SrcPort,
 			DstPort:   t.DstPort,
