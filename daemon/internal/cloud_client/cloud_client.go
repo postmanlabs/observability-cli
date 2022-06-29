@@ -8,8 +8,8 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/trace"
-	"github.com/akitasoftware/akita-libs/agent_telemetry"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/client_telemetry"
 	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/sampled_err"
 	"github.com/google/uuid"
@@ -153,7 +153,7 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 
 func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnClient, serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions, plugins []plugin.AkitaPlugin) {
 	// Create the collector.
-	packetCountSummary := agent_telemetry.NewPacketCountSummary()
+	packetCountSummary := client_telemetry.NewPacketCountSummary()
 	collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, plugins)
 	collector = &trace.PacketCountCollector{
 		PacketCounts: packetCountSummary,

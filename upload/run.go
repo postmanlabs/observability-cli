@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/akitasoftware/akita-libs/agent_telemetry"
+	"github.com/akitasoftware/akita-libs/client_telemetry"
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-libs/akid"
@@ -122,8 +122,8 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 		return errors.Errorf("trace %q already exists. Use \"--append\" if you wish to add events to the trace", traceName)
 	}
 
-	inboundCount := agent_telemetry.NewPacketCountSummary()
-	outboundCount := agent_telemetry.NewPacketCountSummary()
+	inboundCount := client_telemetry.NewPacketCountSummary()
+	outboundCount := client_telemetry.NewPacketCountSummary()
 
 	// Create collector for ingesting the trace events.
 	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, args.Plugins)

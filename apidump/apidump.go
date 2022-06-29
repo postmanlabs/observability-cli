@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/akitasoftware/akita-libs/agent_telemetry"
+	"github.com/akitasoftware/akita-libs/client_telemetry"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -323,11 +323,11 @@ func Run(args Args) error {
 	}
 
 	// Initialize packet counts
-	filterSummary := agent_telemetry.NewPacketCountSummary()
-	negationSummary := agent_telemetry.NewPacketCountSummary()
+	filterSummary := client_telemetry.NewPacketCountSummary()
+	negationSummary := client_telemetry.NewPacketCountSummary()
 
 	numUserFilters := len(pathExclusions) + len(hostExclusions) + len(pathAllowlist) + len(hostAllowlist)
-	prefilterSummary := agent_telemetry.NewPacketCountSummary()
+	prefilterSummary := client_telemetry.NewPacketCountSummary()
 
 	// Initialized shared rate object, if we are configured with a rate limit
 	var rateLimit *trace.SharedRateLimit
@@ -369,7 +369,7 @@ func Run(args Args) error {
 	errChan := make(chan error, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
 	for _, filterState := range []filterState{matchedFilter, notMatchedFilter} {
-		var summary *agent_telemetry.PacketCountSummary
+		var summary *client_telemetry.PacketCountSummary
 		var filters map[string]string
 		if filterState == matchedFilter {
 			filters = userFilters
