@@ -363,7 +363,7 @@ func Run(args Args) error {
 			ObservedDurationInSeconds: args.StatsLogDelay,
 		}
 
-		// Send telemetry start event.
+		// Send telemetry start event.  Stats are nil.
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
@@ -380,7 +380,7 @@ func Run(args Args) error {
 		dumpSummary.PrintPacketCounts()
 		dumpSummary.PrintWarnings()
 
-		// Send telemetry data.
+		// Send telemetry stats.
 		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(10)
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
