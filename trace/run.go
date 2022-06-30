@@ -1,7 +1,6 @@
 package trace
 
 import (
-	"github.com/akitasoftware/akita-libs/client_telemetry"
 	"github.com/pkg/errors"
 
 	col "github.com/akitasoftware/akita-cli/pcap"
@@ -10,7 +9,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akinet/tls"
 )
 
-func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc Collector, packetCount client_telemetry.PacketCountConsumer) error {
+func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc Collector, packetCount PacketCountConsumer) error {
 	defer proc.Close()
 
 	facts := []akinet.TCPParserFactory{

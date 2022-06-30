@@ -51,6 +51,9 @@ type LearnClient interface {
 
 	// Spec diff
 	GetSpecDiffTrie(context.Context, akid.APISpecID, akid.APISpecID) (*path_trie.PathTrie, error)
+
+	// Telemetry
+	PostClientPacketCaptureStats(context.Context, akid.ServiceID, string, kgxapi.PostClientPacketCaptureStatsRequest) error
 }
 
 type FrontClient interface {

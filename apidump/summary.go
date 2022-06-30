@@ -5,7 +5,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
-	"github.com/akitasoftware/akita-libs/client_telemetry"
+	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/spf13/viper"
 )
 
@@ -17,9 +17,9 @@ type Summary struct {
 	NumUserFilters    int
 
 	// Values that change over the course of apidump are pointers.
-	FilterSummary    *client_telemetry.PacketCountSummary
-	PrefilterSummary *client_telemetry.PacketCountSummary
-	NegationSummary  *client_telemetry.PacketCountSummary
+	FilterSummary    *trace.PacketCounter
+	PrefilterSummary *trace.PacketCounter
+	NegationSummary  *trace.PacketCounter
 }
 
 func NewSummary(
@@ -27,9 +27,9 @@ func NewSummary(
 	interfaces map[string]interfaceInfo,
 	negationFilters map[string]string,
 	numUserFilters int,
-	filterSummary *client_telemetry.PacketCountSummary,
-	prefilterSummary *client_telemetry.PacketCountSummary,
-	negationSummary *client_telemetry.PacketCountSummary,
+	filterSummary *trace.PacketCounter,
+	prefilterSummary *trace.PacketCounter,
+	negationSummary *trace.PacketCounter,
 ) *Summary {
 	return &Summary{
 		CapturingNegation: capturingNegation,
@@ -120,10 +120,10 @@ func (s *Summary) IsEmpty() bool {
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
 // at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
 // in the Run function below); all we really need are those names.
-func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map[string]interfaceInfo, matchedSummary *client_telemetry.PacketCountSummary, unmatchedSummary *client_telemetry.PacketCountSummary, showInterface bool) {
+func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCounter, unmatchedSummary *trace.PacketCounter, showInterface bool) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
 	filterStates := []filterState{matchedFilter, notMatchedFilter}
-	toReport := []*client_telemetry.PacketCountSummary{matchedSummary}
+	toReport := []*trace.PacketCounter{matchedSummary}
 	if unmatchedSummary != nil {
 		toReport = append(toReport, unmatchedSummary)
 	}

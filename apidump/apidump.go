@@ -1,6 +1,7 @@
 package apidump
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/akitasoftware/akita-libs/client_telemetry"
+	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -323,11 +324,11 @@ func Run(args Args) error {
 	}
 
 	// Initialize packet counts
-	filterSummary := client_telemetry.NewPacketCountSummary()
-	negationSummary := client_telemetry.NewPacketCountSummary()
+	filterSummary := trace.NewPacketCounter()
+	negationSummary := trace.NewPacketCounter()
 
 	numUserFilters := len(pathExclusions) + len(hostExclusions) + len(pathAllowlist) + len(hostAllowlist)
-	prefilterSummary := client_telemetry.NewPacketCountSummary()
+	prefilterSummary := trace.NewPacketCounter()
 
 	// Initialized shared rate object, if we are configured with a rate limit
 	var rateLimit *trace.SharedRateLimit
@@ -356,11 +357,38 @@ func Run(args Args) error {
 			return
 		}
 
+		req := kgxapi.PostClientPacketCaptureStatsRequest{
+			ClientID:                  args.ClientID,
+			ObservedStartingAt:        time.Now().UTC(),
+			ObservedDurationInSeconds: args.StatsLogDelay,
+		}
+
+		// Send telemetry start event.
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
+		if err != nil {
+			// Log an error and continue.
+			printer.Stderr.Errorf("Failed to send telemetry start event: %s", err)
+		}
+
+		// Wait while capturing statistics.
 		time.Sleep(time.Duration(args.StatsLogDelay) * time.Second)
 
+		// Print telemetry data.
 		printer.Stderr.Infof("Printing packet capture statistics after %d seconds of capture.\n", args.StatsLogDelay)
 		dumpSummary.PrintPacketCounts()
 		dumpSummary.PrintWarnings()
+
+		// Send telemetry data.
+		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(10)
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		err = learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
+		if err != nil {
+			// Log an error and continue.
+			printer.Stderr.Errorf("Failed to send telemetry statistics: %s", err)
+		}
 	}()
 
 	// Start collecting
@@ -369,7 +397,7 @@ func Run(args Args) error {
 	errChan := make(chan error, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
 	for _, filterState := range []filterState{matchedFilter, notMatchedFilter} {
-		var summary *client_telemetry.PacketCountSummary
+		var summary *trace.PacketCounter
 		var filters map[string]string
 		if filterState == matchedFilter {
 			filters = userFilters

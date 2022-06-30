@@ -190,6 +190,17 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 	return &resp, err
 }
 
+func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostClientPacketCaptureStatsRequest) error {
+	// TODO(cns): Where is this normally set?
+	if deployment == "" {
+		deployment = "default"
+	}
+
+	path := fmt.Sprintf("/v1/services/%s/telemetry/%s/client", akid.String(serviceID), deployment)
+	var resp struct{}
+	return c.post(ctx, path, req, &resp)
+}
+
 func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpecID, versionName string) error {
 	resp := struct {
 	}{}
