@@ -143,7 +143,7 @@ func (s *PacketCounter) Summary(n int) *PacketCountSummary {
 
 func topNByTcpPacketCount[T comparable](counts map[T]*PacketCounts, n int) map[T]*PacketCounts {
 	if n <= 0 {
-		return nil
+		return map[T]*PacketCounts{}
 	}
 
 	rv := make(map[T]*PacketCounts, math.Min(len(counts), n))
