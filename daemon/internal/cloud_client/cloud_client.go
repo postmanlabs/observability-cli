@@ -152,7 +152,7 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 
 func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnClient, serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions, plugins []plugin.AkitaPlugin) {
 	// Create the collector.
-	packetCountSummary := trace.NewPacketCountSummary()
+	packetCountSummary := trace.NewPacketCounter()
 	collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, plugins)
 	collector = &trace.PacketCountCollector{
 		PacketCounts: packetCountSummary,

@@ -19,5 +19,9 @@ bin/
 # vim
 *.swp
 
+# IntelliJ
+*.idea/**
+*.iml
+
 # Go mocks
 *.mock.go

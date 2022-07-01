@@ -12,6 +12,7 @@ import (
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -188,6 +189,16 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 		akid.String(c.serviceID), akid.String(baseID), akid.String(newID))
 	err := c.get(ctx, path, &resp)
 	return &resp, err
+}
+
+func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostClientPacketCaptureStatsRequest) error {
+	if deployment == "" {
+		return errors.Errorf("missing deployment tag")
+	}
+
+	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s", serviceID, deployment)
+	var resp struct{}
+	return c.post(ctx, path, req, &resp)
 }
 
 func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpecID, versionName string) error {

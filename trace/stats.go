@@ -4,44 +4,25 @@ import (
 	"sync"
 
 	"github.com/akitasoftware/akita-cli/pcap"
+	. "github.com/akitasoftware/akita-libs/client_telemetry"
+	"github.com/akitasoftware/go-utils/math"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"golang.org/x/exp/slices"
 )
-
-// We produce a set of packet counters indexed by interface and
-// port number (*either* source or destination.)
-type PacketCounters struct {
-	// Flow
-	Interface string
-	SrcPort   int
-	DstPort   int
-
-	// Number of events
-	TCPPackets    int
-	HTTPRequests  int
-	HTTPResponses int
-	Unparsed      int
-}
-
-func (c *PacketCounters) Add(d PacketCounters) {
-	c.TCPPackets += d.TCPPackets
-	c.HTTPRequests += d.HTTPRequests
-	c.HTTPResponses += d.HTTPResponses
-	c.Unparsed += d.Unparsed
-}
 
 // A consumer accepts incremental updates in the form
 // of PacketCounters.
 type PacketCountConsumer interface {
 	// Add an additional measurement to the current count
-	Update(delta PacketCounters)
+	Update(delta PacketCounts)
 }
 
 // Discard the count
 type PacketCountDiscard struct {
 }
 
-func (d *PacketCountDiscard) Update(_ PacketCounters) {
+func (d *PacketCountDiscard) Update(_ PacketCounts) {
 }
 
 // A consumer that sums the count by (interface, port) pairs.
@@ -49,28 +30,28 @@ func (d *PacketCountDiscard) Update(_ PacketCounters) {
 // in a separate goroutine, but we would *still* need a mutex to read the
 // totals out.
 // TODO: limit maximum size
-type PacketCountSummary struct {
-	total       PacketCounters
-	byPort      map[int]*PacketCounters
-	byInterface map[string]*PacketCounters
+type PacketCounter struct {
+	total       PacketCounts
+	byPort      map[int]*PacketCounts
+	byInterface map[string]*PacketCounts
 	mutex       sync.RWMutex
 }
 
-func NewPacketCountSummary() *PacketCountSummary {
-	return &PacketCountSummary{
-		byPort:      make(map[int]*PacketCounters),
-		byInterface: make(map[string]*PacketCounters),
+func NewPacketCounter() *PacketCounter {
+	return &PacketCounter{
+		byPort:      make(map[int]*PacketCounts),
+		byInterface: make(map[string]*PacketCounts),
 	}
 }
 
-func (s *PacketCountSummary) Update(c PacketCounters) {
+func (s *PacketCounter) Update(c PacketCounts) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if prev, ok := s.byPort[c.SrcPort]; ok {
 		prev.Add(c)
 	} else {
-		new := &PacketCounters{
+		new := &PacketCounts{
 			Interface: "*",
 			SrcPort:   c.SrcPort,
 			DstPort:   0,
@@ -84,7 +65,7 @@ func (s *PacketCountSummary) Update(c PacketCounters) {
 	} else {
 		// Use SrcPort as the identifier in the
 		// accumulated counter
-		new := &PacketCounters{
+		new := &PacketCounts{
 			Interface: "*",
 			SrcPort:   c.DstPort,
 			DstPort:   0,
@@ -96,7 +77,7 @@ func (s *PacketCountSummary) Update(c PacketCounters) {
 	if prev, ok := s.byInterface[c.Interface]; ok {
 		prev.Add(c)
 	} else {
-		new := &PacketCounters{
+		new := &PacketCounts{
 			Interface: c.Interface,
 			SrcPort:   0,
 			DstPort:   0,
@@ -108,42 +89,92 @@ func (s *PacketCountSummary) Update(c PacketCounters) {
 	s.total.Add(c)
 }
 
-func (s *PacketCountSummary) Total() PacketCounters {
+func (s *PacketCounter) Total() PacketCounts {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	return s.total
 }
 
 // Packet counters summed over interface
-func (s *PacketCountSummary) TotalOnInterface(name string) PacketCounters {
+func (s *PacketCounter) TotalOnInterface(name string) PacketCounts {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if count, ok := s.byInterface[name]; ok {
 		return *count
 	}
 
-	return PacketCounters{Interface: name}
+	return PacketCounts{Interface: name}
 }
 
 // Packet counters summed over port
-func (s *PacketCountSummary) TotalOnPort(port int) PacketCounters {
+func (s *PacketCounter) TotalOnPort(port int) PacketCounts {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 	if count, ok := s.byPort[port]; ok {
 		return *count
 	}
-	return PacketCounters{Interface: "*", SrcPort: port}
+	return PacketCounts{Interface: "*", SrcPort: port}
 }
 
 // All available port numbers
-func (s *PacketCountSummary) AllPorts() []PacketCounters {
+func (s *PacketCounter) AllPorts() []PacketCounts {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	ret := make([]PacketCounters, 0, len(s.byPort))
+	ret := make([]PacketCounts, 0, len(s.byPort))
 	for _, v := range s.byPort {
 		ret = append(ret, *v)
 	}
 	return ret
+}
+
+// Return a summary of the total, as well as the top N ports and
+// interfaces by TCP traffic.
+func (s *PacketCounter) Summary(n int) *PacketCountSummary {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	return &PacketCountSummary{
+		Version:        Version,
+		Total:          s.total,
+		TopByPort:      topNByTcpPacketCount(s.byPort, n),
+		TopByInterface: topNByTcpPacketCount(s.byInterface, n),
+	}
+}
+
+func topNByTcpPacketCount[T comparable](counts map[T]*PacketCounts, n int) map[T]*PacketCounts {
+	if n <= 0 {
+		return map[T]*PacketCounts{}
+	}
+
+	rv := make(map[T]*PacketCounts, math.Min(len(counts), n))
+
+	// If n is as large as the map, just copy it.
+	if len(counts) <= n {
+		for k, v := range counts {
+			rv[k] = v.Copy()
+		}
+		return rv
+	}
+
+	// Otherwise, extract the TCP packet counts and sort them.
+	tcpPacketCounts := make([]int, 0, len(counts))
+	for _, c := range counts {
+		tcpPacketCounts = append(tcpPacketCounts, c.TCPPackets)
+	}
+	slices.SortFunc(tcpPacketCounts, func(a, b int) bool {
+		return b < a
+	})
+
+	// Find the size of the Nth largest entry and add all entries
+	// at least that large to the new map.
+	threshold := tcpPacketCounts[n-1]
+	for k, c := range counts {
+		if c.TCPPackets >= threshold {
+			rv[k] = c.Copy()
+		}
+	}
+
+	return rv
 }
 
 // Observe every captured TCP segment here
@@ -151,7 +182,7 @@ func CountTcpPackets(ifc string, packetCount PacketCountConsumer) pcap.NetworkTr
 	observer := func(p gopacket.Packet) {
 		if tcpLayer := p.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 			tcp, _ := tcpLayer.(*layers.TCP)
-			packetCount.Update(PacketCounters{
+			packetCount.Update(PacketCounts{
 				Interface:  ifc,
 				SrcPort:    int(tcp.SrcPort),
 				DstPort:    int(tcp.DstPort),

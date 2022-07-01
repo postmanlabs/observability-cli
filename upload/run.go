@@ -121,8 +121,8 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 		return errors.Errorf("trace %q already exists. Use \"--append\" if you wish to add events to the trace", traceName)
 	}
 
-	inboundCount := trace.NewPacketCountSummary()
-	outboundCount := trace.NewPacketCountSummary()
+	inboundCount := trace.NewPacketCounter()
+	outboundCount := trace.NewPacketCounter()
 
 	// Create collector for ingesting the trace events.
 	inboundCollector := trace.NewBackendCollector(serviceID, traceID, learnClient, args.Plugins)

@@ -17,9 +17,9 @@ type Summary struct {
 	NumUserFilters    int
 
 	// Values that change over the course of apidump are pointers.
-	FilterSummary    *trace.PacketCountSummary
-	PrefilterSummary *trace.PacketCountSummary
-	NegationSummary  *trace.PacketCountSummary
+	FilterSummary    *trace.PacketCounter
+	PrefilterSummary *trace.PacketCounter
+	NegationSummary  *trace.PacketCounter
 }
 
 func NewSummary(
@@ -27,9 +27,9 @@ func NewSummary(
 	interfaces map[string]interfaceInfo,
 	negationFilters map[string]string,
 	numUserFilters int,
-	filterSummary *trace.PacketCountSummary,
-	prefilterSummary *trace.PacketCountSummary,
-	negationSummary *trace.PacketCountSummary,
+	filterSummary *trace.PacketCounter,
+	prefilterSummary *trace.PacketCounter,
+	negationSummary *trace.PacketCounter,
 ) *Summary {
 	return &Summary{
 		CapturingNegation: capturingNegation,
@@ -120,10 +120,10 @@ func (s *Summary) IsEmpty() bool {
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
 // at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
 // in the Run function below); all we really need are those names.
-func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCountSummary, unmatchedSummary *trace.PacketCountSummary, showInterface bool) {
+func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCounter, unmatchedSummary *trace.PacketCounter, showInterface bool) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
 	filterStates := []filterState{matchedFilter, notMatchedFilter}
-	toReport := []*trace.PacketCountSummary{matchedSummary}
+	toReport := []*trace.PacketCounter{matchedSummary}
 	if unmatchedSummary != nil {
 		toReport = append(toReport, unmatchedSummary)
 	}
