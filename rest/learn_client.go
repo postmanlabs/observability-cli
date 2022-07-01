@@ -12,6 +12,7 @@ import (
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -191,12 +192,11 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 }
 
 func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostClientPacketCaptureStatsRequest) error {
-	// TODO(cns): Where is this normally set?
 	if deployment == "" {
-		deployment = "default"
+		return errors.Errorf("missing deployment tag")
 	}
 
-	path := fmt.Sprintf("/v1/services/%s/telemetry/%s/client", akid.String(serviceID), deployment)
+	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s", serviceID, deployment)
 	var resp struct{}
 	return c.post(ctx, path, req, &resp)
 }
