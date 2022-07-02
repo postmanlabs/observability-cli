@@ -147,6 +147,9 @@ type pair[T constraints.Ordered] struct {
 	v *PacketCounts
 }
 
+// Return a new map with the N entries in counts with the highest TCP packet
+// counts.  In the case of a tie for the Nth position, the entry with the
+// smallest key is selected.
 func topNByTcpPacketCount[T constraints.Ordered](counts map[T]*PacketCounts, n int) map[T]*PacketCounts {
 	rv := make(map[T]*PacketCounts, math.Min(len(counts), n))
 
