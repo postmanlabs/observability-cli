@@ -57,6 +57,16 @@ func TestTopNTCP(t *testing.T) {
 			from:     map[int]*PacketCounts{80: &PacketCounts{}},
 			expected: map[int]*PacketCounts{80: &PacketCounts{}},
 		},
+		{
+			name: "take one from many, all equal",
+			take: 1,
+			from: map[int]*PacketCounts{
+				1: &PacketCounts{TCPPackets: 1},
+				2: &PacketCounts{TCPPackets: 1},
+				3: &PacketCounts{TCPPackets: 1},
+			},
+			expected: map[int]*PacketCounts{1: &PacketCounts{TCPPackets: 1}},
+		},
 	}
 
 	for _, tc := range tests {

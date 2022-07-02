@@ -8,6 +8,7 @@ import (
 	"github.com/akitasoftware/go-utils/math"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slices"
 )
 
@@ -141,37 +142,30 @@ func (s *PacketCounter) Summary(n int) *PacketCountSummary {
 	}
 }
 
-func topNByTcpPacketCount[T comparable](counts map[T]*PacketCounts, n int) map[T]*PacketCounts {
-	if n <= 0 {
-		return map[T]*PacketCounts{}
-	}
+type pair[T constraints.Ordered] struct {
+	k T
+	v *PacketCounts
+}
 
+func topNByTcpPacketCount[T constraints.Ordered](counts map[T]*PacketCounts, n int) map[T]*PacketCounts {
 	rv := make(map[T]*PacketCounts, math.Min(len(counts), n))
 
-	// If n is as large as the map, just copy it.
-	if len(counts) <= n {
-		for k, v := range counts {
-			rv[k] = v.Copy()
-		}
-		return rv
+	pairs := make([]pair[T], 0, len(counts))
+	for k, v := range counts {
+		pairs = append(pairs, pair[T]{k: k, v: v})
 	}
 
-	// Otherwise, extract the TCP packet counts and sort them.
-	tcpPacketCounts := make([]int, 0, len(counts))
-	for _, c := range counts {
-		tcpPacketCounts = append(tcpPacketCounts, c.TCPPackets)
-	}
-	slices.SortFunc(tcpPacketCounts, func(a, b int) bool {
-		return b < a
+	// Sort descending by TCPPackets.
+	slices.SortFunc(pairs, func(a, b pair[T]) bool {
+		if a.v.TCPPackets != b.v.TCPPackets {
+			return b.v.TCPPackets < a.v.TCPPackets
+		}
+		return a.k < b.k
 	})
 
-	// Find the size of the Nth largest entry and add all entries
-	// at least that large to the new map.
-	threshold := tcpPacketCounts[n-1]
-	for k, c := range counts {
-		if c.TCPPackets >= threshold {
-			rv[k] = c.Copy()
-		}
+	// Take the first N pairs and construct the result.
+	for i := 0; i < math.Min(len(pairs), n); i++ {
+		rv[pairs[i].k] = pairs[i].v
 	}
 
 	return rv
