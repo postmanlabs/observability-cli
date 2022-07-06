@@ -135,8 +135,8 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 	Cmd.Flags().Float64Var(
 		&rateLimitFlag,
 		"rate-limit",
-		0.0,
-		"Number of requests per minute to capture. Defaults to unlimited.",
+		1000.0,
+		"Number of requests per minute to capture.",
 	)
 
 	Cmd.Flags().StringSliceVar(

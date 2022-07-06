@@ -277,6 +277,11 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		sampleRate = legacyHARSampleFlag
 	}
 
+	// Rate limit must be greater than zero.
+	if rateLimitFlag <= 0.0 {
+		rateLimitFlag = 1000.0
+	}
+
 	// Create a trace on the cloud.
 	args := apidump.Args{
 		ClientID:           clientID,

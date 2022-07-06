@@ -132,6 +132,11 @@ var Cmd = &cobra.Command{
 			}
 		}
 
+		// Rate limit must be greater than zero.
+		if rateLimitFlag <= 0.0 {
+			rateLimitFlag = 1000.0
+		}
+
 		args := apidump.Args{
 			ClientID:             akiflag.GetClientID(),
 			Domain:               akiflag.Domain,
@@ -199,8 +204,8 @@ func init() {
 	Cmd.Flags().Float64Var(
 		&rateLimitFlag,
 		"rate-limit",
-		0.0,
-		"Number of requests per minute to capture. Defaults to unlimited.",
+		1000.0,
+		"Number of requests per minute to capture.",
 	)
 
 	Cmd.Flags().StringSliceVar(
