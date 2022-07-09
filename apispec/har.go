@@ -27,7 +27,7 @@ func ProcessHAR(col trace.Collector, p string) (int, error) {
 		return 0, nil
 	}
 
-	successCount, errs := parseFromHAR(col, harContent.Log)
+	successCount, errs := ParseFromHAR(col, harContent.Log)
 	if errs.TotalCount > 0 {
 		entriesCount := len(harContent.Log.Entries)
 		printer.Stderr.Warningf("Encountered errors with %d HAR file entries.\n", entriesCount-successCount)
@@ -104,7 +104,7 @@ func (t *ReconstructedTimestamps) reconstructFromHAR(entry *hl.CustomHAREntry) {
 }
 
 // Returns the number of entries successfully collected from the given HAR log.
-func parseFromHAR(col trace.Collector, log *hl.CustomHARLog) (int, sampled_err.Errors) {
+func ParseFromHAR(col trace.Collector, log *hl.CustomHARLog) (int, sampled_err.Errors) {
 	// Use the same UUID for all witnesses from the same HAR file.
 	harUUID := uuid.New()
 
