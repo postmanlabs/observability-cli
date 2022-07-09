@@ -37,6 +37,7 @@ var (
 	traceRotateFlag     string
 	deploymentFlag      string
 	statsLogDelay       int
+	telemetryInterval   int
 )
 
 var Cmd = &cobra.Command{
@@ -156,6 +157,7 @@ var Cmd = &cobra.Command{
 			LearnSessionLifetime: traceRotateInterval,
 			Deployment:           deploymentFlag,
 			StatsLogDelay:        statsLogDelay,
+			TelemetryInterval:    telemetryInterval,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -294,4 +296,12 @@ func init() {
 		60,
 		"Print packet capture statistics after N seconds.",
 	)
+
+	Cmd.Flags().IntVar(
+		&telemetryInterval,
+		"telemetry-interval",
+		5*60, // 5 minutes
+		"Upload client telemetry every N seconds.",
+	)
+	Cmd.Flags().MarkHidden("telemetry-interval")
 }
