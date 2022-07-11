@@ -43,6 +43,12 @@ const (
 	// processing.
 	// We budget for 5x to be safe.
 	pcapStopWaitTime = 5 * time.Second
+
+	// Number of top ports to show in telemetry
+	topNForSummary = 10
+
+	// Context timeout for telemetry upload
+	telemetryTimeout = 30 * time.Second
 )
 
 const (
@@ -100,6 +106,9 @@ type Args struct {
 
 	// Print packet capture statistics after N seconds.
 	StatsLogDelay int
+
+	// Periodically report telemetry every N seconds thereafter
+	TelemetryInterval int
 }
 
 func (args *Args) lint() {
@@ -221,6 +230,67 @@ func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.Lea
 			printer.Infof("Rotating to new trace on Akita Cloud: %v\n", traceName)
 			for _, c := range collectors {
 				c.SwitchLearnSession(backendLrn)
+			}
+		}
+	}
+}
+
+// Goroutine to send telemetry, stop when "done" is closed.
+//
+// Prints a summary after a short delay.  This ensures that statistics will
+// appear in customer logs close to when the process is started.
+// Omits if args.StatsLogDelay is <= 0.
+//
+// Sends telemetry to the server on a regular basis.
+// Omits if args.TelemetryInterval is <= 0
+func SendTelemetry(args *Args, learnClient rest.LearnClient, backendSvc akid.ServiceID, dumpSummary *Summary, done <-chan struct{}) {
+	if args.StatsLogDelay <= 0 && args.TelemetryInterval <= 0 {
+		return
+	}
+
+	req := kgxapi.PostClientPacketCaptureStatsRequest{
+		ClientID:                  args.ClientID,
+		ObservedStartingAt:        time.Now().UTC(),
+		ObservedDurationInSeconds: args.StatsLogDelay,
+	}
+
+	// Upload "req" to the server.
+	send := func() {
+		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(topNForSummary)
+		ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
+		defer cancel()
+		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
+		if err != nil {
+			// Log an error and continue.
+			printer.Stderr.Errorf("Failed to send telemetry statistics: %s", err)
+		}
+	}
+
+	// Send telemetry start event.  Stats are nil.
+	send()
+
+	if args.StatsLogDelay > 0 {
+		// Wait while capturing statistics.
+		time.Sleep(time.Duration(args.StatsLogDelay) * time.Second)
+
+		// Print telemetry data.
+		printer.Stderr.Infof("Printing packet capture statistics after %d seconds of capture.\n", args.StatsLogDelay)
+		dumpSummary.PrintPacketCounts()
+		dumpSummary.PrintWarnings()
+
+		send()
+	}
+
+	if args.TelemetryInterval > 0 {
+		ticker := time.NewTicker(time.Duration(args.TelemetryInterval) * time.Second)
+
+		for {
+			select {
+			case <-done:
+				return
+			case now := <-ticker.C:
+				req.ObservedDurationInSeconds = int(now.Sub(req.ObservedStartingAt) / time.Second)
+				send()
 			}
 		}
 	}
@@ -350,52 +420,16 @@ func Run(args Args) error {
 		negationSummary,
 	)
 
-	// Print a summary after a short delay.  This ensures that statistics will
-	// appear in customer logs close to when the process is started.
-	go func() {
-		if args.StatsLogDelay <= 0 {
-			return
-		}
-
-		req := kgxapi.PostClientPacketCaptureStatsRequest{
-			ClientID:                  args.ClientID,
-			ObservedStartingAt:        time.Now().UTC(),
-			ObservedDurationInSeconds: args.StatsLogDelay,
-		}
-
-		// Send telemetry start event.  Stats are nil.
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
-		if err != nil {
-			// Log an error and continue.
-			printer.Stderr.Errorf("Failed to send telemetry start event: %s", err)
-		}
-
-		// Wait while capturing statistics.
-		time.Sleep(time.Duration(args.StatsLogDelay) * time.Second)
-
-		// Print telemetry data.
-		printer.Stderr.Infof("Printing packet capture statistics after %d seconds of capture.\n", args.StatsLogDelay)
-		dumpSummary.PrintPacketCounts()
-		dumpSummary.PrintWarnings()
-
-		// Send telemetry stats.
-		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(10)
-		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		err = learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
-		if err != nil {
-			// Log an error and continue.
-			printer.Stderr.Errorf("Failed to send telemetry statistics: %s", err)
-		}
-	}()
-
-	// Start collecting
+	// Synchronization for collectors + collector errors, each of which is run in a separate goroutine.
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(userFilters) + len(negationFilters))
 	errChan := make(chan error, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
+
+	// Start telemetry, stop when the main collection process does too
+	go SendTelemetry(&args, learnClient, backendSvc, dumpSummary, stop)
+
+	// Start collecting -- set up one or two collectors per interface, depending on whether filters are in use
 	for _, filterState := range []filterState{matchedFilter, notMatchedFilter} {
 		var summary *trace.PacketCounter
 		var filters map[string]string
