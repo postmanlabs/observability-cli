@@ -20,6 +20,7 @@ import (
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -551,7 +552,7 @@ func Run(args Args) error {
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := trace.Collect(stop, interfaceName, filter, bufferShare, collector, summary); err != nil {
+				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, collector, summary); err != nil {
 					errChan <- errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName)
 				}
 			}(interfaceName, filter)
