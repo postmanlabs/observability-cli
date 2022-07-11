@@ -43,6 +43,12 @@ const (
 	// processing.
 	// We budget for 5x to be safe.
 	pcapStopWaitTime = 5 * time.Second
+
+	// Number of top ports to show in telemetry
+	topNForSummary = 10
+
+	// Context timeout for telemetry upload
+	telemetryTimeout = 30 * time.Second
 )
 
 const (
@@ -250,8 +256,8 @@ func SendTelemetry(args *Args, learnClient rest.LearnClient, backendSvc akid.Ser
 
 	// Upload "req" to the server.
 	send := func() {
-		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(10)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(topNForSummary)
+		ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
 		defer cancel()
 		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
 		if err != nil {
