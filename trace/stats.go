@@ -3,11 +3,8 @@ package trace
 import (
 	"sync"
 
-	"github.com/akitasoftware/akita-cli/pcap"
 	. "github.com/akitasoftware/akita-libs/client_telemetry"
 	"github.com/akitasoftware/go-utils/math"
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slices"
 )
@@ -172,20 +169,4 @@ func topNByTcpPacketCount[T constraints.Ordered](counts map[T]*PacketCounts, n i
 	}
 
 	return rv
-}
-
-// Observe every captured TCP segment here
-func CountTcpPackets(ifc string, packetCount PacketCountConsumer) pcap.NetworkTrafficObserver {
-	observer := func(p gopacket.Packet) {
-		if tcpLayer := p.Layer(layers.LayerTypeTCP); tcpLayer != nil {
-			tcp, _ := tcpLayer.(*layers.TCP)
-			packetCount.Update(PacketCounts{
-				Interface:  ifc,
-				SrcPort:    int(tcp.SrcPort),
-				DstPort:    int(tcp.DstPort),
-				TCPPackets: 1,
-			})
-		}
-	}
-	return pcap.NetworkTrafficObserver(observer)
 }
