@@ -297,6 +297,11 @@ func SendTelemetry(args *Args, learnClient rest.LearnClient, backendSvc akid.Ser
 	}
 }
 
+type interfaceError struct {
+	interfaceName string
+	err           error
+}
+
 // Captures packets from the network and adds them to a trace. The trace is
 // created if it doesn't already exist.
 func Run(args Args) error {
@@ -424,13 +429,14 @@ func Run(args Args) error {
 	// Synchronization for collectors + collector errors, each of which is run in a separate goroutine.
 	var doneWG sync.WaitGroup
 	doneWG.Add(len(userFilters) + len(negationFilters))
-	errChan := make(chan error, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
+	errChan := make(chan interfaceError, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
 
 	// Start telemetry, stop when the main collection process does too
 	go SendTelemetry(&args, learnClient, backendSvc, dumpSummary, stop)
 
 	// Start collecting -- set up one or two collectors per interface, depending on whether filters are in use
+	numCollectors := 0
 	for _, filterState := range []filterState{matchedFilter, notMatchedFilter} {
 		var summary *trace.PacketCounter
 		var filters map[string]string
@@ -549,11 +555,15 @@ func Run(args Args) error {
 			// (gopacket does not currently permit a unified page cache for packet reassembly.)
 			bufferShare := 1.0 / float32(len(negationFilters)+len(userFilters))
 
+			numCollectors++
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
 				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, collector, summary); err != nil {
-					errChan <- errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName)
+					errChan <- interfaceError{
+						interfaceName: interfaceName,
+						err:           errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName),
+					}
 				}
 			}(interfaceName, filter)
 		}
@@ -583,7 +593,10 @@ func Run(args Args) error {
 		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that all network traffic is treated as your API traffic"))
 	}
 
-	var stopErr error
+	// Keep track of errors by interface, as well as errors from the subcommand
+	// if applicable.
+	errorsByInterface := make(map[string]error)
+	var subcmdErr error
 	if args.ExecCommand != "" {
 		printer.Stderr.Infof("Running subcommand...\n\n\n")
 
@@ -599,21 +612,32 @@ func Run(args Args) error {
 		printer.Stderr.RawOutput(subcommandOutputDelimiter)
 
 		if cmdErr != nil {
-			stopErr = errors.Wrap(cmdErr, "failed to run subcommand")
+			subcmdErr = errors.Wrap(cmdErr, "failed to run subcommand")
 			// We promised to preserve the subcommand's exit code.
 			// Explicitly notify whoever is running us to exit.
-			if exitErr, ok := errors.Cause(stopErr).(*exec.ExitError); ok {
-				stopErr = util.ExitError{
+			if exitErr, ok := errors.Cause(subcmdErr).(*exec.ExitError); ok {
+				subcmdErr = util.ExitError{
 					ExitCode: exitErr.ExitCode(),
-					Err:      stopErr,
+					Err:      subcmdErr,
 				}
 			}
 		} else {
 			// Check if we have any errors on our side.
 			select {
-			case err := <-errChan:
-				stopErr = err
-				printer.Stderr.Errorf("Encountered error while collecting traces, stopping...\n")
+			case interfaceErr := <-errChan:
+				printer.Stderr.Errorf("Encountered errors while collecting traces, stopping...\n")
+				errorsByInterface[interfaceErr.interfaceName] = interfaceErr.err
+
+				// Drain errChan.
+			DoneClearingChannel:
+				for {
+					select {
+					case interfaceErr := <-errChan:
+						errorsByInterface[interfaceErr.interfaceName] = interfaceErr.err
+					default:
+						break DoneClearingChannel
+					}
+				}
 			default:
 				printer.Stderr.Infof("Subcommand finished successfully, stopping trace collection...\n")
 			}
@@ -631,12 +655,22 @@ func Run(args Args) error {
 			sig := make(chan os.Signal, 2)
 			signal.Notify(sig, os.Interrupt)
 			signal.Notify(sig, syscall.SIGTERM)
-			select {
-			case received := <-sig:
-				printer.Stderr.Infof("Received %v, stopping trace collection...\n", received.String())
-			case err := <-errChan:
-				stopErr = err
-				printer.Stderr.Errorf("Encountered error while collecting traces, stopping...\n")
+
+			// Continue until an interrupt or all collectors have stopped with errors.
+		DoneWaitingForSignal:
+			for {
+				select {
+				case received := <-sig:
+					printer.Stderr.Infof("Received %v, stopping trace collection...\n", received.String())
+					break DoneWaitingForSignal
+				case interfaceErr := <-errChan:
+					printer.Stderr.Errorf("Encountered an error on interface %s, continuing with remaining interfaces.  Error: %s\n", interfaceErr.interfaceName, interfaceErr.err.Error())
+					errorsByInterface[interfaceErr.interfaceName] = interfaceErr.err
+
+					if len(errorsByInterface) == numCollectors {
+						break DoneWaitingForSignal
+					}
+				}
 			}
 		}
 	}
@@ -648,8 +682,25 @@ func Run(args Args) error {
 
 	// Wait for processors to exit.
 	doneWG.Wait()
-	if stopErr != nil {
-		return errors.Wrap(stopErr, "trace collection failed")
+	printer.Stderr.Infof("Trace collection stopped\n")
+
+	// Print errors per interface.
+	if len(errorsByInterface) > 0 {
+		printer.Stderr.Errorf("Encountered errors on %d / %d interfaces\n", len(errorsByInterface), numCollectors)
+		for interfaceName, err := range errorsByInterface {
+			printer.Stderr.Errorf("%12s %s\n", interfaceName, err)
+		}
+
+		// If collectors on all interfaces report errors, report trace
+		// collection failed.
+		if len(errorsByInterface) == numCollectors {
+			return errors.Errorf("trace collection failed")
+		}
+	}
+
+	// If a subcommand was supplied and failed, surface the failure.
+	if subcmdErr != nil {
+		return errors.Wrap(subcmdErr, "trace collection failed")
 	}
 
 	// Print warnings
