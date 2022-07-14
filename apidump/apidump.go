@@ -664,10 +664,12 @@ func Run(args Args) error {
 					printer.Stderr.Infof("Received %v, stopping trace collection...\n", received.String())
 					break DoneWaitingForSignal
 				case interfaceErr := <-errChan:
-					printer.Stderr.Errorf("Encountered an error on interface %s, continuing with remaining interfaces.  Error: %s\n", interfaceErr.interfaceName, interfaceErr.err.Error())
 					errorsByInterface[interfaceErr.interfaceName] = interfaceErr.err
 
-					if len(errorsByInterface) == numCollectors {
+					if len(errorsByInterface) < numCollectors {
+						printer.Stderr.Errorf("Encountered an error on interface %s, continuing with remaining interfaces.  Error: %s\n", interfaceErr.interfaceName, interfaceErr.err.Error())
+					} else {
+						printer.Stderr.Errorf("Encountered an error on interface %s.  Error: %s\n", interfaceErr.interfaceName, interfaceErr.err.Error())
 						break DoneWaitingForSignal
 					}
 				}
