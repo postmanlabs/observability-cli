@@ -98,8 +98,6 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 
 	switch t := elem.(type) {
 	case akinet.HTTPRequest:
-		printer.Debugf("Parsing HTTP request: %+v\n", t)
-
 		streamID = t.StreamID
 		seq = t.Seq
 
@@ -109,8 +107,6 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 		bodyDecompressed = t.BodyDecompressed
 		headers = t.Header
 	case akinet.HTTPResponse:
-		printer.Debugf("Parsing HTTP response: %+v\n", t)
-
 		streamID = t.StreamID
 		seq = t.Seq
 

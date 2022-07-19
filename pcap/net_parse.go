@@ -18,6 +18,12 @@ import (
 // the data even if there is a gap in the collected sequence.
 var StreamTimeoutSeconds int64 = 10
 
+// The maximum time we will leave a connection open waiting for traffic.
+// 90 seconds is the longest possible that the upper layers can wait for
+// a response before the request is uploaded before it.  (But this might
+// happen as soon as 60 seconds.)
+var StreamCloseTimeoutSeconds int64 = 90
+
 // Maximum size of gopacket reassembly buffers, per interface and direction.
 //
 // A gopacket page is 1900 bytes.
@@ -118,10 +124,11 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 	assembler.AssemblerOptions.MaxBufferedPagesTotal = int(p.bufferShare * float32(MaxBufferedPagesTotal))
 	assembler.AssemblerOptions.MaxBufferedPagesPerConnection = MaxBufferedPagesPerConnection
 
-	streamTimeout := time.Duration(StreamTimeoutSeconds) * time.Second
+	streamFlushTimeout := time.Duration(StreamTimeoutSeconds) * time.Second
+	streamCloseTimeout := time.Duration(StreamCloseTimeoutSeconds) * time.Second
 
 	go func() {
-		ticker := time.NewTicker(streamTimeout / 4)
+		ticker := time.NewTicker(streamFlushTimeout / 4)
 		defer ticker.Stop()
 
 		// Signal caller that we're done on exit
@@ -148,7 +155,7 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 				p.observer(packet)
 				p.packetToParsedNetworkTraffic(out, assembler, packet)
 			case <-ticker.C:
-				// The assembler stops reassembly for streams older than stream timeout.
+				// The assembler stops reassembly for streams older than streamFlushTimeout.
 				// This means the corresponding tcpFlow readers will return EOF.
 				//
 				// If there is a missing portion of the TCP reassembly (usually due to an
@@ -156,7 +163,25 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 				// the assembler to skip the missing data and deliver what it has accumulated
 				// after that point. The stream will not be closed if it has received
 				// packets more recently than that gap.
-				assembler.FlushCloseOlderThan(p.clock.Now().Add(-streamTimeout))
+				//
+				// TODO: is this maybe the source of splices, too?  Converting dropped packets
+				// into a continous stream?
+				//
+				// Streams that are idle need to be closed eventually, too.  We use a larger
+				// threshold for that because it costs us less memory to keep just a
+				// connection record, rather than a backlog of data in the reassembly buffer.
+				now := p.clock.Now()
+				streamFlushThreshold := now.Add(-streamFlushTimeout)
+				streamCloseThreshold := now.Add(-streamCloseTimeout)
+				flushed, closed := assembler.FlushWithOptions(
+					reassembly.FlushOptions{
+						T:  streamFlushThreshold,
+						TC: streamCloseThreshold,
+					})
+
+				if flushed != 0 || closed != 0 {
+					printer.Debugf("%d flushed, %d closed\n", flushed, closed)
+				}
 			}
 		}
 	}()
