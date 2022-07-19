@@ -202,6 +202,9 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		}
 
 		c.queueUpload(pair)
+		printer.Debugf("Completed witness %v at %v -- %v\n",
+			partial.PairKey, t.ObservationTime, t.FinalPacketTime)
+
 	} else {
 		// Store the partial witness for now, waiting for its pair or a
 		// flush timeout.
@@ -217,6 +220,8 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		// Store whichever timestamp brackets the processing interval.
 		w.recordTimestamp(isRequest, t)
 		c.pairCache.Store(partial.PairKey, w)
+		printer.Debugf("Partial witness %v request=%v at %v -- %v\n",
+			partial.PairKey, isRequest, t.ObservationTime, t.FinalPacketTime)
 
 	}
 	return nil
