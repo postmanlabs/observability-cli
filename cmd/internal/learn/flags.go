@@ -69,7 +69,7 @@ func registerOptionalFlags() {
 		&serviceFlag,
 		"project",
 		"",
-		"Your Akita project. Exactly one of --out or --project must be specified.")
+		"Your Akita project. Only needed if --out is not an AkitaURI.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
