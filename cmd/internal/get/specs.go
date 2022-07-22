@@ -25,8 +25,8 @@ import (
 var GetSpecsCmd = &cobra.Command{
 	Use:          "spec [AKITAURI [FILE]]",
 	Aliases:      []string{"specs", "model", "models"},
-	Short:        "List or download specifications for a service.",
-	Long:         "List specifications in the Akita cloud, filtered by service and by tag. Or, specify a particular spec to download it.",
+	Short:        "List or download specifications for a project.",
+	Long:         "List specifications in the Akita cloud, filtered by project and by tag. Or, specify a particular spec to download it.",
 	SilenceUsage: false,
 	RunE:         getSpecs,
 }
@@ -36,15 +36,21 @@ func init() {
 
 	GetSpecsCmd.Flags().StringVar(
 		&serviceFlag,
+		"project",
+		"",
+		"Your Akita project.")
+
+	GetSpecsCmd.Flags().StringVar(
+		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service.")
+		"Your Akita project.  DEPRECATED, prefer --project.")
 
 	GetSpecsCmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'service').")
+		"Your Akita cluster (alias for 'project').")
 
 	GetSpecsCmd.Flags().StringSliceVar(
 		&tagsFlag,
@@ -108,7 +114,7 @@ func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
 	}
 
 	if len(specs) == 0 {
-		printer.Warningf("No specs found for service %q.\n", src.ServiceName)
+		printer.Warningf("No specs found for project %q.\n", src.ServiceName)
 		return nil
 	}
 
@@ -228,12 +234,12 @@ func getSpecs(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("%q is not a spec URI", args[0])
 		}
 		if serviceFlag != "" && srcURI.ServiceName != serviceFlag {
-			return errors.New("Service name does not match URI.")
+			return errors.New("Project name does not match URI.")
 		}
 	} else {
 		// Use --service flag to list instead
 		if serviceFlag == "" {
-			return errors.New("Must specify an akitaURI or service name.")
+			return errors.New("Must specify an akitaURI or project name.")
 		}
 
 		srcURI.ServiceName = serviceFlag

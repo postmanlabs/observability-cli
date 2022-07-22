@@ -9,7 +9,7 @@ Compare 2 API specs.
 
 # Examples
 
-## akita apidiff akita://my-service:spec:spec1 akita://my-service:spec:spec2
+## akita apidiff akita://my-project:spec:spec1 akita://my-project:spec:spec2
 
 # Optional Flags
 

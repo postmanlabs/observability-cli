@@ -53,7 +53,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	name = strings.ToLower(name)
 
 	if id, found := serviceNameCache.Get(name); found {
-		printer.Stderr.Debugf("Cached service name %q is %q\n", name, akid.String(id.(akid.ServiceID)))
+		printer.Stderr.Debugf("Cached project name %q is %q\n", name, akid.String(id.(akid.ServiceID)))
 		return id.(akid.ServiceID), nil
 	}
 
@@ -85,7 +85,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 		printer.Stderr.Debugf("Service name %q is %q\n", name, akid.String(result))
 		return result, nil
 	}
-	return akid.ServiceID{}, errors.Errorf("cannot determine service ID for %s", name)
+	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for %s", name)
 }
 
 func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
@@ -162,7 +162,7 @@ func GetTraceURIByTags(domain string, clientID akid.ClientID, serviceName string
 	frontClient := rest.NewFrontClient(domain, clientID)
 	serviceID, err := GetServiceIDByName(frontClient, serviceName)
 	if err != nil {
-		return akiuri.URI{}, errors.Wrapf(err, "failed to resolve service name %q", serviceName)
+		return akiuri.URI{}, errors.Wrapf(err, "failed to resolve project name %q", serviceName)
 	}
 
 	learnClient := rest.NewLearnClient(domain, clientID, serviceID)
