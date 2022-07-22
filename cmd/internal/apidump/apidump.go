@@ -57,12 +57,12 @@ var Cmd = &cobra.Command{
 			return errors.Wrap(err, "failed to load plugins")
 		}
 
-		// Check that exactly one of --out, or --project is specified.
+		// Check that exactly one of --out or --project is specified.
 		if outFlag.IsSet() == (serviceFlag != "") {
 			return errors.New("exactly one of --out or --project must be specified")
 		}
 
-		// If --service was given, convert it to an equivalent --out.
+		// If --project was given, convert it to an equivalent --out.
 		if serviceFlag != "" {
 			uri, err := akiuri.Parse(akiuri.Scheme + serviceFlag)
 			if err != nil {
@@ -170,13 +170,13 @@ func init() {
 	Cmd.Flags().Var(
 		&outFlag,
 		"out",
-		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out, --cluster, or --project must be specified.")
+		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out or --project must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"project",
 		"",
-		"Your Akita project. Exactly one of --out, --cluster, or --project must be specified.")
+		"Your Akita project. Exactly one of --out or --project must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
@@ -188,7 +188,7 @@ func init() {
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'project'). Exactly one of --out, --cluster, or --project must be specified.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,

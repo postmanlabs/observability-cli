@@ -5,7 +5,7 @@ var apidumpPage = `
 
 # Description
 
-Capture and store a sequence of requests/responses to a by observing
+Capture and store a sequence of requests/responses to your services by observing
 network traffic.
 
 # Examples

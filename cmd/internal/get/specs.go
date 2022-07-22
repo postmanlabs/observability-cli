@@ -50,7 +50,7 @@ func init() {
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'project').")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetSpecsCmd.Flags().StringSliceVar(
 		&tagsFlag,
@@ -237,7 +237,7 @@ func getSpecs(cmd *cobra.Command, args []string) error {
 			return errors.New("Project name does not match URI.")
 		}
 	} else {
-		// Use --service flag to list instead
+		// Use --project flag to list instead
 		if serviceFlag == "" {
 			return errors.New("Must specify an akitaURI or project name.")
 		}

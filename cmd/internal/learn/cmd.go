@@ -82,7 +82,7 @@ func runLearnMode() error {
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
 	svc, err := util.GetServiceIDByName(frontClient, projectName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to lookup project %q", projectName)
+		return errors.Wrapf(err, "failed to look up project %q", projectName)
 	}
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
 
@@ -120,7 +120,7 @@ func runLearnMode() error {
 			defer cancel()
 			spec, err := learnClient.GetSpec(ctx, specID, rest.GetSpecOptions{})
 			if err != nil {
-				return errors.Wrapf(err, "failed to lookup extend spec %q", akid.String(specID))
+				return errors.Wrapf(err, "failed to look up extend spec %q", akid.String(specID))
 			}
 
 			if len(spec.LearnSessionIDs) > 0 {
@@ -138,7 +138,7 @@ func runLearnMode() error {
 			defer cancel()
 			session, err := learnClient.GetLearnSession(ctx, svc, lrn)
 			if err != nil {
-				return errors.Wrapf(err, "failed to lookup extend session %q", akid.String(lrn))
+				return errors.Wrapf(err, "failed to look up extend session %q", akid.String(lrn))
 			}
 
 			legacyExtendTraces = append(legacyExtendTraces, &akiuri.URI{
@@ -229,7 +229,7 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 		frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
 		svc, err := util.GetServiceIDByName(frontClient, projectName)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to lookup project id from name")
+			return nil, errors.Wrap(err, "failed to look up project id from name")
 		}
 
 		learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
@@ -237,7 +237,7 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 		session, err := learnClient.GetLearnSession(ctx, svc, lrn)
 		cancel()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to lookup learn session %s", akid.String(lrn))
+			return nil, errors.Wrapf(err, "failed to look up learn session %s", akid.String(lrn))
 		} else if session.Name == "" {
 			// This should never happen since we migrated all learn sessions to use
 			// the ID as the default name.

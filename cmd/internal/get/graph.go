@@ -51,7 +51,7 @@ func init() {
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'project').")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetGraphCmd.Flags().StringVar(
 		&deploymentFlag,

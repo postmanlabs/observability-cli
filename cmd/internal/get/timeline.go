@@ -47,13 +47,13 @@ func init() {
 		&serviceFlag,
 		"service",
 		"",
-		"Your Akita project.  DEPRECATED, prefer --project.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetTimelineCmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'project').")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetTimelineCmd.Flags().StringVar(
 		&deploymentFlag,

@@ -66,7 +66,7 @@ func init() {
 		&serviceFlag,
 		"project",
 		"",
-		"Your Akita project. Exactly one of --out, --cluster, or --project must be specified.")
+		"Your Akita project. Exactly one of --out or --project must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
@@ -78,7 +78,7 @@ func init() {
 		&serviceFlag,
 		"cluster",
 		"",
-		"Akita cloud cluster to use to generate the spec (alias for 'project'). Only needed if --out is not an AkitaURI.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	Cmd.Flags().StringVar(
 		&githubBranchFlag,

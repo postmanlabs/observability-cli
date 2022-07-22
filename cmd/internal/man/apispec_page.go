@@ -51,7 +51,7 @@ Alias for --project.  DEPRECATED, prefer --project.
 
 ## --cluster string
 
-Akita cloud cluster to use to generate the spec (alias for 'project'). Only needed if --out is not specified or is not an AkitaURI.
+Alias for --project.  DEPRECATED, prefer --project.
 
 ## --format {yaml|json}
 

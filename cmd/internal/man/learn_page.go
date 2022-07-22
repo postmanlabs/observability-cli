@@ -37,7 +37,7 @@ Alias for --project.  DEPRECATED, prefer --project.
 
 ## --cluster string
 
-Your Akita cluster (alias for 'project'). Only needed if <bt>--out<bt> is not an AkitaURI.
+Alias for --project.  DEPRECATED, prefer --project.
 
 ## --filter string
 

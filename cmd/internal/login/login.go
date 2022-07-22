@@ -17,7 +17,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "login",
-	Short: "Authenticate with SuperFuzz.",
+	Short: "Authenticate with Akita.",
 	Long: `The CLI will prompt you to enter information for your Akita API key.
 
 API key information will be stored in ` + cfg.GetCredentialsConfigPath(),
