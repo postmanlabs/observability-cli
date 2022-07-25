@@ -432,8 +432,11 @@ func Run(args Args) error {
 	errChan := make(chan interfaceError, len(userFilters)+len(negationFilters)) // buffered enough so it never blocks
 	stop := make(chan struct{})
 
-	// Start telemetry, stop when the main collection process does too
-	go SendTelemetry(&args, learnClient, backendSvc, dumpSummary, stop)
+	// If we're sending traffic to the cloud, then start telemetry and stop
+	// when the main collection process does.
+	if args.Out.AkitaURI != nil {
+		go SendTelemetry(&args, learnClient, backendSvc, dumpSummary, stop)
+	}
 
 	// Start collecting -- set up one or two collectors per interface, depending on whether filters are in use
 	numCollectors := 0

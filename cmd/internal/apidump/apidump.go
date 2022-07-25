@@ -96,22 +96,22 @@ var Cmd = &cobra.Command{
 		}
 
 		// Allow specification of an alternate rotation time, default 1h.
-		// But, if the trace name is explicitly given (or selected by tag) then
-		// we cannot rotate.
-		var traceRotateInterval time.Duration
-		if traceRotateFlag != "" {
-			if outFlag.AkitaURI.ObjectName != "" {
-				return errors.New("Cannot specify trace rotation along with a specific trace.")
-			}
-			traceRotateInterval, err = time.ParseDuration(traceRotateFlag)
-			if err != nil {
-				return errors.Wrap(err, "Failed to parse trace rotation interval.")
-			}
-		} else {
-			if outFlag.AkitaURI.ObjectName == "" {
-				traceRotateInterval = time.Hour
+		// But, if the trace name is explicitly given, or selected by tag,
+		// or we're sending the output to a local file, then we cannot rotate.
+		traceRotateInterval := time.Duration(0)
+		if outFlag.AkitaURI != nil {
+			if traceRotateFlag != "" {
+				if outFlag.AkitaURI.ObjectName != "" {
+					return errors.New("Cannot specify trace rotation along with a specific trace.")
+				}
+				traceRotateInterval, err = time.ParseDuration(traceRotateFlag)
+				if err != nil {
+					return errors.Wrap(err, "Failed to parse trace rotation interval.")
+				}
 			} else {
-				traceRotateInterval = time.Duration(0)
+				if outFlag.AkitaURI.ObjectName == "" {
+					traceRotateInterval = time.Hour
+				}
 			}
 		}
 
