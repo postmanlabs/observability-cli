@@ -34,6 +34,7 @@ import (
 )
 
 var Cmd = &cobra.Command{
+	Deprecated:   "Prefer 'apidump' to capture traffic.  API specs are built automatically in the Akita app.",
 	Use:          "learn",
 	Short:        "Run learn mode monitor",
 	Long:         "Generate API specifications from network traffic with Akita Learn Mode!",
@@ -57,18 +58,18 @@ func runLearnMode() error {
 
 	// XXX Some of this input validation duplicates the input validation for `apispec` (and maybe `apidump`). We should refactor this.
 
-	// Determine service name and validate --out.
-	var serviceName string
+	// Determine project name and validate --out.
+	var projectName string
 	if uri := outFlag.AkitaURI; uri == nil {
 		if serviceFlag == "" {
-			return errors.Errorf("must specify --service when --out is not an AkitaURI")
+			return errors.Errorf("must specify --project when --out is not an AkitaURI")
 		}
-		serviceName = serviceFlag
+		projectName = serviceFlag
 	} else {
-		serviceName = uri.ServiceName
+		projectName = uri.ServiceName
 
-		if serviceFlag != "" && serviceFlag != serviceName {
-			return errors.Errorf("--service and --out cannot specify different services")
+		if serviceFlag != "" && serviceFlag != projectName {
+			return errors.Errorf("--project and --out cannot specify different projects")
 		}
 
 		// If an object type is provided, it must be Spec.
@@ -77,11 +78,11 @@ func runLearnMode() error {
 		}
 	}
 
-	// Resolve service name and get a learn client.
+	// Resolve project name and get a learn client.
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
-	svc, err := util.GetServiceIDByName(frontClient, serviceName)
+	svc, err := util.GetServiceIDByName(frontClient, projectName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to lookup service %q", serviceName)
+		return errors.Wrapf(err, "failed to look up project %q", projectName)
 	}
 	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
 
@@ -119,7 +120,7 @@ func runLearnMode() error {
 			defer cancel()
 			spec, err := learnClient.GetSpec(ctx, specID, rest.GetSpecOptions{})
 			if err != nil {
-				return errors.Wrapf(err, "failed to lookup extend spec %q", akid.String(specID))
+				return errors.Wrapf(err, "failed to look up extend spec %q", akid.String(specID))
 			}
 
 			if len(spec.LearnSessionIDs) > 0 {
@@ -137,11 +138,11 @@ func runLearnMode() error {
 			defer cancel()
 			session, err := learnClient.GetLearnSession(ctx, svc, lrn)
 			if err != nil {
-				return errors.Wrapf(err, "failed to lookup extend session %q", akid.String(lrn))
+				return errors.Wrapf(err, "failed to look up extend session %q", akid.String(lrn))
 			}
 
 			legacyExtendTraces = append(legacyExtendTraces, &akiuri.URI{
-				ServiceName: serviceName,
+				ServiceName: projectName,
 				ObjectType:  akiuri.TRACE.Ptr(),
 				ObjectName:  session.Name,
 			})
@@ -177,12 +178,12 @@ func runLearnMode() error {
 	// internal/apidump/cmd, or internal/apispec/cmd, instead
 	// of doing it twice in this case.
 
-	traceURI, err := runAPIDump(clientID, serviceName, tagsMap, plugins)
+	traceURI, err := runAPIDump(clientID, projectName, tagsMap, plugins)
 	if err != nil {
 		return errors.Wrap(err, "failed to create trace")
 	}
 
-	if err := runAPISpec(clientID, serviceName, traceURI, tagsMap, legacyExtendTraces, plugins); err != nil {
+	if err := runAPISpec(clientID, projectName, traceURI, tagsMap, legacyExtendTraces, plugins); err != nil {
 		return errors.Wrap(err, "failed to create spec")
 	}
 
@@ -194,7 +195,7 @@ func runLearnMode() error {
 // The give tagsMap is expected to already contain information about how the
 // trace is captured (e.g., whether the capture was user-initiated or is from
 // CI, and any applicable information from CI).
-func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key]string, plugins []plugin.AkitaPlugin) (*akiuri.URI, error) {
+func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key]string, plugins []plugin.AkitaPlugin) (*akiuri.URI, error) {
 	// Determing packet filter.
 	var packetFilter string
 	{
@@ -226,9 +227,9 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		}
 
 		frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
-		svc, err := util.GetServiceIDByName(frontClient, serviceName)
+		svc, err := util.GetServiceIDByName(frontClient, projectName)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to lookup service id from name")
+			return nil, errors.Wrap(err, "failed to look up project id from name")
 		}
 
 		learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
@@ -236,7 +237,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		session, err := learnClient.GetLearnSession(ctx, svc, lrn)
 		cancel()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to lookup learn session %s", akid.String(lrn))
+			return nil, errors.Wrapf(err, "failed to look up learn session %s", akid.String(lrn))
 		} else if session.Name == "" {
 			// This should never happen since we migrated all learn sessions to use
 			// the ID as the default name.
@@ -244,7 +245,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		}
 
 		traceOut.AkitaURI = &akiuri.URI{
-			ServiceName: serviceName,
+			ServiceName: projectName,
 			ObjectType:  akiuri.TRACE.Ptr(),
 			ObjectName:  session.Name,
 		}
@@ -259,7 +260,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 		}, "-")
 
 		traceOut.AkitaURI = &akiuri.URI{
-			ServiceName: serviceName,
+			ServiceName: projectName,
 			ObjectType:  akiuri.TRACE.Ptr(),
 			ObjectName:  traceName,
 		}
@@ -305,7 +306,7 @@ func runAPIDump(clientID akid.ClientID, serviceName string, tagsMap map[tags.Key
 	return traceOut.AkitaURI, apidump.Run(args)
 }
 
-func runAPISpec(clientID akid.ClientID, serviceName string, traceURI *akiuri.URI, tagsMap map[tags.Key]string, legacyExtendTraces []*akiuri.URI, plugins []plugin.AkitaPlugin) error {
+func runAPISpec(clientID akid.ClientID, projectName string, traceURI *akiuri.URI, tagsMap map[tags.Key]string, legacyExtendTraces []*akiuri.URI, plugins []plugin.AkitaPlugin) error {
 	githubRepo, err := getGitHubRepo()
 	if err != nil {
 		return err
@@ -331,7 +332,7 @@ func runAPISpec(clientID akid.ClientID, serviceName string, traceURI *akiuri.URI
 		Domain:         akiflag.Domain,
 		Traces:         traces,
 		Out:            outFlag,
-		Service:        serviceName,
+		Service:        projectName,
 		Format:         "yaml",
 		Tags:           tagsMap,
 		Versions:       versionsFlag,

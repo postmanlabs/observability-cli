@@ -22,7 +22,7 @@ func Run(args Args) error {
 	// Resolve service ID.
 	serviceName := args.BaseSpecURI.ServiceName
 	if serviceName != args.NewSpecURI.ServiceName {
-		return errors.Errorf("only support diffing specs from the same service for now")
+		return errors.Errorf("only support diffing specs from the same project for now")
 	}
 
 	serviceID, err := util.GetServiceIDByName(frontClient, serviceName)

@@ -37,21 +37,27 @@ func init() {
 
 	GetGraphCmd.Flags().StringVar(
 		&serviceFlag,
+		"project",
+		"",
+		"Your Akita project.")
+
+	GetGraphCmd.Flags().StringVar(
+		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service.")
+		"Your Akita project.  DEPRECATED, prefer --project.")
 
 	GetGraphCmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'service').")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetGraphCmd.Flags().StringVar(
 		&deploymentFlag,
 		"deployment",
 		"",
-		"Deployment tag used for traces.")
+		"Deployment tag used for traces.  DEPRECATED.")
 
 	GetGraphCmd.Flags().StringVar(
 		&startTimeFlag,
@@ -89,7 +95,7 @@ func getGraph(cmd *cobra.Command, args []string) error {
 	// Accept these as either flags or arguments.
 	if serviceFlag == "" {
 		if len(args) == 0 {
-			return errors.New("Must specify a service name.")
+			return errors.New("Must specify a project name.")
 		}
 		serviceFlag = args[0]
 		args = args[1:]
@@ -146,7 +152,7 @@ func getGraph(cmd *cobra.Command, args []string) error {
 		return errors.New("Unsupported output format.")
 	}
 
-	printer.Debugf("Loading service %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
+	printer.Debugf("Loading project %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
 
 	clientID := akid.GenerateClientID()
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)

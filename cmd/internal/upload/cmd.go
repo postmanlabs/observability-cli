@@ -50,7 +50,7 @@ var Cmd = &cobra.Command{
 
 		// Destination must specify an object type.
 		if destURI.ObjectType == nil {
-			return errors.New("\"dest\" must specify an object type. For example, \"akita://serviceName:trace\"")
+			return errors.New("\"dest\" must specify an object type. For example, \"akita://projectName:trace\"")
 		}
 
 		// If more than one file is given, then the object type must be "trace".

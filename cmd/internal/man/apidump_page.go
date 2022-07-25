@@ -5,7 +5,7 @@ var apidumpPage = `
 
 # Description
 
-Capture and store a sequence of requests/responses to a service by observing
+Capture and store a sequence of requests/responses to your services by observing
 network traffic.
 
 # Examples
@@ -14,11 +14,11 @@ network traffic.
 
 Capture requests/responses going to or coming from port 80 and store them into a directory called "mytracedir".
 
-## akita apidump --filter "port 80" --out akita://my-service:trace:mytrace
+## akita apidump --filter "port 80" --out akita://my-project:trace:mytrace
 
 Capture requests/responses going to or coming from port 80 and store them into a trace on the Akita cloud called "mytrace".
 
-## akita apidump --filter "port 80" --out akita://my-service:trace
+## akita apidump --filter "port 80" --out akita://my-project:trace
 
 Capture requests/responses going to or coming from port 80 and store them into a trace on the Akita cloud with a generated name.
 
@@ -32,17 +32,17 @@ Run <bt>my_tests.sh<bt> as <bt>${USER}<bt> and capture requests/responses going 
 
 The location to store the trace. Can be an AkitaURI or a local directory.
 
-If not specified, defaults to a trace on Akita Cloud. Note that you must supply <bt>--service<bt> in this case.
+If not specified, defaults to a trace on Akita Cloud. Note that you must supply <bt>--project<bt> in this case.
 
 When specifying a local directory, Akita writes HAR files to the directory.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:trace" or "akita://{SERVICE}:trace:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the trace on Akita Cloud where the collected data is stored. A trace name will be generated if "NAME" is not provided.
+When specifying an AkitaURI, the format is "akita://{PROJECT}:trace" or "akita://{PROJECT}:trace:{NAME}", where "PROJECT" is the name of your project and "NAME" is the name of the trace on Akita Cloud where the collected data is stored. A trace name will be generated if "NAME" is not provided.
 
-Exactly one of <bt>--out<bt> or <bt>--service<bt> must be provided.
+Exactly one of <bt>--out<bt> or <bt>--project<bt> must be provided.
 
-## --service string
+## --project string
 
-Your Akita service. Exactly one of <bt>--out<bt> or <bt>--service<bt> must be provided.
+Your Akita project. Exactly one of <bt>--out<bt> or <bt>--project<bt> must be provided.
 
 ## --filter string
 

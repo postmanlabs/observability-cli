@@ -153,10 +153,10 @@ func Run(args Args) error {
 	if uri := args.Out.AkitaURI; uri != nil {
 		serviceName = uri.ServiceName
 		if args.Service != "" && serviceName != args.Service {
-			return errors.Errorf("--service and --out cannot specify different services")
+			return errors.Errorf("--project and --out cannot specify different projects")
 		}
 	} else if args.Service == "" {
-		return errors.Errorf("must specify --service if --out is not an AkitaURI")
+		return errors.Errorf("must specify --project if --out is not an AkitaURI")
 	} else {
 		serviceName = args.Service
 	}
@@ -399,7 +399,7 @@ func resolveTraceURI(domain string, clientID akid.ClientID, uri akiuri.URI) (aki
 	// Resolve service name.
 	serviceID, err := util.GetServiceIDByName(frontClient, uri.ServiceName)
 	if err != nil {
-		return akid.LearnSessionID{}, errors.Wrapf(err, "failed to resolve service name %q", uri.ServiceName)
+		return akid.LearnSessionID{}, errors.Wrapf(err, "failed to resolve project name %q", uri.ServiceName)
 	}
 	learnClient := rest.NewLearnClient(domain, clientID, serviceID)
 

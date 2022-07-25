@@ -9,11 +9,11 @@ Upload traces to the Akita Cloud or use traces already stored on Akita Cloud to 
 
 # Examples
 
-## akita apispec --service my-service --traces ./mytrace.har
+## akita apispec --project my-project --traces ./mytrace.har
 
 Generates a spec from a local trace file and outputs it to stdout.
 
-## akita apispec --service my-service --traces ./trace1.har --traces akita://my-service:trace:trace2
+## akita apispec --project my-project --traces ./trace1.har --traces akita://my-project:trace:trace2
 
 Generates a spec from a combination of local trace file and trace file on Akita cloud.
 
@@ -25,7 +25,7 @@ The locations to read traces from. Can be a mix of AkitaURI and local file paths
 
 When specifying a local file, Akita reads the HAR file and uploads it to the Akita cloud.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:trace:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the trace on Akita Cloud.
+When specifying an AkitaURI, the format is "akita://{PROJECT}:trace:{NAME}", where "PROJECT" is the name of your project and "NAME" is the name of the trace on Akita Cloud.
 
 # Optional Flags
 
@@ -33,21 +33,25 @@ When specifying an AkitaURI, the format is "akita://{SERVICE}:trace:{NAME}", whe
 
 The location to store the spec. Can be an AkitaURI or a local file.
 
-If unspecified, defaults to a new spec on Akita Cloud. Note that you must also set <bt>--service<bt>.
+If unspecified, defaults to a new spec on Akita Cloud. Note that you must also set <bt>--project<bt>.
 
-When specifying a local file, Akita writes the spec to the file. Note that you must also set <bt>--service<bt> when outputing to local file.
+When specifying a local file, Akita writes the spec to the file. Note that you must also set <bt>--project<bt> when outputing to local file.
 
 To specify <bt>stdout<bt>, use <bt>--out="-"<bt>.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:spec" or "akita://{SERVICE}:spec:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the spec to create. A spec name will be generated if "NAME" is not provided.
+When specifying an AkitaURI, the format is "akita://{PROJECT}:spec" or "akita://{PROJECT}:spec:{NAME}", where "PROJECT" is the name of your project and "NAME" is the name of the spec to create. A spec name will be generated if "NAME" is not provided.
+
+## --project string
+
+Akita cloud project to use to generate the spec. Only needed if --out is not specified or is not an AkitaURI.
 
 ## --service string
 
-Akita cloud service to use to generate the spec. Only needed if --out is not specified or is not an AkitaURI.
+Alias for --project.  DEPRECATED, prefer --project.
 
 ## --cluster string
 
-Akita cloud cluster to use to generate the spec (alias for 'service'). Only needed if --out is not specified or is not an AkitaURI.
+Alias for --project.  DEPRECATED, prefer --project.
 
 ## --format {yaml|json}
 

@@ -11,6 +11,7 @@ import (
 )
 
 var Cmd = &cobra.Command{
+	Deprecated:   "API models are now created automatically by time range.",
 	Use:          "setversion NAME SPEC_AKITA_URI",
 	Short:        "Sets the version name for an API model.",
 	SilenceUsage: true,
@@ -26,7 +27,7 @@ var Cmd = &cobra.Command{
 			return errors.Wrapf(err, "%q is not a well-formed AkitaURI", args[1])
 		}
 		if !modelURI.ObjectType.IsSpec() {
-			return errors.New("Must specify an API model. For example, \"akita://serviceName:spec:specName\"")
+			return errors.New("Must specify an API model. For example, \"akita://projectName:spec:specName\"")
 		}
 
 		// Check for reserved versions.

@@ -20,8 +20,8 @@ import (
 var GetTracesCmd = &cobra.Command{
 	Use:          "traces [AKITAURI|SERVICE]",
 	Aliases:      []string{"trace"},
-	Short:        "List traces for the given service.",
-	Long:         "List traces in the Akita cloud, filtered by service and by tag.",
+	Short:        "List traces for the given project.",
+	Long:         "List traces in the Akita cloud, filtered by project and by tag.",
 	SilenceUsage: false,
 	RunE:         getTraces,
 }
@@ -31,15 +31,21 @@ func init() {
 
 	GetTracesCmd.Flags().StringVar(
 		&serviceFlag,
+		"project",
+		"",
+		"Your Akita project.")
+
+	GetTracesCmd.Flags().StringVar(
+		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service.")
+		"Your Akita project.  DEPRECATED, prefer --project.")
 
 	GetTracesCmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'service').")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetTracesCmd.Flags().StringSliceVar(
 		&tagsFlag,
@@ -56,7 +62,7 @@ func init() {
 
 func getTraces(cmd *cobra.Command, args []string) error {
 	if len(args) > 1 {
-		return errors.New("Only one service permitted.")
+		return errors.New("Only one project permitted.")
 	}
 
 	var serviceArg string
@@ -81,14 +87,14 @@ func getTraces(cmd *cobra.Command, args []string) error {
 
 	switch {
 	case serviceFlag == "" && serviceArg == "":
-		return fmt.Errorf("Must specify a service name using argument or --service flag.")
+		return fmt.Errorf("Must specify a project name using argument or --project flag.")
 	case serviceFlag == "":
 		serviceFlag = serviceArg
 	case serviceArg == "":
 		// servceFlag is nonempty
 		break
 	case serviceFlag != serviceArg:
-		return fmt.Errorf("Difference services specified in flag and URI.")
+		return fmt.Errorf("Different projects specified in flag and URI.")
 	}
 
 	clientID := akid.GenerateClientID()

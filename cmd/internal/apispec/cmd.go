@@ -32,6 +32,7 @@ func parseTime(s string) (time.Time, error) {
 }
 
 var Cmd = &cobra.Command{
+	Deprecated:   "API specs are created automatically in the Akita app.",
 	Use:          "apispec",
 	Short:        "Convert traces into an OpenAPI3 specification.",
 	SilenceUsage: true,
@@ -79,15 +80,15 @@ var Cmd = &cobra.Command{
 		}
 
 		if len(traceTags) > 0 {
-			var serviceName string
+			var projectName string
 			if serviceFlag != "" {
-				serviceName = serviceFlag
+				projectName = serviceFlag
 			} else if outFlag.AkitaURI != nil {
-				serviceName = outFlag.AkitaURI.ServiceName
+				projectName = outFlag.AkitaURI.ServiceName
 			} else {
-				return errors.New("Must specify \"service\" or \"out\" to use \"trace-tag\"")
+				return errors.New("Must specify \"project\" or \"out\" to use \"trace-tag\"")
 			}
-			destURI, err := util.GetTraceURIByTags(akiflag.Domain, akiflag.GetClientID(), serviceName, traceTags, "trace-tag")
+			destURI, err := util.GetTraceURIByTags(akiflag.Domain, akiflag.GetClientID(), projectName, traceTags, "trace-tag")
 			if err != nil {
 				return err
 			}

@@ -9,7 +9,7 @@ Generate API specifications from network traffic.
 
 # Examples
 
-## akita learn --filter "port 80" --service my-service
+## akita learn --filter "port 80" --project my-project
 
 Capture requests/responses going to or coming from port 80 and convert them into an API spec.
 
@@ -23,21 +23,25 @@ Run <bt>my_tests.sh<bt> as <bt>${USER}<bt> and capture requests/responses going 
 
 The location to store the spec. Can be an AkitaURI or a local file.
 
-If not specified, defaults to a trace on Akita Cloud. Note that you must supply <bt>--service<bt> in this case.
+If not specified, defaults to a trace on Akita Cloud. Note that you must supply <bt>--project<bt> in this case.
 
-When specifying an AkitaURI, the format is "akita://{SERVICE}:spec" or "akita://{SERVICE}:spec:{NAME}", where "SERVICE" is the name of your service and "NAME" is the name of the spec on Akita Cloud where the collected data is stored. A spec name will be generated if "NAME" is not provided.
+When specifying an AkitaURI, the format is "akita://{PROJECT}:spec" or "akita://{PROJECT}:spec:{NAME}", where "PROJECT" is the name of your project and "NAME" is the name of the spec on Akita Cloud where the collected data is stored. A spec name will be generated if "NAME" is not provided.
+
+## --project string
+
+Your Akita project. Only needed if <bt>--out<bt> is not an AkitaURI.
 
 ## --service string
 
-Your Akita service. Only needed if <bt>--out<bt> is not an AkitaURI.
+Alias for --project.  DEPRECATED, prefer --project.
 
 ## --cluster string
 
-Your Akita cluster (alias for 'service'). Only needed if <bt>--out<bt> is not an AkitaURI.
+Alias for --project.  DEPRECATED, prefer --project.
 
 ## --filter string
 
-Used to match packets going to and coming from your API service.
+Used to match packets going to and coming from your API project.
 
 For example, to match packets destined/originated from port 80, you would set <bt>--filter="port 80"<bt>.
 

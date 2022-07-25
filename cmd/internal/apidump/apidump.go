@@ -57,16 +57,16 @@ var Cmd = &cobra.Command{
 			return errors.Wrap(err, "failed to load plugins")
 		}
 
-		// Check that exactly one of --out or --service is specified.
+		// Check that exactly one of --out or --project is specified.
 		if outFlag.IsSet() == (serviceFlag != "") {
-			return errors.New("exactly one of --out or --service must be specified")
+			return errors.New("exactly one of --out or --project must be specified")
 		}
 
-		// If --service was given, convert it to an equivalent --out.
+		// If --project was given, convert it to an equivalent --out.
 		if serviceFlag != "" {
 			uri, err := akiuri.Parse(akiuri.Scheme + serviceFlag)
 			if err != nil {
-				return errors.Wrap(err, "bad service name")
+				return errors.Wrap(err, "bad project name")
 			}
 			outFlag.AkitaURI = &uri
 		}
@@ -170,19 +170,25 @@ func init() {
 	Cmd.Flags().Var(
 		&outFlag,
 		"out",
-		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out, --cluster, or --service must be specified.")
+		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out or --project must be specified.")
+
+	Cmd.Flags().StringVar(
+		&serviceFlag,
+		"project",
+		"",
+		"Your Akita project. Exactly one of --out or --project must be specified.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service. Exactly one of --out, --cluster, or --service must be specified.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'service'). Exactly one of --out, --cluster, or --service must be specified.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,
@@ -287,7 +293,7 @@ func init() {
 		&deploymentFlag,
 		"deployment",
 		"",
-		"Deployment name to use; this distinguishes different instances of the same service. 'default' if unspecified.",
+		"Deployment name to use.  DEPRECATED, prefer creating separate projects for different deployment environments, e.g. 'my-project-prod' and 'my-project-staging'.",
 	)
 
 	Cmd.Flags().IntVar(

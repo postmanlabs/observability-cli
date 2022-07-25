@@ -12,6 +12,7 @@ import (
 
 // TODO(kku): support local specs by uploading them first.
 var Cmd = &cobra.Command{
+	Deprecated:   "Differences are now computed through the Akita app.",
 	Use:          "apidiff [BASE_SPEC_AKITA_URI] [NEW_SPEC_AKITA_URI]",
 	Short:        "Compare 2 API specs.",
 	SilenceUsage: true,

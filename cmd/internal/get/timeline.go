@@ -21,8 +21,8 @@ import (
 var GetTimelineCmd = &cobra.Command{
 	Use:          "timeline [SERVICE] [DEPLOYMENT]",
 	Aliases:      []string{"timeline"},
-	Short:        "List timeline for the given service.",
-	Long:         "List timeline of API calls for the given service.",
+	Short:        "List timeline for the given project.",
+	Long:         "List timeline of API calls for the given project.",
 	SilenceUsage: false,
 	RunE:         getTimeline,
 }
@@ -39,21 +39,27 @@ func init() {
 
 	GetTimelineCmd.Flags().StringVar(
 		&serviceFlag,
+		"project",
+		"",
+		"Your Akita project.")
+
+	GetTimelineCmd.Flags().StringVar(
+		&serviceFlag,
 		"service",
 		"",
-		"Your Akita service.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetTimelineCmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita cluster (alias for 'service').")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	GetTimelineCmd.Flags().StringVar(
 		&deploymentFlag,
 		"deployment",
 		"",
-		"Deployment tag used for traces.")
+		"Deployment tag used for traces. DEPRECATED.")
 
 	GetTimelineCmd.Flags().StringVar(
 		&startTimeFlag,
@@ -109,16 +115,17 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 	// Accept these as either flags or arguments.
 	if serviceFlag == "" {
 		if len(args) == 0 {
-			return errors.New("Must specify a service and deployment name")
+			return errors.New("Must specify a project")
 		}
 		serviceFlag = args[0]
 		args = args[1:]
 	}
 	if deploymentFlag == "" {
 		if len(args) == 0 {
-			return errors.New("Must specify a deployment name")
+			deploymentFlag = "default"
+		} else {
+			deploymentFlag = args[0]
 		}
-		deploymentFlag = args[0]
 		args = args[1:]
 	}
 
@@ -144,7 +151,7 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	printer.Debugf("Loading service %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
+	printer.Debugf("Loading project %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
 
 	clientID := akid.GenerateClientID()
 	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)

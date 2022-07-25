@@ -24,7 +24,7 @@ func Run(args Args) error {
 	frontClient := rest.NewFrontClient(args.Domain, args.ClientID)
 	svc, err := util.GetServiceIDByName(frontClient, args.DestURI.ServiceName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to resolve service name %q", args.DestURI.ServiceName)
+		return errors.Wrapf(err, "failed to resolve project name %q", args.DestURI.ServiceName)
 	}
 
 	// Determine the object's name.

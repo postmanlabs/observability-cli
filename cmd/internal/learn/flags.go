@@ -67,15 +67,21 @@ func registerRequiredFlags() {
 func registerOptionalFlags() {
 	Cmd.Flags().StringVar(
 		&serviceFlag,
+		"project",
+		"",
+		"Your Akita project. Only needed if --out is not an AkitaURI.")
+
+	Cmd.Flags().StringVar(
+		&serviceFlag,
 		"service",
 		"",
-		"Akita cloud service to use to generate the spec. Only needed if --out is not an AkitaURI.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Akita cloud cluster to use to generate the spec (alias for 'service'). Only needed if --out is not an AkitaURI.")
+		"Your Akita project. DEPRECATED, prefer --project.")
 
 	Cmd.Flags().Var(
 		&outFlag,
@@ -102,7 +108,7 @@ Ignored if --session is used to attach to an existing learn session.
 		&versionsFlag,
 		"versions",
 		nil,
-		`Assigns versions to the spec.  Versions are similar to tags, but a version may only be assigned to one spec within a service. Specified as a comma separated list of strings.
+		`Assigns versions to the spec.  Versions are similar to tags, but a version may only be assigned to one spec within a project. Specified as a comma separated list of strings.
 
 Ignored if --session is used to attach to an existing learn session.
 `,
