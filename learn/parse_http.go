@@ -236,10 +236,10 @@ func decodeBody(headers http.Header, body io.Reader, bodyDecompressed bool) (io.
 		if len(compressions) > 0 {
 			printer.Debugf("Detected Content-Encoding header: %s\n", compressions)
 		}
-		// Content-Encoding is listed in the order applied, so we reverse the order to
-		// decompress.
-		sort.Reverse(sort.StringSlice(compressions))
-		for _, c := range compressions {
+		// Content-Encoding is listed in the order applied, so we reverse the order
+		// to decompress.
+		for i := len(compressions) - 1; i >= 0; i-- {
+			c := compressions[i]
 			if b, err := decompress(c, body); err != nil {
 				return nil, errors.Wrapf(err, "failed to decompress body with %s", c)
 			} else {
