@@ -13,14 +13,12 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/akinet/http"
-	"github.com/akitasoftware/akita-libs/memview"
 )
 
 var (
-	testEndpoint1  = &testEndpoint{ip1, port1}
-	testEndpoint2  = &testEndpoint{ip2, port2}
-	brokerEndpoint = &testEndpoint{brokerIP, brokerPort}
-	testTime       = mustParseTime("2020-02-19T15:04:05+08:00")
+	testEndpoint1 = &testEndpoint{ip1, port1}
+	testEndpoint2 = &testEndpoint{ip2, port2}
+	testTime      = mustParseTime("2020-02-19T15:04:05+08:00")
 )
 
 func mustParseTime(s string) time.Time {
@@ -189,14 +187,14 @@ func TestTCPFallbackToRaw(t *testing.T) {
 	}
 
 	expectedRawBytes := []string{
-		"0ce5908d-f835-42ab-a37c-1152cbc46424",
-		"29ee29a9-4546-4d75-a50a-7bedc79c44ca",
+		akinet.DroppedBytes(len("0ce5908d-f835-42ab-a37c-1152cbc46424")).String(),
+		akinet.DroppedBytes(len("29ee29a9-4546-4d75-a50a-7bedc79c44ca")).String(),
 	}
 
 	actual := make([]string, 0, 2)
 	for nt := range out {
-		if b, ok := nt.Content.(akinet.RawBytes); !ok {
-			t.Fatalf("returned content is not of type 'RawBytes', got %T", nt.Content)
+		if b, ok := nt.Content.(akinet.DroppedBytes); !ok {
+			t.Fatalf("returned content is not of type 'DroppedBytes', got %T", nt.Content)
 		} else {
 			actual = append(actual, b.String())
 		}
@@ -271,11 +269,11 @@ func TestTCPMidStream(t *testing.T) {
 	}
 
 	expected := map[string][]akinet.ParsedNetworkContent{
-		testEndpoint1.String(): []akinet.ParsedNetworkContent{
+		testEndpoint1.String(): {
 			akinet.AkitaPrince("hello"),
 		},
-		testEndpoint2.String(): []akinet.ParsedNetworkContent{
-			akinet.RawBytes(memview.New([]byte("a|"))),
+		testEndpoint2.String(): {
+			akinet.DroppedBytes(len("a|")),
 			akinet.AkitaPrince("bye"),
 		},
 	}
@@ -307,21 +305,21 @@ func TestTCPOutofOrder(t *testing.T) {
 	}
 
 	// Map src endpoint to bytes received for the flow.
-	actual := make(map[string]string, 2)
+	actual := make(map[string]int64, 2)
 	for nt := range out {
-		if rbs, ok := nt.Content.(akinet.RawBytes); !ok {
-			t.Errorf("returned content is not of type 'RawBytes', got %T", nt.Content)
+		if rbs, ok := nt.Content.(akinet.DroppedBytes); !ok {
+			t.Errorf("returned content is not of type 'DroppedBytes', got %T", nt.Content)
 			return
 		} else {
 			e := &testEndpoint{ip: nt.SrcIP, port: nt.SrcPort}
 			k := e.String()
-			actual[k] += rbs.String()
+			actual[k] += int64(rbs)
 		}
 	}
 
-	expected := map[string]string{
-		testEndpoint1.String(): "abc",
-		testEndpoint2.String(): "23",
+	expected := map[string]int64{
+		testEndpoint1.String(): int64(len("abc")),
+		testEndpoint2.String(): int64(len("23")),
 	}
 	if diff := netParseCmp(expected, actual); diff != "" {
 		t.Errorf("reassembled data mismatch: %s", diff)
@@ -360,21 +358,21 @@ func TestTCPDuplicateAndOutofOrderSegments(t *testing.T) {
 	}
 
 	// Map src endpoint to bytes received for the flow.
-	actual := make(map[string]string, 2)
+	actual := make(map[string]int64, 2)
 	for nt := range out {
-		if rbs, ok := nt.Content.(akinet.RawBytes); !ok {
-			t.Errorf("returned content is not of type 'RawBytes', got %T", nt.Content)
+		if rbs, ok := nt.Content.(akinet.DroppedBytes); !ok {
+			t.Errorf("returned content is not of type 'DroppedBytes', got %T", nt.Content)
 			return
 		} else {
 			e := &testEndpoint{ip: nt.SrcIP, port: nt.SrcPort}
 			k := e.String()
-			actual[k] += rbs.String()
+			actual[k] += int64(rbs)
 		}
 	}
 
-	expected := map[string]string{
-		testEndpoint1.String(): "abcd",
-		testEndpoint2.String(): "23",
+	expected := map[string]int64{
+		testEndpoint1.String(): int64(len("abcd")),
+		testEndpoint2.String(): int64(len("23")),
 	}
 	if diff := netParseCmp(expected, actual); diff != "" {
 		t.Errorf("reassembled data mismatch: %s", diff)
@@ -399,18 +397,18 @@ func TestPcapCloseBeforeTCPDuplexEvent(t *testing.T) {
 		t.Fatalf("unexpected error setting up listener: %v", err)
 	}
 
-	var actual string
+	var actual int64
 	for nt := range out {
-		if b, ok := nt.Content.(akinet.RawBytes); !ok {
-			t.Fatalf("returned content is not of type 'RawBytes', got %T", nt.Content)
+		if b, ok := nt.Content.(akinet.DroppedBytes); !ok {
+			t.Fatalf("returned content is not of type 'DroppedBytes', got %T", nt.Content)
 		} else {
-			actual += b.String()
+			actual += int64(b)
 		}
 	}
 	// The out channel should close itself once it detects that the underlying
 	// pcap channel has closed.
 
-	if diff := cmp.Diff(msgData, actual); diff != "" {
+	if diff := cmp.Diff(int64(len(msgData)), actual); diff != "" {
 		t.Errorf("mismatch: %s", diff)
 	}
 }
@@ -430,15 +428,15 @@ func TestCancelHangingPcap(t *testing.T) {
 		t.Fatalf("unexpected error setting up listener: %v", err)
 	}
 
-	var actual string
+	var actual int64
 	for nt := range out {
-		if b, ok := nt.Content.(akinet.RawBytes); !ok {
-			t.Fatalf("returned content is not of type 'RawBytes', got %T", nt.Content)
+		if b, ok := nt.Content.(akinet.DroppedBytes); !ok {
+			t.Fatalf("returned content is not of type 'DroppedBytes', got %T", nt.Content)
 		} else {
-			actual += b.String()
+			actual += int64(b)
 		}
 
-		if msgData == actual {
+		if int64(len(msgData)) == actual {
 			// Manually cancel the parsing.
 			close(closeChan)
 		}
@@ -470,7 +468,7 @@ func TestUDP(t *testing.T) {
 			SrcPort:         port1,
 			DstIP:           ip2,
 			DstPort:         port2,
-			Content:         akinet.RawBytes(memview.New(msgData)),
+			Content:         akinet.DroppedBytes(len(msgData)),
 			ObservationTime: testTime,
 		},
 	}
