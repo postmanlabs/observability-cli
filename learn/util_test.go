@@ -11,6 +11,7 @@ import (
 	as "github.com/akitasoftware/akita-ir/go/api_spec"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/pbhash"
 	"github.com/akitasoftware/akita-libs/spec_util"
 )
@@ -71,7 +72,7 @@ func newTestHTTPRequest(
 		Method:     method,
 		URL:        testURL,
 		Host:       "www.akitasoftware.com",
-		Body:       body,
+		Body:       memview.New(body),
 		Cookies:    cookies,
 		Header:     h,
 	}
@@ -93,7 +94,7 @@ func newTestHTTPResponse(
 		ProtoMajor: 1,
 		ProtoMinor: 1,
 		Header:     h,
-		Body:       body,
+		Body:       memview.New(body),
 		Cookies:    cookies,
 	}
 }

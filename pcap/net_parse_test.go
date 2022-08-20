@@ -13,6 +13,7 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/akinet/http"
+	"github.com/akitasoftware/akita-libs/buffer_pool"
 )
 
 var (
@@ -481,6 +482,11 @@ func TestUDP(t *testing.T) {
 // This test triggers a nil assembly context in tcpFlow.reassembledWithIgnore.
 // Currently we have an error counter, but maybe we should come up with a better long-term solution.
 func XXX_TestHTTPResponseInJumboframe(t *testing.T) {
+	pool, err := buffer_pool.MakeBufferPool(1024*1024, 4*1024)
+	if err != nil {
+		t.Error(err)
+	}
+
 	firstResponse := "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2000\r\n\r\n"
 	secondBody := "<html><body>This is some extra text</body></html>"
 	actualResponse := fmt.Sprintf("HTTP/1.1 400 Not Found\r\nContent-Type: text/html\r\nContent-Length: %d\r\n\r\n%s", len(secondBody), secondBody)
@@ -496,7 +502,7 @@ func XXX_TestHTTPResponseInJumboframe(t *testing.T) {
 
 	closeChan := make(chan struct{})
 	defer close(closeChan)
-	out, err := setupParseFromInterface(fakePcap(pkts), closeChan, http.NewHTTPResponseParserFactory())
+	out, err := setupParseFromInterface(fakePcap(pkts), closeChan, http.NewHTTPResponseParserFactory(pool))
 	if err != nil {
 		t.Errorf("unexpected error setting up listener: %v", err)
 		return
@@ -509,5 +515,8 @@ func XXX_TestHTTPResponseInJumboframe(t *testing.T) {
 	}
 	if len(actual) != 3 {
 		t.Errorf("Expected three parsed packets")
+	}
+	for _, nt := range actual {
+		nt.Content.ReleaseBuffers()
 	}
 }

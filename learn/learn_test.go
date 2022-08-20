@@ -12,6 +12,7 @@ import (
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
@@ -34,7 +35,7 @@ var (
 			Header: map[string][]string{
 				"Content-Type": []string{"application/json"},
 			},
-			Body: []byte(`"2020-07-22T18:55:17.911Z"`),
+			Body: memview.New([]byte(`"2020-07-22T18:55:17.911Z"`)),
 		},
 	}
 
@@ -46,7 +47,7 @@ var (
 			Header: map[string][]string{
 				"Content-Type": []string{"application/json"},
 			},
-			Body: []byte(`{"you said": "2020-07-22T18:55:17.911Z"}`),
+			Body: memview.New([]byte(`{"you said": "2020-07-22T18:55:17.911Z"}`)),
 		},
 	}
 
@@ -115,12 +116,12 @@ var (
 			Header: map[string][]string{
 				"Content-Type": []string{"application/json"},
 			},
-			Body: []byte(`
+			Body: memview.New([]byte(`
 {
 	"num1": 6119717375543385000,
 	"num2": 14201265876841261000
 }
-`),
+`)),
 		},
 	}
 

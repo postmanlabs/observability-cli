@@ -9,15 +9,16 @@ import (
 	"github.com/akitasoftware/akita-libs/akinet"
 	akihttp "github.com/akitasoftware/akita-libs/akinet/http"
 	"github.com/akitasoftware/akita-libs/akinet/tls"
+	"github.com/akitasoftware/akita-libs/buffer_pool"
 	. "github.com/akitasoftware/akita-libs/client_telemetry"
 )
 
-func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc trace.Collector, packetCount trace.PacketCountConsumer) error {
+func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc trace.Collector, packetCount trace.PacketCountConsumer, pool buffer_pool.BufferPool) error {
 	defer proc.Close()
 
 	facts := []akinet.TCPParserFactory{
-		akihttp.NewHTTPRequestParserFactory(),
-		akihttp.NewHTTPResponseParserFactory(),
+		akihttp.NewHTTPRequestParserFactory(pool),
+		akihttp.NewHTTPResponseParserFactory(pool),
 		tls.NewTLSClientParserFactory(),
 		tls.NewTLSServerParserFactory(),
 	}
@@ -35,7 +36,9 @@ func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, 
 
 	for t := range parsedChan {
 		t.Interface = intf
-		if err := proc.Process(t); err != nil {
+		err := proc.Process(t)
+		t.Content.ReleaseBuffers()
+		if err != nil {
 			return err
 		}
 	}

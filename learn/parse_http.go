@@ -25,6 +25,7 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
 )
@@ -86,7 +87,7 @@ func (pase ParseAPISpecError) Error() string {
 
 func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 	var isRequest bool
-	var rawBody []byte
+	var rawBody memview.MemView
 	var bodyDecompressed bool
 	var methodMeta *pb.MethodMeta
 	var datas []*pb.Data
@@ -120,8 +121,8 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 		return nil, ParseAPISpecError("expected http message, got something else")
 	}
 
-	if len(rawBody) > 0 {
-		bodyStream := bytes.NewReader(rawBody)
+	if rawBody.Len() > 0 {
+		bodyStream := rawBody.CreateReader()
 		decodeStream, err := decodeBody(headers, bodyStream, bodyDecompressed)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode body")
@@ -209,13 +210,13 @@ func decompress(compression string, body io.Reader) (io.Reader, error) {
 // Our only means of success seems to be reading all the way to the end.
 // We limit the amount of space that can be produced that way (and the largest
 // body we are willing to try.)
-func attemptDecompress(body []byte) (io.Reader, error) {
-	if len(body) > MaxFallbackInput {
+func attemptDecompress(body memview.MemView) (io.Reader, error) {
+	if body.Len() > MaxFallbackInput {
 		return nil, errors.New("body too large to attempt trial decompression")
 	}
 
 	for _, algorithm := range fallbackDecompressions {
-		dr, err := decompress(algorithm, bytes.NewReader(body))
+		dr, err := decompress(algorithm, body.CreateReader())
 		if err != nil {
 			continue
 		}
