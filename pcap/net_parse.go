@@ -2,6 +2,7 @@ package pcap
 
 import (
 	"net"
+	"runtime/debug"
 	"time"
 
 	"github.com/google/gopacket"
@@ -188,6 +189,17 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 }
 
 func (p *NetworkTrafficParser) packetToParsedNetworkTraffic(out chan<- akinet.ParsedNetworkTraffic, assembler *reassembly.Assembler, packet gopacket.Packet) {
+	defer func() {
+		// If we panic during packet handling, do not crash the program. Instead log the error and backtrace.
+		// We can perform selective error-handling based on the type of the object passed to panic(),
+		// but we can't choose not to recover from certain errors; we would have to re-panic.
+		//
+		// TODO: detect repeated crashes?
+		if err := recover(); err != nil {
+			printer.Stderr.Errorf("Panic during packet handling: %v\n%v\n", err, string(debug.Stack()))
+		}
+	}()
+
 	if packet.NetworkLayer() == nil {
 		printer.V(4).Debugf("unusable packet without network layer\n")
 		return
