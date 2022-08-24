@@ -370,6 +370,11 @@ func Run(args Args) error {
 		}
 	}
 
+	// If --dogfood is specified, enable assertions in the buffer-pool code.
+	if viper.GetBool("dogfood") {
+		buffer_pool.CheckInvariants = true
+	}
+
 	// Create a buffer pool for storing HTTP payloads.
 	pool, err := buffer_pool.MakeBufferPool(20*1024*1024, 4*1024)
 	if err != nil {
