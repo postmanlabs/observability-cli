@@ -69,7 +69,6 @@ func (sg fakeScatterGather) Info() (direction reassembly.TCPFlowDirection, start
 
 func (sg fakeScatterGather) Stats() reassembly.TCPAssemblyStats {
 	panic("unimplemented")
-	return reassembly.TCPAssemblyStats{}
 }
 
 type tcpFlowTestCase struct {
@@ -133,34 +132,34 @@ func TestTCPFlow(t *testing.T) {
 			name:   "unparsable single byte",
 			inputs: []string{"?"},
 			expected: []akinet.ParsedNetworkTraffic{
-				dummyPNT(akinet.RawBytes(memview.New([]byte("?")))),
+				dummyPNT(akinet.DroppedBytes(len("?"))),
 			},
 		},
 		{
 			name:   "discard single byte from front and back",
 			inputs: []string{"?prince|bread!|&"},
 			expected: []akinet.ParsedNetworkTraffic{
-				dummyPNT(akinet.RawBytes(memview.New([]byte("?")))),
+				dummyPNT(akinet.DroppedBytes(len("?"))),
 				dummyPNT(akinet.AkitaPrince("bread!")),
-				dummyPNT(akinet.RawBytes(memview.New([]byte("&")))),
+				dummyPNT(akinet.DroppedBytes(len("&"))),
 			},
 		},
 		{
 			name:   "discard single byte from front and back - segmented",
 			inputs: []string{"?pr", "ince|bre", "ad!|&"},
 			expected: []akinet.ParsedNetworkTraffic{
-				dummyPNT(akinet.RawBytes(memview.New([]byte("?")))),
+				dummyPNT(akinet.DroppedBytes(len("?"))),
 				dummyPNT(akinet.AkitaPrince("bread!")),
-				dummyPNT(akinet.RawBytes(memview.New([]byte("&")))),
+				dummyPNT(akinet.DroppedBytes(len("&"))),
 			},
 		},
 		{
 			name:   "discard multiple bytes from front and back - segmented",
 			inputs: []string{"hellopr", "ince|bre", "ad!", "|bye"},
 			expected: []akinet.ParsedNetworkTraffic{
-				dummyPNT(akinet.RawBytes(memview.New([]byte("hello")))),
+				dummyPNT(akinet.DroppedBytes(len("hello"))),
 				dummyPNT(akinet.AkitaPrince("bread!")),
-				dummyPNT(akinet.RawBytes(memview.New([]byte("bye")))),
+				dummyPNT(akinet.DroppedBytes(len("bye"))),
 			},
 		},
 		{
@@ -192,7 +191,7 @@ func TestTCPFlow(t *testing.T) {
 			inputs: []string{"pr", "ince|bre", "ad!|pr", "ince|ya"},
 			expected: []akinet.ParsedNetworkTraffic{
 				dummyPNT(akinet.AkitaPrince("bread!")),
-				dummyPNT(akinet.RawBytes(memview.New([]byte("prince|ya")))),
+				dummyPNT(akinet.DroppedBytes(len("prince|ya"))),
 			},
 		},
 		{

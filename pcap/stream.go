@@ -73,9 +73,9 @@ func newTCPFlow(clock clockWrapper, bidiID akinet.TCPBidiID, nf, tf gopacket.Flo
 	}
 }
 
-func (f *tcpFlow) handleUnparseable(t time.Time, d memview.MemView) {
-	if d.Len() > 0 {
-		f.outChan <- f.toPNT(t, t, akinet.RawBytes(d))
+func (f *tcpFlow) handleUnparseable(t time.Time, size int64) {
+	if size > 0 {
+		f.outChan <- f.toPNT(t, t, akinet.DroppedBytes(size))
 	}
 }
 
@@ -98,7 +98,7 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 		fact, decision, discardFront := f.factorySelector.Select(pktData, isEnd)
 		if discardFront > 0 {
 			printer.V(6).Infof("discarding %d bytes discarded by all parsers\n", discardFront)
-			f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData.SubView(0, discardFront))
+			f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, discardFront)
 			pktData = pktData.SubView(discardFront, pktData.Len())
 		}
 
@@ -131,24 +131,24 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 				} else {
 					atomic.AddUint64(&CountBadAssemblerContextType, 1)
 				}
-				f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData)
+				f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData.Len())
 				return
 			}
 			f.currentParser = fact.CreateParser(f.bidiID, ctx.seq, ctx.ack)
 			f.currentParserCtx = ctx
 		default:
 			printer.Errorf("unsupported decision type %s, treating data as raw bytes\n", decision)
-			f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData)
+			f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData.Len())
 			return
 		}
 	}
 
-	pnc, unused, err := f.currentParser.Parse(pktData, isEnd)
+	pnc, unused, numBytesConsumed, err := f.currentParser.Parse(pktData, isEnd)
 	if err != nil {
 		// Parser failed, return all the bytes passed to the parser so at least we
 		// can still perform leak detection on the raw bytes.
 		t := f.currentParserCtx.GetCaptureInfo().Timestamp
-		f.handleUnparseable(t, unused)
+		f.handleUnparseable(t, numBytesConsumed)
 
 		f.currentParser = nil
 		f.currentParserCtx = nil
@@ -196,11 +196,13 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 func (f *tcpFlow) reassemblyComplete() {
 	if f.currentParser != nil {
 		// We were in the middle of parsing something, give up.
-		pnc, unused, _ := f.currentParser.Parse(memview.New(nil), true)
+		pnc, unused, numBytesConsumed, err := f.currentParser.Parse(memview.New(nil), true)
 		t := f.currentParserCtx.GetCaptureInfo().Timestamp
-		f.handleUnparseable(t, unused)
-		if pnc != nil {
+		if err != nil {
+			f.handleUnparseable(t, numBytesConsumed)
+		} else if pnc != nil {
 			f.outChan <- f.toPNT(t, t, pnc)
+			f.handleUnparseable(t, unused.Len())
 		}
 		f.currentParser = nil
 		f.currentParserCtx = nil
@@ -210,7 +212,7 @@ func (f *tcpFlow) reassemblyComplete() {
 		// We estimate the time with current time instead of tracking a separate
 		// context since unusedAcceptBuf is unlikely to be used and is almost
 		// certainly very small in size.
-		f.outChan <- f.toPNT(f.clock.Now(), f.clock.Now(), akinet.RawBytes(f.unusedAcceptBuf))
+		f.outChan <- f.toPNT(f.clock.Now(), f.clock.Now(), akinet.DroppedBytes(f.unusedAcceptBuf.Len()))
 	}
 }
 

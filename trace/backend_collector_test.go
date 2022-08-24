@@ -18,6 +18,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akinet"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/batcher"
+	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/spec_util"
 )
 
@@ -74,7 +75,7 @@ func TestObfuscate(t *testing.T) {
 			Header: map[string][]string{
 				"Content-Type": {"application/json"},
 			},
-			Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
+			Body: memview.New([]byte(`{"name": "prince", "number": 6119717375543385000}`)),
 		},
 	}
 
@@ -86,7 +87,7 @@ func TestObfuscate(t *testing.T) {
 			Header: map[string][]string{
 				"Content-Type": {"application/json"},
 			},
-			Body: []byte(`{"homes": ["burbank, ca", "jeuno, ak", "versailles"]}`),
+			Body: memview.New([]byte(`{"homes": ["burbank, ca", "jeuno, ak", "versailles"]}`)),
 		},
 	}
 
@@ -266,7 +267,7 @@ func TestMultipleInterfaces(t *testing.T) {
 					Header: map[string][]string{
 						"Content-Type": {"application/json"},
 					},
-					Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
+					Body: memview.New([]byte(`{"name": "prince", "number": 6119717375543385000}`)),
 				},
 			}
 			bc.Process(req)
@@ -278,7 +279,7 @@ func TestMultipleInterfaces(t *testing.T) {
 					Header: map[string][]string{
 						"Content-Type": {"application/json"},
 					},
-					Body: []byte(`{"homes": ["burbank, ca", "jeuno, ak", "versailles"]}`),
+					Body: memview.New([]byte(`{"homes": ["burbank, ca", "jeuno, ak", "versailles"]}`)),
 				},
 			}
 			bc.Process(resp)

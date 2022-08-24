@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/akitasoftware/akita-libs/akinet"
+	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/google/uuid"
 	"github.com/spf13/viper"
 )
@@ -60,7 +61,7 @@ func TestRateLimit_FirstSample(t *testing.T) {
 				Header: map[string][]string{
 					"Content-Type": {"application/json"},
 				},
-				Body: []byte(`{"name": "prince", "number": 6119717375543385000}`),
+				Body: memview.New([]byte(`{"name": "prince", "number": 6119717375543385000}`)),
 			},
 			ObservationTime: time.Now(),
 			FinalPacketTime: time.Now(),

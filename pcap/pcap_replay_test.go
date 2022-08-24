@@ -17,6 +17,8 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akinet"
 	akihttp "github.com/akitasoftware/akita-libs/akinet/http"
+	"github.com/akitasoftware/akita-libs/buffer_pool"
+	"github.com/akitasoftware/akita-libs/memview"
 )
 
 // Constants wrapped as functions because we can't read the testdata file at
@@ -121,12 +123,12 @@ func simpleHTTPResp2() akinet.ParsedNetworkTraffic {
 	}
 }
 
-func readFileOrDie(path string) []byte {
+func readFileOrDie(path string) memview.MemView {
 	bs, err := ioutil.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
-	return bs
+	return memview.New(bs)
 }
 
 func removeNonDeterministicField(p *akinet.ParsedNetworkTraffic) {
@@ -173,13 +175,13 @@ func (filePcapWrapper) getInterfaceAddrs(interfaceName string) ([]net.IP, error)
 	return nil, nil
 }
 
-func readFromPcapFile(file string) ([]akinet.ParsedNetworkTraffic, error) {
+func readFromPcapFile(file string, pool buffer_pool.BufferPool) ([]akinet.ParsedNetworkTraffic, error) {
 	p := NewNetworkTrafficParser(1.0)
 	p.pcap = filePcapWrapper(file)
 
 	done := make(chan struct{})
 	defer close(done)
-	out, err := p.ParseFromInterface("fake", "", done, akihttp.NewHTTPRequestParserFactory(), akihttp.NewHTTPResponseParserFactory())
+	out, err := p.ParseFromInterface("fake", "", done, akihttp.NewHTTPRequestParserFactory(pool), akihttp.NewHTTPResponseParserFactory(pool))
 	if err != nil {
 		return nil, errors.Wrap(err, "ParseFromInterface failed")
 	}
@@ -188,6 +190,7 @@ func readFromPcapFile(file string) ([]akinet.ParsedNetworkTraffic, error) {
 	for c := range out {
 		// Remove TCP metadata, which was added after this test was written.
 		if _, ignore := c.Content.(akinet.TCPPacketMetadata); ignore {
+			c.Content.ReleaseBuffers()
 			continue
 		}
 
@@ -200,6 +203,11 @@ func readFromPcapFile(file string) ([]akinet.ParsedNetworkTraffic, error) {
 }
 
 func TestPcapHTTP(t *testing.T) {
+	pool, err := buffer_pool.MakeBufferPool(1024*1024, 4*1024)
+	if err != nil {
+		t.Error(err)
+	}
+
 	testCases := []struct {
 		name     string
 		pcapFile string
@@ -228,15 +236,19 @@ func TestPcapHTTP(t *testing.T) {
 
 	for _, c := range testCases {
 		t.Logf("testing %q", c.pcapFile)
-		collected, err := readFromPcapFile(c.pcapFile)
+		collected, err := readFromPcapFile(c.pcapFile, pool)
 		if err != nil {
 			t.Errorf("[%s] got unexpected error: %v", c.name, err)
 		} else {
 
 			// TODO: sort slice in cmp
-			if diff := cmp.Diff(c.expected, collected, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(c.expected, collected, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(akinet.HTTPRequest{}, akinet.HTTPResponse{})); diff != "" {
 				t.Errorf("[%s] found diff: %s", c.name, diff)
 			}
+		}
+
+		for _, pnt := range collected {
+			pnt.Content.ReleaseBuffers()
 		}
 	}
 }

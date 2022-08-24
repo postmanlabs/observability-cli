@@ -11,7 +11,6 @@ import (
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-libs/akinet"
-	"github.com/akitasoftware/akita-libs/memview"
 )
 
 // The maximum time we will wait before flushing a connection and delivering
@@ -30,7 +29,6 @@ var StreamCloseTimeoutSeconds int64 = 90
 // We want to cap the total memory usage at about 200MB = 105263 pages
 var MaxBufferedPagesTotal int = 100_000
 
-//
 // What is a reasonable worst case? We should have enough so that if the
 // packet is retransmitted, we will get it before giving up.
 // 10Gb/s networking * 1ms RTT = 1.25 MB = 1Gb/s networking * 10ms RTT
@@ -217,7 +215,7 @@ func (p *NetworkTrafficParser) packetToParsedNetworkTraffic(out chan<- akinet.Pa
 		out <- akinet.ParsedNetworkTraffic{
 			SrcIP:           srcIP,
 			DstIP:           dstIP,
-			Content:         akinet.RawBytes(memview.New(packet.NetworkLayer().LayerPayload())),
+			Content:         akinet.DroppedBytes(len(packet.NetworkLayer().LayerPayload())),
 			ObservationTime: observationTime,
 		}
 		return
@@ -233,14 +231,14 @@ func (p *NetworkTrafficParser) packetToParsedNetworkTraffic(out chan<- akinet.Pa
 			SrcPort:         int(t.SrcPort),
 			DstIP:           dstIP,
 			DstPort:         int(t.DstPort),
-			Content:         akinet.RawBytes(memview.New(t.LayerPayload())),
+			Content:         akinet.DroppedBytes(len(t.LayerPayload())),
 			ObservationTime: observationTime,
 		}
 	default:
 		out <- akinet.ParsedNetworkTraffic{
 			SrcIP:           srcIP,
 			DstIP:           dstIP,
-			Content:         akinet.RawBytes(memview.New(t.LayerPayload())),
+			Content:         akinet.DroppedBytes(len(t.LayerPayload())),
 			ObservationTime: observationTime,
 		}
 	}

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
+	"github.com/akitasoftware/akita-libs/buffer_pool"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -369,6 +370,17 @@ func Run(args Args) error {
 		}
 	}
 
+	// If --dogfood is specified, enable assertions in the buffer-pool code.
+	if viper.GetBool("dogfood") {
+		buffer_pool.CheckInvariants = true
+	}
+
+	// Create a buffer pool for storing HTTP payloads.
+	pool, err := buffer_pool.MakeBufferPool(20*1024*1024, 4*1024)
+	if err != nil {
+		return errors.Wrapf(err, "Unable to create buffer pool")
+	}
+
 	// If the output is targeted at the backend, create a shared backend
 	// learn session.
 	var backendSvc akid.ServiceID
@@ -562,7 +574,7 @@ func Run(args Args) error {
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, collector, summary); err != nil {
+				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, collector, summary, pool); err != nil {
 					errChan <- interfaceError{
 						interfaceName: interfaceName,
 						err:           errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName),

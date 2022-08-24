@@ -3,7 +3,6 @@ package pcap
 import (
 	"bytes"
 	"fmt"
-	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -11,7 +10,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/reassembly"
 
 	"github.com/akitasoftware/akita-libs/akinet"
@@ -19,14 +17,11 @@ import (
 )
 
 var (
-	ip1        = net.IP{1, 2, 3, 4}
-	port1      = 1234
-	ip2        = net.IP{8, 8, 8, 8}
-	port2      = 53
-	ip3        = net.IP{127, 0, 0, 1}
-	port3      = 8080
-	brokerIP   = net.IP{172, 16, 12, 3}
-	brokerPort = 55855
+	ip1      = net.IP{1, 2, 3, 4}
+	port1    = 1234
+	ip2      = net.IP{8, 8, 8, 8}
+	port2    = 53
+	brokerIP = net.IP{172, 16, 12, 3}
 )
 
 type fakePcap []gopacket.Packet
@@ -80,16 +75,6 @@ const (
 	pineappleProtoHeader = "pineapple^"
 )
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func randString(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
-
 // Quick and dirty way to see if t1 < t2. For test only.
 func netTrafficLess(t1, t2 akinet.ParsedNetworkTraffic) bool {
 	return strings.Compare(fmt.Sprintf("%v", t1), fmt.Sprintf("%v", t2)) < 0
@@ -107,8 +92,8 @@ func stringLess(s1, s2 string) bool {
 	return strings.Compare(s1, s2) < 0
 }
 
-func compareRawBytes(rb1, rb2 akinet.RawBytes) bool {
-	return strings.Compare(rb1.String(), rb2.String()) == 0
+func compareDroppedBytes(db1, db2 akinet.DroppedBytes) bool {
+	return db1 == db2
 }
 
 // Custom cmp.Diff function with common options for use in net_parse related
@@ -119,17 +104,8 @@ func netParseCmp(e1, e2 interface{}) string {
 		cmpopts.SortSlices(princeLess),
 		cmpopts.SortSlices(byteSliceLess),
 		cmpopts.SortSlices(stringLess),
-		cmp.Comparer(compareRawBytes),
+		cmp.Comparer(compareDroppedBytes),
 	)
-}
-
-// Create packet with TCP SYN. This allows the TCP reassembler to create a new
-// stream.
-func makeTCPSYNPacket(srcIP, dstIP net.IP, srcPort, dstPort int, data []byte) gopacket.Packet {
-	synPkt := CreatePacketWithSeq(srcIP, dstIP, srcPort, dstPort, data, uint32(0))
-	synPktTcp := synPkt.TransportLayer().(*layers.TCP)
-	synPktTcp.SYN = true
-	return synPkt
 }
 
 // Prince protocol: prince|<payload>|
@@ -176,26 +152,28 @@ func (*princeParser) Name() string {
 }
 
 // Assumes input starts with the right header.
-func (p *princeParser) Parse(input memview.MemView, isEnd bool) (akinet.ParsedNetworkContent, memview.MemView, error) {
+func (p *princeParser) Parse(input memview.MemView, isEnd bool) (akinet.ParsedNetworkContent, memview.MemView, int64, error) {
 	p.all.Append(input)
+	bytesConsumed := p.all.Len()
 
 	barOne := int64(len(princeProtoHeader) - 1)
 	if p.all.GetByte(barOne) != '|' {
-		return nil, p.all, fmt.Errorf("prince parser got content that does start with prince proto header %s", strconv.Quote(p.all.String()))
+		return nil, memview.MemView{}, bytesConsumed, fmt.Errorf("prince parser got content that does start with prince proto header %s", strconv.Quote(p.all.String()))
 	}
 
 	barTwo := p.all.Index(barOne+1, []byte("|"))
 	if barTwo < 0 {
 		if isEnd {
-			return nil, p.all, fmt.Errorf("EOF before parse done")
+			return nil, memview.MemView{}, bytesConsumed, fmt.Errorf("EOF before parse done")
 		}
 		// Not done yet.
-		return nil, memview.MemView{}, nil
+		return nil, memview.MemView{}, bytesConsumed, nil
 	}
 
 	c := akinet.AkitaPrince(p.all.SubView(barOne+1, barTwo).String())
 	unused := p.all.SubView(barTwo+1, p.all.Len())
-	return c, unused, nil
+	bytesConsumed -= unused.Len()
+	return c, unused, bytesConsumed, nil
 }
 
 // Prince protocol: pineapple^<payload>^
@@ -240,6 +218,6 @@ func (pineappleParser) Name() string {
 }
 
 // Assumes input starts with the right header.
-func (pineappleParser) Parse(input memview.MemView, isEnd bool) (akinet.ParsedNetworkContent, memview.MemView, error) {
-	return nil, input, fmt.Errorf("should not get invoked")
+func (pineappleParser) Parse(input memview.MemView, isEnd bool) (akinet.ParsedNetworkContent, memview.MemView, int64, error) {
+	return nil, memview.MemView{}, input.Len(), fmt.Errorf("should not get invoked")
 }
