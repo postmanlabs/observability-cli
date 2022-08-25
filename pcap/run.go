@@ -13,14 +13,27 @@ import (
 	. "github.com/akitasoftware/akita-libs/client_telemetry"
 )
 
-func Collect(stop <-chan struct{}, intf, bpfFilter string, bufferShare float32, proc trace.Collector, packetCount trace.PacketCountConsumer, pool buffer_pool.BufferPool) error {
+func Collect(
+	stop <-chan struct{},
+	intf string,
+	bpfFilter string,
+	bufferShare float32,
+	parseTCPAndTLS bool,
+	proc trace.Collector,
+	packetCount trace.PacketCountConsumer,
+	pool buffer_pool.BufferPool,
+) error {
 	defer proc.Close()
 
 	facts := []akinet.TCPParserFactory{
 		akihttp.NewHTTPRequestParserFactory(pool),
 		akihttp.NewHTTPResponseParserFactory(pool),
-		tls.NewTLSClientParserFactory(),
-		tls.NewTLSServerParserFactory(),
+	}
+	if parseTCPAndTLS {
+		facts = append(facts,
+			tls.NewTLSClientParserFactory(),
+			tls.NewTLSServerParserFactory(),
+		)
 	}
 
 	parser := NewNetworkTrafficParser(bufferShare)

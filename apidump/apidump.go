@@ -111,6 +111,9 @@ type Args struct {
 
 	// Periodically report telemetry every N seconds thereafter
 	TelemetryInterval int
+
+	// Whether to report TCP connections and TLS handshakes.
+	CollectTCPAndTLSReports bool
 }
 
 func (args *Args) lint() {
@@ -560,11 +563,13 @@ func Run(args Args) error {
 				}
 			}
 
-			// Process TLS traffic into TLS-connection metadata.
-			collector = tls_conn_tracker.NewCollector(collector)
+			if args.CollectTCPAndTLSReports {
+				// Process TLS traffic into TLS-connection metadata.
+				collector = tls_conn_tracker.NewCollector(collector)
 
-			// Process TCP-packet metadata into TCP-connection metadata.
-			collector = tcp_conn_tracker.NewCollector(collector)
+				// Process TCP-packet metadata into TCP-connection metadata.
+				collector = tcp_conn_tracker.NewCollector(collector)
+			}
 
 			// Compute the share of the page cache that each collection process may use.
 			// (gopacket does not currently permit a unified page cache for packet reassembly.)
@@ -574,7 +579,7 @@ func Run(args Args) error {
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, collector, summary, pool); err != nil {
+				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, args.CollectTCPAndTLSReports, collector, summary, pool); err != nil {
 					errChan <- interfaceError{
 						interfaceName: interfaceName,
 						err:           errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName),

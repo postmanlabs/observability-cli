@@ -24,6 +24,7 @@ var GetGraphCmd = &cobra.Command{
 	Long:         "Show the service graph in textual form.",
 	SilenceUsage: false,
 	RunE:         getGraph,
+	Hidden:       true,
 }
 
 var (

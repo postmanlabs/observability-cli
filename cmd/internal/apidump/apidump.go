@@ -19,25 +19,26 @@ import (
 
 var (
 	// Optional flags
-	outFlag             location.Location
-	serviceFlag         string
-	interfacesFlag      []string
-	filterFlag          string
-	sampleRateFlag      float64
-	rateLimitFlag       float64
-	tagsFlag            []string
-	appendByTagFlag     bool
-	pathExclusionsFlag  []string
-	hostExclusionsFlag  []string
-	pathAllowlistFlag   []string
-	hostAllowlistFlag   []string
-	execCommandFlag     string
-	execCommandUserFlag string
-	pluginsFlag         []string
-	traceRotateFlag     string
-	deploymentFlag      string
-	statsLogDelay       int
-	telemetryInterval   int
+	outFlag                 location.Location
+	serviceFlag             string
+	interfacesFlag          []string
+	filterFlag              string
+	sampleRateFlag          float64
+	rateLimitFlag           float64
+	tagsFlag                []string
+	appendByTagFlag         bool
+	pathExclusionsFlag      []string
+	hostExclusionsFlag      []string
+	pathAllowlistFlag       []string
+	hostAllowlistFlag       []string
+	execCommandFlag         string
+	execCommandUserFlag     string
+	pluginsFlag             []string
+	traceRotateFlag         string
+	deploymentFlag          string
+	statsLogDelay           int
+	telemetryInterval       int
+	collectTCPAndTLSReports bool
 )
 
 var Cmd = &cobra.Command{
@@ -139,25 +140,26 @@ var Cmd = &cobra.Command{
 		}
 
 		args := apidump.Args{
-			ClientID:             akiflag.GetClientID(),
-			Domain:               akiflag.Domain,
-			Out:                  outFlag,
-			Tags:                 traceTags,
-			SampleRate:           sampleRateFlag,
-			WitnessesPerMinute:   rateLimitFlag,
-			Interfaces:           interfacesFlag,
-			Filter:               filterFlag,
-			PathExclusions:       pathExclusionsFlag,
-			HostExclusions:       hostExclusionsFlag,
-			PathAllowlist:        pathAllowlistFlag,
-			HostAllowlist:        hostAllowlistFlag,
-			ExecCommand:          execCommandFlag,
-			ExecCommandUser:      execCommandUserFlag,
-			Plugins:              plugins,
-			LearnSessionLifetime: traceRotateInterval,
-			Deployment:           deploymentFlag,
-			StatsLogDelay:        statsLogDelay,
-			TelemetryInterval:    telemetryInterval,
+			ClientID:                akiflag.GetClientID(),
+			Domain:                  akiflag.Domain,
+			Out:                     outFlag,
+			Tags:                    traceTags,
+			SampleRate:              sampleRateFlag,
+			WitnessesPerMinute:      rateLimitFlag,
+			Interfaces:              interfacesFlag,
+			Filter:                  filterFlag,
+			PathExclusions:          pathExclusionsFlag,
+			HostExclusions:          hostExclusionsFlag,
+			PathAllowlist:           pathAllowlistFlag,
+			HostAllowlist:           hostAllowlistFlag,
+			ExecCommand:             execCommandFlag,
+			ExecCommandUser:         execCommandUserFlag,
+			Plugins:                 plugins,
+			LearnSessionLifetime:    traceRotateInterval,
+			Deployment:              deploymentFlag,
+			StatsLogDelay:           statsLogDelay,
+			TelemetryInterval:       telemetryInterval,
+			CollectTCPAndTLSReports: collectTCPAndTLSReports,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -310,4 +312,12 @@ func init() {
 		"Upload client telemetry every N seconds.",
 	)
 	Cmd.Flags().MarkHidden("telemetry-interval")
+
+	Cmd.Flags().BoolVar(
+		&collectTCPAndTLSReports,
+		"report-tcp-and-tls",
+		false,
+		"Collect TCP and TLS reports.",
+	)
+	Cmd.Flags().MarkHidden("report-tcp-and-tls")
 }
