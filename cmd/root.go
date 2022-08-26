@@ -25,7 +25,6 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/learn"
 	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
 	"github.com/akitasoftware/akita-cli/cmd/internal/login"
-	"github.com/akitasoftware/akita-cli/cmd/internal/man"
 	"github.com/akitasoftware/akita-cli/cmd/internal/setversion"
 	"github.com/akitasoftware/akita-cli/cmd/internal/upload"
 	"github.com/akitasoftware/akita-cli/pcap"
@@ -244,7 +243,6 @@ func init() {
 	rootCmd.AddCommand(daemon.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(learn.Cmd))
 	rootCmd.AddCommand(login.Cmd)
-	rootCmd.AddCommand(man.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(setversion.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(upload.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(get.Cmd))
