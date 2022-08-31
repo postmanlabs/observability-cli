@@ -191,11 +191,12 @@ func dataFromPrimitive(p *pb.Primitive) *pb.Data {
 	return &pb.Data{Value: &pb.Data_Primitive{Primitive: p}}
 }
 
-func newBodyDataMeta(responseCode int, contentType pb.HTTPBody_ContentType) *pb.DataMeta {
+func newBodyDataMeta(responseCode int, contentType pb.HTTPBody_ContentType, originalContentType string) *pb.DataMeta {
 	return newDataMeta(&pb.HTTPMeta{
 		Location: &pb.HTTPMeta_Body{
 			Body: &pb.HTTPBody{
 				ContentType: contentType,
+				OtherType:   originalContentType,
 			},
 		},
 		ResponseCode: int32(responseCode),

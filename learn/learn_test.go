@@ -63,6 +63,7 @@ var (
 					Location: &pb.HTTPMeta_Body{
 						Body: &pb.HTTPBody{
 							ContentType: pb.HTTPBody_JSON,
+							OtherType:   "application/json",
 						},
 					},
 				},
@@ -91,6 +92,7 @@ var (
 					Location: &pb.HTTPMeta_Body{
 						Body: &pb.HTTPBody{
 							ContentType: pb.HTTPBody_JSON,
+							OtherType:   "application/json",
 						},
 					},
 				},
@@ -149,6 +151,7 @@ var (
 					Location: &pb.HTTPMeta_Body{
 						Body: &pb.HTTPBody{
 							ContentType: pb.HTTPBody_JSON,
+							OtherType:   "application/json",
 						},
 					},
 				},
