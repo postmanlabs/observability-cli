@@ -103,7 +103,7 @@ func TestObfuscate(t *testing.T) {
 					ApiType: pb.ApiType_HTTP_REST,
 				},
 				Args: map[string]*pb.Data{
-					"BuVeSzMAimw=": newTestBodySpecFromStruct(0, pb.HTTPBody_JSON, map[string]*pb.Data{
+					"nxnOc5Qy3D4=": newTestBodySpecFromStruct(0, pb.HTTPBody_JSON, "application/json", map[string]*pb.Data{
 						"name": dataFromPrimitive(spec_util.NewPrimitiveString(
 							"lgkXNsG1k7-cxarrFoo-MmhjoRP3YOXV3C0k6rrKy2A="),
 						),
@@ -111,7 +111,7 @@ func TestObfuscate(t *testing.T) {
 					}),
 				},
 				Responses: map[string]*pb.Data{
-					"Ye1yQe9ylz0=": newTestBodySpecFromStruct(200, pb.HTTPBody_JSON, map[string]*pb.Data{
+					"AyBUQkT0SHU=": newTestBodySpecFromStruct(200, pb.HTTPBody_JSON, "application/json", map[string]*pb.Data{
 						"homes": dataFromList(
 							dataFromPrimitive(spec_util.NewPrimitiveString(
 								"hZwXhGMIxoOotCt-Cu4toMf9g8CpZnOdUe3bPxEn_Sg="),
@@ -157,20 +157,21 @@ func dataFromList(elems ...*pb.Data) *pb.Data {
 	return &pb.Data{Value: &pb.Data_List{List: &pb.List{Elems: elems}}}
 }
 
-func newTestBodySpecFromStruct(statusCode int, contentType pb.HTTPBody_ContentType, s map[string]*pb.Data) *pb.Data {
-	return newTestBodySpecFromData(statusCode, contentType, dataFromStruct(s))
+func newTestBodySpecFromStruct(statusCode int, contentType pb.HTTPBody_ContentType, originalContentType string, s map[string]*pb.Data) *pb.Data {
+	return newTestBodySpecFromData(statusCode, contentType, originalContentType, dataFromStruct(s))
 }
 
-func newTestBodySpecFromData(statusCode int, contentType pb.HTTPBody_ContentType, d *pb.Data) *pb.Data {
-	d.Meta = newBodyDataMeta(statusCode, contentType)
+func newTestBodySpecFromData(statusCode int, contentType pb.HTTPBody_ContentType, originalContentType string, d *pb.Data) *pb.Data {
+	d.Meta = newBodyDataMeta(statusCode, contentType, originalContentType)
 	return d
 }
 
-func newBodyDataMeta(responseCode int, contentType pb.HTTPBody_ContentType) *pb.DataMeta {
+func newBodyDataMeta(responseCode int, contentType pb.HTTPBody_ContentType, originalContentType string) *pb.DataMeta {
 	return newDataMeta(&pb.HTTPMeta{
 		Location: &pb.HTTPMeta_Body{
 			Body: &pb.HTTPBody{
 				ContentType: contentType,
+				OtherType:   originalContentType,
 			},
 		},
 		ResponseCode: int32(responseCode),

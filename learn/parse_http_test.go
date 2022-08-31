@@ -59,7 +59,7 @@ var testMultipartFormData = strings.Join([]string{
 }, "")
 
 func newTestBodySpec(statusCode int) *as.Data {
-	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, map[string]*as.Data{
+	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, "application/json", map[string]*as.Data{
 		"name":                             dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
 		"number_teeth":                     dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
 		"dog":                              dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
@@ -77,12 +77,12 @@ func newTestBodySpec(statusCode int) *as.Data {
 	})
 }
 
-func newTestBodySpecFromStruct(statusCode int, contentType as.HTTPBody_ContentType, s map[string]*as.Data) *as.Data {
-	return newTestBodySpecFromData(statusCode, contentType, dataFromStruct(s))
+func newTestBodySpecFromStruct(statusCode int, contentType as.HTTPBody_ContentType, originalContentType string, s map[string]*as.Data) *as.Data {
+	return newTestBodySpecFromData(statusCode, contentType, originalContentType, dataFromStruct(s))
 }
 
-func newTestBodySpecFromData(statusCode int, contentType as.HTTPBody_ContentType, d *as.Data) *as.Data {
-	d.Meta = newBodyDataMeta(statusCode, contentType)
+func newTestBodySpecFromData(statusCode int, contentType as.HTTPBody_ContentType, originalContentType string, d *as.Data) *as.Data {
+	d.Meta = newBodyDataMeta(statusCode, contentType, originalContentType)
 	return d
 }
 
@@ -93,8 +93,8 @@ func newTestMultipartFormData(statusCode int) *as.Data {
 		Value: &as.Data_Struct{
 			Struct: &as.Struct{
 				Fields: map[string]*as.Data{
-					"field1": newTestBodySpecFromData(statusCode, as.HTTPBody_TEXT_PLAIN, f1),
-					"field2": newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, map[string]*as.Data{
+					"field1": newTestBodySpecFromData(statusCode, as.HTTPBody_TEXT_PLAIN, "text/plain", f1),
+					"field2": newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, "application/json", map[string]*as.Data{
 						"foo": dataFromPrimitive(spec_util.NewPrimitiveString("bar")),
 						"baz": dataFromPrimitive(spec_util.NewPrimitiveInt64(123)),
 					}),
@@ -307,6 +307,7 @@ func TestParseHTTPRequest(t *testing.T) {
 					newTestBodySpecFromStruct(
 						200,
 						as.HTTPBody_FORM_URL_ENCODED,
+						"application/x-www-form-urlencoded",
 						map[string]*as.Data{
 							"prince": dataFromPrimitive(spec_util.NewPrimitiveString("a good doggo")),
 							"pineapple": dataFromList(
@@ -334,6 +335,7 @@ func TestParseHTTPRequest(t *testing.T) {
 					newTestBodySpecFromData(
 						200,
 						as.HTTPBody_OCTET_STREAM,
+						"application/octet-stream",
 						dataFromPrimitive(spec_util.NewPrimitiveBytes([]byte("prince is a good boy"))),
 					),
 				},
@@ -359,6 +361,7 @@ prince:
 					newTestBodySpecFromStruct(
 						200,
 						as.HTTPBody_YAML,
+						"application/x-yaml",
 						map[string]*as.Data{
 							"prince": dataFromList(
 								dataFromPrimitive(spec_util.NewPrimitiveString("bread")),
@@ -385,6 +388,7 @@ prince:
 					newTestBodySpecFromStruct(
 						200,
 						as.HTTPBody_JSON,
+						"application/json",
 						map[string]*as.Data{
 							"für": dataFromPrimitive(spec_util.NewPrimitiveString("für")),
 						},
@@ -409,6 +413,7 @@ prince:
 					newTestBodySpecFromStruct(
 						200,
 						as.HTTPBody_JSON,
+						"application/json",
 						map[string]*as.Data{
 							"34302ecf": dataFromPrimitive(spec_util.NewPrimitiveString("this is prince")),
 						},
@@ -434,6 +439,7 @@ prince:
 					newTestBodySpecFromStruct(
 						200,
 						as.HTTPBody_JSON,
+						"application/json",
 						map[string]*as.Data{
 							"34302ecf": dataFromPrimitive(spec_util.NewPrimitiveString("this is prince")),
 						},
