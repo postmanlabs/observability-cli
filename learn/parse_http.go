@@ -289,13 +289,15 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 		return nil, errors.Wrapf(err, "failed to parse MIME from Content-Type %q", contentType)
 	}
 
-	// Rewrite media type to JSON for types encoded as JSON
+	// Handle media types encoded as JSON by parsing as JSON and recording the
+	// media type as "other".
 	// TODO: XML parsing
 	// TODO: application/json-seq (RFC 7466)?
 	// TODO: more text/* types
+	isMediaJson := mediaType == "application/json"
 	switch {
 	case strings.HasSuffix(mediaType, "+json"):
-		mediaType = "application/json"
+		isMediaJson = true
 	}
 
 	var bodyData *pb.Data
@@ -326,66 +328,74 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 		bodyData = parseElem(string(body), interpret)
 	}
 
-	switch mediaType {
-	case "application/json":
+	// Handle JSON media types.
+	if isMediaJson {
 		bodyData, err = parseHTTPBodyJSON(bodyStream)
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not parse JSON body")
 		}
-		pbContentType = pb.HTTPBody_JSON
-	case "application/x-www-form-urlencoded":
-		body, err := limitedBufferBody(bodyStream, MaxBufferedBody)
-		if err != nil {
-			return nil, err
-		}
-		values, err := url.ParseQuery(string(body))
-		if err != nil {
-			return nil, errors.Wrap(err, "could not parse URL-encoded body")
-		}
 
-		// Convert values to a map[string][]interface{} that parseElem operates on.
-		m := make(map[string]interface{}, len(values))
-		for k, vs := range values {
-			// Make sure to not artificially create a list of values since this
-			// affects the type we use in the witnesss and the generated spec.
-			if len(vs) == 1 {
-				m[k] = vs[0]
-			} else {
-				mvs := make([]interface{}, 0, len(vs))
-				for _, v := range vs {
-					mvs = append(mvs, v)
-				}
-				m[k] = mvs
+		if mediaType == "application/json" {
+			pbContentType = pb.HTTPBody_JSON
+		} else {
+			pbContentType = pb.HTTPBody_OTHER
+		}
+	} else {
+		switch mediaType {
+		case "application/x-www-form-urlencoded":
+			body, err := limitedBufferBody(bodyStream, MaxBufferedBody)
+			if err != nil {
+				return nil, err
 			}
-		}
+			values, err := url.ParseQuery(string(body))
+			if err != nil {
+				return nil, errors.Wrap(err, "could not parse URL-encoded body")
+			}
 
-		// In URL-encoded data, everything is represented as a string, so let's try
-		// to be smart about re-interpreting values.
-		bodyData = parseElem(m, spec_util.INTERPRET_STRINGS)
-		pbContentType = pb.HTTPBody_FORM_URL_ENCODED
-	case "application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml":
-		bodyData, err = parseHTTPBodyYAML(bodyStream)
-		if err != nil {
-			return nil, errors.Wrapf(err, "could not parse YAML body")
+			// Convert values to a map[string][]interface{} that parseElem operates on.
+			m := make(map[string]interface{}, len(values))
+			for k, vs := range values {
+				// Make sure to not artificially create a list of values since this
+				// affects the type we use in the witnesss and the generated spec.
+				if len(vs) == 1 {
+					m[k] = vs[0]
+				} else {
+					mvs := make([]interface{}, 0, len(vs))
+					for _, v := range vs {
+						mvs = append(mvs, v)
+					}
+					m[k] = mvs
+				}
+			}
+
+			// In URL-encoded data, everything is represented as a string, so let's try
+			// to be smart about re-interpreting values.
+			bodyData = parseElem(m, spec_util.INTERPRET_STRINGS)
+			pbContentType = pb.HTTPBody_FORM_URL_ENCODED
+		case "application/yaml", "application/x-yaml", "text/yaml", "text/x-yaml":
+			bodyData, err = parseHTTPBodyYAML(bodyStream)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse YAML body")
+			}
+			pbContentType = pb.HTTPBody_YAML
+		case "multipart/form-data":
+			return parseMultipartBody("form-data", mediaParams["boundary"], bodyStream, statusCode)
+		case "multipart/mixed":
+			return parseMultipartBody("mixed", mediaParams["boundary"], bodyStream, statusCode)
+		case "application/octet-stream":
+			handleAsBlob()
+			pbContentType = pb.HTTPBody_OCTET_STREAM
+		case "text/plain", "text/csv":
+			// If the text is just a number, report its type
+			handleAsString(spec_util.INTERPRET_STRINGS)
+			pbContentType = pb.HTTPBody_TEXT_PLAIN
+		case "text/html":
+			handleAsString(spec_util.NO_INTERPRET_STRINGS)
+			pbContentType = pb.HTTPBody_TEXT_HTML
+		default:
+			handleAsBlob()
+			pbContentType = pb.HTTPBody_OTHER
 		}
-		pbContentType = pb.HTTPBody_YAML
-	case "multipart/form-data":
-		return parseMultipartBody("form-data", mediaParams["boundary"], bodyStream, statusCode)
-	case "multipart/mixed":
-		return parseMultipartBody("mixed", mediaParams["boundary"], bodyStream, statusCode)
-	case "application/octet-stream":
-		handleAsBlob()
-		pbContentType = pb.HTTPBody_OCTET_STREAM
-	case "text/plain", "text/csv":
-		// If the text is just a number, report its type
-		handleAsString(spec_util.INTERPRET_STRINGS)
-		pbContentType = pb.HTTPBody_TEXT_PLAIN
-	case "text/html":
-		handleAsString(spec_util.NO_INTERPRET_STRINGS)
-		pbContentType = pb.HTTPBody_TEXT_HTML
-	default:
-		handleAsBlob()
-		pbContentType = pb.HTTPBody_OTHER
 	}
 
 	if blobErr != nil {
