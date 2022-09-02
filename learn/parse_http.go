@@ -302,14 +302,6 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 	// TODO: application/json-seq (RFC 7466)?
 	// TODO: more text/* types
 	var parseBodyDataAs pb.HTTPBody_ContentType
-
-	// Handle custom JSON-encoded media types.
-	switch {
-	case strings.HasSuffix(mediaType, "+json"):
-		parseBodyDataAs = pb.HTTPBody_JSON
-	}
-
-	// Handle fixed media types.
 	switch mediaType {
 	case "application/json":
 		parseBodyDataAs = pb.HTTPBody_JSON
@@ -324,7 +316,12 @@ func parseBody(contentType string, bodyStream io.Reader, statusCode int) (*pb.Da
 	case "text/html":
 		parseBodyDataAs = pb.HTTPBody_TEXT_HTML
 	default:
-		parseBodyDataAs = pb.HTTPBody_OTHER
+		// Handle custom JSON-encoded media types.
+		if strings.HasSuffix(mediaType, "+json") {
+			parseBodyDataAs = pb.HTTPBody_JSON
+		} else {
+			parseBodyDataAs = pb.HTTPBody_OTHER
+		}
 	}
 
 	var bodyData *pb.Data
