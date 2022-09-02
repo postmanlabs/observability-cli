@@ -59,7 +59,11 @@ var testMultipartFormData = strings.Join([]string{
 }, "")
 
 func newTestBodySpec(statusCode int) *as.Data {
-	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, "application/json", map[string]*as.Data{
+	return newTestBodySpecContentType("application/json", statusCode)
+}
+
+func newTestBodySpecContentType(contentType string, statusCode int) *as.Data {
+	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, contentType, map[string]*as.Data{
 		"name":                             dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
 		"number_teeth":                     dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
 		"dog":                              dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
@@ -153,6 +157,18 @@ func TestParseHTTPRequest(t *testing.T) {
 				[]*http.Cookie{},
 			),
 			expectedMethod: newMethod([]*as.Data{newTestBodySpec(0)}, nil, standardMethodMeta),
+		},
+		&parseTest{
+			name: "custom JSON-encoded content type test 1",
+			testContent: newTestHTTPRequest(
+				"POST",
+				"https://www.akitasoftware.com",
+				[]byte(testBodyDict),
+				"application/custom+json",
+				map[string][]string{},
+				[]*http.Cookie{},
+			),
+			expectedMethod: newMethod([]*as.Data{newTestBodySpecContentType("application/custom+json", 0)}, nil, standardMethodPostMeta),
 		},
 		&parseTest{
 			name: "query test 1",
