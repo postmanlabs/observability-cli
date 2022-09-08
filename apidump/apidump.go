@@ -267,7 +267,7 @@ func SendTelemetry(args *Args, learnClient rest.LearnClient, backendSvc akid.Ser
 		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
 		if err != nil {
 			// Log an error and continue.
-			printer.Stderr.Errorf("Failed to send telemetry statistics: %s", err)
+			printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
 		}
 	}
 
