@@ -89,6 +89,12 @@ func preRun(cmd *cobra.Command, args []string) {
 		printer.Warningln("Unknown log format, using `color`.")
 	}
 
+	// Emit the version (without hash) at the start of every command.
+	// Somehow, this doesn't appear before "akita --version" (good) or
+	// "akita --help" (less good), only before commands or the usage
+	// information if no command is given.
+	printer.Stdout.Infof("Akita Agent %s\n", version.ReleaseVersion())
+
 	startProfiling(cmd, args)
 }
 
@@ -197,8 +203,7 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("debug")
 	viper.BindPFlag("debug", rootCmd.PersistentFlags().Lookup("debug"))
 
-	rootCmd.PersistentFlags().StringVar(&logFormatFlag, "log-format", "", "Set to `color`, `plain` or `json` to control the log format.")
-	rootCmd.PersistentFlags().MarkHidden("log-format")
+	rootCmd.PersistentFlags().StringVar(&logFormatFlag, "log-format", "", "Set to 'color', 'plain' or 'json' to control the log format.")
 
 	// Include flags from go libraries that we're using. We hand-pick the flags to
 	// include to avoid polluting the flag set of the CLI.
