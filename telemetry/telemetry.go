@@ -27,6 +27,10 @@ var (
 	// of getting it only once.
 	userDistinctID   string
 	userDistinctOnce sync.Once
+
+	// Timeout talking to API.
+	// Shorter than normal because we don't want the CLI to be slow.
+	userAPITimeout = 2 * time.Second
 )
 
 type nullClient struct{}
@@ -98,11 +102,12 @@ func getDistinctID() string {
 		return id
 	}
 
-	// TODO: every command creates its client ID separately. That makes it
-	// impossible to use the same one here without major refactoring.
-	// So we use the all-zeros ID so it's obviously suspect.
+	// Call the REST API to get the user email associated with the configured
+	// API key.  (If none, this will error.)
+	ctx, cancel := context.WithTimeout(context.Background(), userAPITimeout)
+	defer cancel()
 	frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
-	userResponse, err := frontClient.GetUser(context.Background())
+	userResponse, err := frontClient.GetUser(ctx)
 	if err == nil {
 		// Future versions will return the email
 		if userResponse.Email != "" {
@@ -137,6 +142,9 @@ func distinctID() string {
 		// Set up automatic reporting of all API errors
 		// (rest can't call telemetry directly because we call rest above!)
 		rest.SetAPIErrorHandler(APIError)
+
+		// TODO: I tried to dump the ID out using "printer.Debugf" but the
+		// debug level is not yet set.
 	})
 	return userDistinctID
 }
