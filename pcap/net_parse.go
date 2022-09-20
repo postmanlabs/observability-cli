@@ -199,9 +199,9 @@ func (p *NetworkTrafficParser) packetToParsedNetworkTraffic(out chan<- akinet.Pa
 		// TODO: detect repeated crashes?
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				telemetry.Error("packet handling", e)
+				telemetry.RateLimitError("packet handling", e)
 			} else {
-				telemetry.Error("packet handling", fmt.Errorf("%v", err))
+				telemetry.RateLimitError("packet handling", fmt.Errorf("%v", err))
 			}
 			printer.Stderr.Errorf("Panic during packet handling: %v\n%v\n", err, string(debug.Stack()))
 		}
