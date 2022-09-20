@@ -14,6 +14,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/akiuri"
@@ -82,9 +83,10 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	}
 
 	if (result != akid.ServiceID{}) {
-		printer.Stderr.Debugf("Service name %q is %q\n", name, akid.String(result))
+		printer.Stderr.Debugf("Project name %q is %q\n", name, akid.String(result))
 		return result, nil
 	}
+	telemetry.Failure("Unknown project ID")
 	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for %s", name)
 }
 

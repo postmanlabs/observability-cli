@@ -8,11 +8,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/apidump"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akiuri"
 )
@@ -82,8 +83,8 @@ var Cmd = &cobra.Command{
 				return errors.New("Cannot specify a trace name together with \"append-by-tag\"")
 			}
 
-			destURI, err := util.GetTraceURIByTags(akiflag.Domain,
-				akiflag.GetClientID(),
+			destURI, err := util.GetTraceURIByTags(rest.Domain,
+				telemetry.GetClientID(),
 				outFlag.AkitaURI.ServiceName,
 				traceTags,
 				"append-by-tag",
@@ -140,8 +141,8 @@ var Cmd = &cobra.Command{
 		}
 
 		args := apidump.Args{
-			ClientID:                akiflag.GetClientID(),
-			Domain:                  akiflag.Domain,
+			ClientID:                telemetry.GetClientID(),
+			Domain:                  rest.Domain,
 			Out:                     outFlag,
 			Tags:                    traceTags,
 			SampleRate:              sampleRateFlag,

@@ -6,7 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -156,13 +155,13 @@ func getGraph(cmd *cobra.Command, args []string) error {
 	printer.Debugf("Loading project %q deployment %q from %v to %v\n", serviceFlag, deploymentFlag, start, end)
 
 	clientID := akid.GenerateClientID()
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 	serviceID, err := util.GetServiceIDByName(frontClient, serviceFlag)
 	if err != nil {
 		return cmderr.AkitaErr{Err: err}
 	}
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	resp, err := learnClient.GetGraphEdges(ctx, serviceID, deploymentFlag, start, end, graphType)

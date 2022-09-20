@@ -6,10 +6,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/daemon"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 )
 
 var (
@@ -34,8 +35,8 @@ var Cmd = &cobra.Command{
 		}
 
 		args := daemon.Args{
-			ClientID:   akiflag.GetClientID(),
-			Domain:     akiflag.Domain,
+			ClientID:   telemetry.GetClientID(),
+			Domain:     rest.Domain,
 			DaemonName: nameFlag,
 			PortNumber: portNumberFlag,
 

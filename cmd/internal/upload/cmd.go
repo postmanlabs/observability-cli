@@ -6,9 +6,10 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akiuri"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/upload"
 	"github.com/akitasoftware/akita-cli/util"
 )
@@ -98,8 +99,8 @@ var Cmd = &cobra.Command{
 			if destURI.ObjectName != "" {
 				return errors.New("Cannot specify a trace name together with \"append-by-tag\"")
 			}
-			destURI, err = util.GetTraceURIByTags(akiflag.Domain,
-				akiflag.GetClientID(),
+			destURI, err = util.GetTraceURIByTags(rest.Domain,
+				telemetry.GetClientID(),
 				destURI.ServiceName,
 				tags,
 				"append-by-tag",
@@ -113,8 +114,8 @@ var Cmd = &cobra.Command{
 		}
 
 		uploadArgs := upload.Args{
-			ClientID:      akiflag.GetClientID(),
-			Domain:        akiflag.Domain,
+			ClientID:      telemetry.GetClientID(),
+			Domain:        rest.Domain,
 			DestURI:       destURI,
 			FilePaths:     args,
 			Tags:          tags,

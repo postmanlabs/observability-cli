@@ -28,6 +28,12 @@ func (c *frontClientImpl) GetServices(ctx context.Context) ([]Service, error) {
 	return resp, nil
 }
 
+func (c *frontClientImpl) GetUser(ctx context.Context) (User, error) {
+	resp := User{}
+	err := c.get(ctx, "/v1/user", &resp)
+	return resp, err
+}
+
 func (c *frontClientImpl) DaemonHeartbeat(ctx context.Context, daemonName string) error {
 	body := struct {
 		DaemonName string `json:"daemon_name"`

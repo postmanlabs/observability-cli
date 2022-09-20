@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
@@ -98,14 +97,14 @@ func getTraces(cmd *cobra.Command, args []string) error {
 	}
 
 	clientID := akid.GenerateClientID()
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 
 	serviceID, err := util.GetServiceIDByName(frontClient, serviceFlag)
 	if err != nil {
 		return err
 	}
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, serviceID)
 	tags, err := util.ParseTags(tagsFlag)
 	if err != nil {
 		return err

@@ -12,7 +12,6 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -121,7 +120,7 @@ func runGetSpec(specIdentifier string) error {
 
 	clientID := akid.GenerateClientID()
 
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 
 	// Convert service name to service ID.
 	serviceID, err := getServiceIDByName(frontClient, getSpecServiceFlag)
@@ -129,7 +128,7 @@ func runGetSpec(specIdentifier string) error {
 		return err
 	}
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, serviceID)
 
 	// Check to see if the user specified an AkID or a version name.
 	var specID akid.APISpecID

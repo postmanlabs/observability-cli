@@ -9,9 +9,10 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 
 	"github.com/akitasoftware/akita-cli/apispec"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 )
 
 var checkpointSessionCmd = &cobra.Command{
@@ -52,10 +53,10 @@ func runCheckpointSession(rawSessionID string) error {
 	}
 
 	args := apispec.Args{
-		ClientID:       akiflag.GetClientID(),
-		Domain:         akiflag.Domain,
-		Service:        sessionsServiceFlag,
-		Timeout:        &checkpointSessionTimeoutFlag,
+		ClientID: telemetry.GetClientID(),
+		Domain:   rest.Domain,
+		Service:  sessionsServiceFlag,
+		Timeout:  &checkpointSessionTimeoutFlag,
 
 		GetSpecEnableRelatedFields: getSpecEnableRelatedFieldsFlag,
 

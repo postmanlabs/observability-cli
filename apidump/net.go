@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/telemetry"
 )
 
 // An interface that's compatible with net.Interface so we can use mock
@@ -111,6 +112,7 @@ func checkPcapPermissions(interfaces map[string]interfaceInfo) map[string]error 
 			defer wg.Done()
 			h, err := pcap.OpenLive(iface, 1600, true, pcap.BlockForever)
 			if err != nil {
+				telemetry.Error("pcap permissions", err)
 				errChan <- &pcapPermErr{iface: iface, err: err}
 				return
 			}
