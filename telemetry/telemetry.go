@@ -260,6 +260,8 @@ func CommandLine(command string, commandLine []string) {
 	)
 }
 
+// Flush the telemetry to its endpoint
+// (even buffer size of 1 is not enough if the CLi exits right away.)
 func Shutdown() {
 	err := analyticsClient.Close()
 	if err != nil {
