@@ -109,11 +109,12 @@ func getDistinctID() string {
 	frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
 	userResponse, err := frontClient.GetUser(ctx)
 	if err == nil {
-		// Future versions will return the email
 		if userResponse.Email != "" {
 			return userResponse.Email
 		}
-		// For now we just have a user ID
+
+		// Use the user ID if no email is present;
+		// this should be fixed in the current backend.
 		return userResponse.ID.String()
 	}
 
