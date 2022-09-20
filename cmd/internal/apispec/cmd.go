@@ -7,10 +7,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/apispec"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/gitlab"
 	"github.com/akitasoftware/akita-libs/time_span"
@@ -88,7 +89,7 @@ var Cmd = &cobra.Command{
 			} else {
 				return errors.New("Must specify \"project\" or \"out\" to use \"trace-tag\"")
 			}
-			destURI, err := util.GetTraceURIByTags(akiflag.Domain, akiflag.GetClientID(), projectName, traceTags, "trace-tag")
+			destURI, err := util.GetTraceURIByTags(rest.Domain, telemetry.GetClientID(), projectName, traceTags, "trace-tag")
 			if err != nil {
 				return err
 			}
@@ -119,8 +120,8 @@ var Cmd = &cobra.Command{
 		}
 
 		args := apispec.Args{
-			ClientID:       akiflag.GetClientID(),
-			Domain:         akiflag.Domain,
+			ClientID:       telemetry.GetClientID(),
+			Domain:         rest.Domain,
 			Traces:         traces,
 			Out:            outFlag,
 			Service:        serviceFlag,

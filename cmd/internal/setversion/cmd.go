@@ -1,9 +1,10 @@
 package setversion
 
 import (
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/setversion"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/version_names"
 	"github.com/pkg/errors"
@@ -36,8 +37,8 @@ var Cmd = &cobra.Command{
 		}
 
 		setversionArgs := setversion.Args{
-			ClientID:    akiflag.GetClientID(),
-			Domain:      akiflag.Domain,
+			ClientID:    telemetry.GetClientID(),
+			Domain:      rest.Domain,
 			ModelURI:    modelURI,
 			VersionName: version,
 		}

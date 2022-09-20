@@ -9,12 +9,41 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-libs/akid"
 )
+
+// Global flag exposed by the root command.
+// This doesn't *really* belong here, but previously it
+// was buried in the "internal" package where we couldn't use it.
+var Domain string
+
+// Error handling (to call into the telemetry library without
+// creating a circular dependency.)
+type APIErrorHandler = func(method string, path string, e error)
+
+var (
+	apiErrorHandler      APIErrorHandler = nil
+	apiErrorHandlerMutex sync.RWMutex
+)
+
+func reportError(method string, path string, e error) {
+	apiErrorHandlerMutex.RLock()
+	defer apiErrorHandlerMutex.RUnlock()
+	if apiErrorHandler != nil {
+		apiErrorHandler(method, path, e)
+	}
+}
+
+func SetAPIErrorHandler(f APIErrorHandler) {
+	apiErrorHandlerMutex.Lock()
+	defer apiErrorHandlerMutex.Unlock()
+	apiErrorHandler = f
+}
 
 type baseClient struct {
 	host     string
@@ -51,7 +80,12 @@ func (c baseClient) get(ctx context.Context, path string, resp interface{}) erro
 	return c.getWithQuery(ctx, path, nil, resp)
 }
 
-func (c baseClient) getWithQuery(ctx context.Context, path string, query url.Values, resp interface{}) error {
+func (c baseClient) getWithQuery(ctx context.Context, path string, query url.Values, resp interface{}) (e error) {
+	defer func() {
+		if e != nil {
+			reportError(http.MethodGet, path, e)
+		}
+	}()
 	u := &url.URL{
 		Scheme:   c.scheme,
 		Host:     c.host,
@@ -75,7 +109,13 @@ func (c baseClient) getWithQuery(ctx context.Context, path string, query url.Val
 
 // Sends POST request after marshaling body into JSON and parses the response as
 // JSON.
-func (c baseClient) post(ctx context.Context, path string, body interface{}, resp interface{}) error {
+func (c baseClient) post(ctx context.Context, path string, body interface{}, resp interface{}) (e error) {
+	defer func() {
+		if e != nil {
+			reportError(http.MethodGet, path, e)
+		}
+	}()
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal request body into JSON")

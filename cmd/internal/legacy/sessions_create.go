@@ -13,7 +13,6 @@ import (
 	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/ci"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -66,14 +65,14 @@ Use "latest" to specify the most recently created API spec.
 
 func runCreateSession() error {
 	clientID := akid.GenerateClientID()
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 
 	serviceID, err := getServiceIDByName(frontClient, sessionsServiceFlag)
 	if err != nil {
 		return err
 	}
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, serviceID)
 	tags, err := tags.FromPairs(createSessionTagsFlag)
 	if err != nil {
 		return err

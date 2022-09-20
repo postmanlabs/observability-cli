@@ -22,12 +22,12 @@ import (
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
 
 	"github.com/akitasoftware/akita-cli/plugin"
@@ -49,7 +49,7 @@ var Cmd = &cobra.Command{
 }
 
 func runLearnMode() error {
-	clientID := akiflag.GetClientID()
+	clientID := telemetry.GetClientID()
 
 	plugins, err := pluginloader.Load(pluginsFlag)
 	if err != nil {
@@ -79,12 +79,12 @@ func runLearnMode() error {
 	}
 
 	// Resolve project name and get a learn client.
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 	svc, err := util.GetServiceIDByName(frontClient, projectName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to look up project %q", projectName)
 	}
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, svc)
 
 	// If a spec name was given, check if the spec already exists.
 	if uri := outFlag.AkitaURI; uri != nil && uri.ObjectName != "" {
@@ -226,13 +226,13 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 			return nil, errors.Wrapf(err, "%q is not a valid learn session id", legacySessionFlag)
 		}
 
-		frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+		frontClient := rest.NewFrontClient(rest.Domain, clientID)
 		svc, err := util.GetServiceIDByName(frontClient, projectName)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to look up project id from name")
 		}
 
-		learnClient := rest.NewLearnClient(akiflag.Domain, clientID, svc)
+		learnClient := rest.NewLearnClient(rest.Domain, clientID, svc)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		session, err := learnClient.GetLearnSession(ctx, svc, lrn)
 		cancel()
@@ -286,7 +286,7 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 	// Create a trace on the cloud.
 	args := apidump.Args{
 		ClientID:           clientID,
-		Domain:             akiflag.Domain,
+		Domain:             rest.Domain,
 		Out:                traceOut,
 		Interfaces:         interfacesFlag,
 		Filter:             packetFilter,
@@ -329,7 +329,7 @@ func runAPISpec(clientID akid.ClientID, projectName string, traceURI *akiuri.URI
 
 	args := apispec.Args{
 		ClientID:       clientID,
-		Domain:         akiflag.Domain,
+		Domain:         rest.Domain,
 		Traces:         traces,
 		Out:            outFlag,
 		Service:        projectName,

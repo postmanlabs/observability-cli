@@ -16,6 +16,7 @@ import (
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
@@ -182,6 +183,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	}
 
 	if parseHTTPErr != nil {
+		telemetry.RateLimitError("parse HTTP", parseHTTPErr)
 		printer.Debugf("Failed to parse HTTP, skipping: %v\n", parseHTTPErr)
 		return nil
 	}

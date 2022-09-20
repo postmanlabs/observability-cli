@@ -26,6 +26,7 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/tcp_conn_tracker"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/tls_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
@@ -229,6 +230,7 @@ func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.Lea
 			traceName := util.RandomLearnSessionName()
 			backendLrn, err := util.NewLearnSession(args.Domain, args.ClientID, backendSvc, traceName, traceTags, nil)
 			if err != nil {
+				telemetry.Error("new learn session", err)
 				printer.Errorf("Failed to create trace %s: %v\n", traceName, err)
 				break
 			}
@@ -236,6 +238,7 @@ func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.Lea
 			for _, c := range collectors {
 				c.SwitchLearnSession(backendLrn)
 			}
+			telemetry.Success("rotate learn session")
 		}
 	}
 }
@@ -268,6 +271,7 @@ func SendTelemetry(args *Args, learnClient rest.LearnClient, backendSvc akid.Ser
 		if err != nil {
 			// Log an error and continue.
 			printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
+			telemetry.Error("telemetry", err)
 		}
 	}
 
@@ -633,6 +637,8 @@ func Run(args Args) error {
 
 		if cmdErr != nil {
 			subcmdErr = errors.Wrap(cmdErr, "failed to run subcommand")
+			telemetry.Error("subcommand", cmdErr)
+
 			// We promised to preserve the subcommand's exit code.
 			// Explicitly notify whoever is running us to exit.
 			if exitErr, ok := errors.Cause(subcmdErr).(*exec.ExitError); ok {
@@ -646,6 +652,7 @@ func Run(args Args) error {
 			select {
 			case interfaceErr := <-errChan:
 				printer.Stderr.Errorf("Encountered errors while collecting traces, stopping...\n")
+				telemetry.Error("packet capture", interfaceErr.err)
 				errorsByInterface[interfaceErr.interfaceName] = interfaceErr.err
 
 				// Drain errChan.
@@ -686,6 +693,7 @@ func Run(args Args) error {
 				case interfaceErr := <-errChan:
 					errorsByInterface[interfaceErr.interfaceName] = interfaceErr.err
 
+					telemetry.Error("packet capture", interfaceErr.err)
 					if len(errorsByInterface) < numCollectors {
 						printer.Stderr.Errorf("Encountered an error on interface %s, continuing with remaining interfaces.  Error: %s\n", interfaceErr.interfaceName, interfaceErr.err.Error())
 					} else {
@@ -716,6 +724,7 @@ func Run(args Args) error {
 		// If collectors on all interfaces report errors, report trace
 		// collection failed.
 		if len(errorsByInterface) == numCollectors {
+			telemetry.Failure("all interfaces failed")
 			return errors.Errorf("trace collection failed")
 		}
 	}
@@ -729,6 +738,7 @@ func Run(args Args) error {
 	dumpSummary.PrintWarnings()
 
 	if dumpSummary.IsEmpty() {
+		telemetry.Failure("empty API trace")
 		return errors.New("API trace is empty")
 	}
 

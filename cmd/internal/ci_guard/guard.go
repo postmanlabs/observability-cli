@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/akitasoftware/akita-cli/ci"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -47,7 +47,7 @@ func gitHubPrIsAkitaEnabled(gitHubPR *github.PullRequest) (bool, error) {
 		return true, nil
 	}
 
-	frontClient := rest.NewFrontClient(akiflag.Domain, akiflag.GetClientID())
+	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

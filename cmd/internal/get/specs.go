@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/akitasoftware/akita-cli/apispec"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -98,14 +97,14 @@ func listSpecs(src akiuri.URI, tags map[tags.Key]string, limit int) error {
 	printer.Debugf("Listing specs for %q with tags %v and limit %v\n", src, tags, limit)
 
 	clientID := akid.GenerateClientID()
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 
 	serviceID, err := util.GetServiceIDByName(frontClient, src.ServiceName)
 	if err != nil {
 		return err
 	}
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	specs, err := learnClient.ListSpecs(ctx)
@@ -168,14 +167,14 @@ func downloadSpec(srcURI akiuri.URI, outputFile string) error {
 	printer.Debugf("Downloading specs %q to file %q\n", srcURI, outputFile)
 
 	clientID := akid.GenerateClientID()
-	frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+	frontClient := rest.NewFrontClient(rest.Domain, clientID)
 
 	serviceID, err := util.GetServiceIDByName(frontClient, srcURI.ServiceName)
 	if err != nil {
 		return err
 	}
 
-	learnClient := rest.NewLearnClient(akiflag.Domain, clientID, serviceID)
+	learnClient := rest.NewLearnClient(rest.Domain, clientID, serviceID)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	id, err := learnClient.GetAPISpecIDByName(ctx, srcURI.ObjectName)

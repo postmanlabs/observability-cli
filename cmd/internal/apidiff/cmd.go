@@ -5,8 +5,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/apidiff"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-libs/akiuri"
 )
 
@@ -29,8 +30,8 @@ var Cmd = &cobra.Command{
 		}
 
 		diffArgs := apidiff.Args{
-			ClientID:    akiflag.GetClientID(),
-			Domain:      akiflag.Domain,
+			ClientID:    telemetry.GetClientID(),
+			Domain:      rest.Domain,
 			BaseSpecURI: spec1,
 			NewSpecURI:  spec2,
 			Out:         outFlag,

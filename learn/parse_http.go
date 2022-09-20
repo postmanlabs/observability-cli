@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/memview"
@@ -146,6 +147,7 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 			// Just log an error instead of returning an error so users can see the
 			// other parts of the endpoint in the spec rather than an empty spec.
 			// https://app.clubhouse.io/akita-software/story/1898/juan-s-payload-problem
+			telemetry.RateLimitError("unparsable body", err)
 			printer.Debugf("skipping unparsable body: %v\n", err)
 		} else if bodyData != nil {
 			datas = append(datas, bodyData)

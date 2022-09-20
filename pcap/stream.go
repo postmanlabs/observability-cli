@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/memview"
@@ -152,6 +153,9 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 
 		f.currentParser = nil
 		f.currentParserCtx = nil
+
+		// FIXME; is this going to be too high data-rate?
+		telemetry.Error("parser", err)
 	} else if pnc != nil {
 		// Parsing complete.
 		parseStart := f.currentParserCtx.GetCaptureInfo().Timestamp

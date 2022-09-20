@@ -13,7 +13,6 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidiff"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apispec"
@@ -29,6 +28,8 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/upload"
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-cli/version"
 	"github.com/akitasoftware/akita-libs/akinet/http"
@@ -143,12 +144,20 @@ func stopProfiling(cmd *cobra.Command, args []string) {
 }
 
 func Execute() {
+	defer telemetry.Shutdown()
+
+	cmd, _, err := rootCmd.Find(os.Args[1:])
+	if err == nil {
+		telemetry.CommandLine(cmd.Name(), os.Args)
+	}
+
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		if _, isAkitaErr := err.(cmderr.AkitaErr); !isAkitaErr {
 			// Print usage for CLI usage errors (e.g. missing arg) but not for akita
 			// errors (e.g. failed to find the service).
 			cmd.Println(cmd.UsageString())
 		}
+		telemetry.Error("command execution", err)
 
 		exitCode := 1
 		var exitErr util.ExitError
@@ -156,12 +165,13 @@ func Execute() {
 			exitCode = exitErr.ExitCode
 		}
 		printer.Stderr.Errorf("%s\n", err)
+		telemetry.Shutdown() // can't call in a defer because we use Exit()
 		os.Exit(exitCode)
 	}
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&akiflag.Domain, "domain", defaultDomain, "Your assigned Akita domain (e.g. company.akita.software)")
+	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", defaultDomain, "Your assigned Akita domain (e.g. company.akita.software)")
 	rootCmd.PersistentFlags().MarkHidden("domain")
 
 	// Semi-secret somewhat-safe flags

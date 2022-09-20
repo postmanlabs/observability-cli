@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/cfg"
-	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
 )
 
 var Cmd = &cobra.Command{
@@ -103,8 +103,8 @@ func testCredentials() error {
 
 	// Next, test the creds by trying to get the user's services.
 	{
-		clientID := akiflag.GetClientID()
-		frontClient := rest.NewFrontClient(akiflag.Domain, clientID)
+		clientID := telemetry.GetClientID()
+		frontClient := rest.NewFrontClient(rest.Domain, clientID)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
