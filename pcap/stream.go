@@ -154,8 +154,7 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 		f.currentParser = nil
 		f.currentParserCtx = nil
 
-		// FIXME; is this going to be too high data-rate?
-		telemetry.Error("parser", err)
+		telemetry.RateLimitError("parser", err)
 	} else if pnc != nil {
 		// Parsing complete.
 		parseStart := f.currentParserCtx.GetCaptureInfo().Timestamp
