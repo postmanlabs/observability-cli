@@ -91,7 +91,7 @@ func init() {
 func getDistinctID() string {
 	// If we have a user email, use that!
 	// Otherwise use the configured API Key.
-	// Failing that, try to the user name and host name?
+	// Failing that, try to use the user name and host name?
 
 	id := os.Getenv("AKITA_SEGMENT_DISTINCT_ID")
 	if id != "" {
