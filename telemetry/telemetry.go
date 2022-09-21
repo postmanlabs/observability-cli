@@ -90,7 +90,7 @@ func init() {
 		BatchSize: 1, // disable batching
 	})
 	if err != nil {
-		printer.Stderr.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
+		printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
 		analyticsClient = nullClient{}
 	} else {
 		analyticsEnabled = true
