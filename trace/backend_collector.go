@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net"
 	"net/http"
 	"reflect"
@@ -170,8 +171,16 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	switch content := t.Content.(type) {
 	case akinet.HTTPRequest:
 		isRequest = true
+		fmt.Printf("COLE: input request: %s\n", content.Host)
 		partial, parseHTTPErr = learn.ParseHTTP(content)
+		if parseHTTPErr == nil {
+			meta := partial.Witness.Method.GetMeta().GetHttp()
+			fmt.Printf("COLE: input partial: %s\n", meta.Host)
+		} else {
+			fmt.Printf("COLE: ERROR: %s\n", parseHTTPErr)
+		}
 	case akinet.HTTPResponse:
+		fmt.Printf("COLE: input response\n")
 		partial, parseHTTPErr = learn.ParseHTTP(content)
 	case akinet.TCPConnectionMetadata:
 		return c.processTCPConnection(t, content)
@@ -203,6 +212,9 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			pair.srcPort, pair.dstPort = pair.dstPort, pair.srcPort
 		}
 
+		meta := pair.witness.GetMethod().GetMeta().GetHttp()
+		fmt.Printf("COLE - merged: %s %s %s", meta.Method, meta.Host, meta.PathTemplate)
+
 		c.queueUpload(pair)
 		printer.Debugf("Completed witness %v at %v -- %v\n",
 			partial.PairKey, t.ObservationTime, t.FinalPacketTime)
@@ -210,6 +222,10 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	} else {
 		// Store the partial witness for now, waiting for its pair or a
 		// flush timeout.
+
+		meta := partial.Witness.Method.GetMeta().GetHttp()
+		fmt.Printf("COLE - partial: %s %s %s", meta.Method, meta.Host, meta.PathTemplate)
+
 		w := &witnessWithInfo{
 			srcIP:           t.SrcIP,
 			srcPort:         uint16(t.SrcPort),

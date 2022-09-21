@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -163,7 +164,9 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 		// Use the hash of the data proto as the key so we can deterministically
 		// compare witnesses.
 		k := ir_hash.HashDataToString(d)
-		if _, collision := dataMap[k]; collision {
+		if existing, collision := dataMap[k]; collision && !proto.Equal(d, existing) {
+			fmt.Printf("COLE: collision - existing: %s\n", proto.MarshalTextString(existing))
+			fmt.Printf("COLE: collision -      new: %s\n", proto.MarshalTextString(d))
 			return nil, errors.Errorf("detected collision in data map key")
 		}
 		dataMap[k] = d
