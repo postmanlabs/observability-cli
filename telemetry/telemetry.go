@@ -20,6 +20,9 @@ var (
 	// Shared client object
 	analyticsClient analytics.Client
 
+	// Is analytics enabled?
+	analyticsEnabled bool
+
 	// Client key; set at link-time with -X flag
 	defaultSegmentKey = ""
 
@@ -52,7 +55,7 @@ func init() {
 	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
 		if val, err := strconv.ParseBool(disableTelemetry); err != nil && val {
-			printer.Stderr.Infof("Telemetry disabled.\n")
+			printer.Infof("Telemetry disabled via opt-out.\n")
 			analyticsClient = nullClient{}
 			return
 		}
@@ -67,7 +70,7 @@ func init() {
 		segmentKey = defaultSegmentKey
 	}
 	if segmentKey == "" {
-		printer.Stderr.Warningf("Telemetry unavailable; no Segment key configured.\n")
+		printer.Infof("Telemetry unavailable; no Segment key configured.\n")
 		analyticsClient = nullClient{}
 		return
 	}
@@ -87,8 +90,10 @@ func init() {
 		BatchSize: 1, // disable batching
 	})
 	if err != nil {
-		printer.Stderr.Errorf("Telemetry unavailable; error setting up Segment client: %v\n", err)
+		printer.Stderr.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
 		analyticsClient = nullClient{}
+	} else {
+		analyticsEnabled = true
 	}
 }
 
@@ -102,27 +107,32 @@ func getDistinctID() string {
 		return id
 	}
 
-	// Call the REST API to get the user email associated with the configured
-	// API key.  (If none, this will error.)
-	ctx, cancel := context.WithTimeout(context.Background(), userAPITimeout)
-	defer cancel()
-	frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
-	userResponse, err := frontClient.GetUser(ctx)
-	if err == nil {
-		if userResponse.Email != "" {
-			return userResponse.Email
+	// If there's no credentials configured, skip the API call and
+	// do not emit a log message.
+	// Similarly if telemetry is disabled.
+	key, secret := cfg.GetAPIKeyAndSecret()
+	if key != "" && secret != "" && analyticsEnabled {
+		// Call the REST API to get the user email associated with the configured
+		// API key.
+		ctx, cancel := context.WithTimeout(context.Background(), userAPITimeout)
+		defer cancel()
+		frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
+		userResponse, err := frontClient.GetUser(ctx)
+		if err == nil {
+			if userResponse.Email != "" {
+				return userResponse.Email
+			}
+
+			// Use the user ID if no email is present;
+			// this should be fixed in the current backend.
+			return userResponse.ID.String()
 		}
 
-		// Use the user ID if no email is present;
-		// this should be fixed in the current backend.
-		return userResponse.ID.String()
+		printer.Infof("Telemetry using temporary ID; /v1/user API call failed: %v\n", err)
 	}
 
-	printer.Stderr.Warningf("Telemetry using temporary ID; /v1/user API call failed: %v\n", err)
-
-	apiKeyID, _ := cfg.GetAPIKeyAndSecret()
-	if apiKeyID != "" {
-		return apiKeyID
+	if key != "" {
+		return key
 	}
 
 	localUser, err := user.Current()
