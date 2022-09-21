@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20220630210013-8926783978fe
-	github.com/akitasoftware/akita-libs v0.0.0-20220920043137-ab41e1285024
+	github.com/akitasoftware/akita-libs v0.0.0-20220921210121-b39be5d9c6c8
 	github.com/akitasoftware/go-utils v0.0.0-20220606224752-aad0f81bb9e7
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
@@ -41,7 +41,6 @@ require (
 
 require (
 	github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 // indirect
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dukex/mixpanel v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
