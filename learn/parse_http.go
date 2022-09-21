@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -162,8 +163,15 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 	for _, d := range datas {
 		// Use the hash of the data proto as the key so we can deterministically
 		// compare witnesses.
+		//
+		// Some witnesses contain duplicate data elements, such as cookies with
+		// the same name and value (but different domains or paths, which we
+		// don't currently include in the IR).
+		//
+		// If there is a potential hash collision, fall back to an expensive
+		// equality check.  If the witnesses are different, return an error.
 		k := ir_hash.HashDataToString(d)
-		if _, collision := dataMap[k]; collision {
+		if existing, collision := dataMap[k]; collision && !proto.Equal(d, existing) {
 			return nil, errors.Errorf("detected collision in data map key")
 		}
 		dataMap[k] = d
