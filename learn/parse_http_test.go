@@ -518,6 +518,27 @@ prince:
 				newTestMultipartFormData(0),
 			}, nil, standardMethodPostMeta),
 		},
+		&parseTest{
+			name: "duplicate cookies",
+			testContent: newTestHTTPRequest(
+				"GET",
+				"https://www.akitasoftware.com",
+				nil,
+				applicationJSON,
+				map[string][]string{},
+				[]*http.Cookie{
+					&http.Cookie{Name: "furniture", Value: "rococo"},
+					&http.Cookie{Name: "furniture", Value: "rococo"},
+				},
+			),
+			expectedMethod: newMethod(
+				[]*as.Data{
+					newDataCookie("furniture", 0, false, "rococo"),
+				},
+				nil,
+				standardMethodMeta,
+			),
+		},
 	}
 
 	for _, pt := range tests {
