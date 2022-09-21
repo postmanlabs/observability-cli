@@ -54,7 +54,7 @@ func init() {
 	// Opt-out mechanism
 	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
-		if val, err := strconv.ParseBool(disableTelemetry); err != nil && val {
+		if val, err := strconv.ParseBool(disableTelemetry); err == nil && val {
 			printer.Infof("Telemetry disabled via opt-out.\n")
 			analyticsClient = nullClient{}
 			return
@@ -71,6 +71,7 @@ func init() {
 	}
 	if segmentKey == "" {
 		printer.Infof("Telemetry unavailable; no Segment key configured.\n")
+		printer.Infof("This is caused by building from source rather than using an official build.\n")
 		analyticsClient = nullClient{}
 		return
 	}
@@ -91,6 +92,8 @@ func init() {
 	})
 	if err != nil {
 		printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
+		printer.Infof("Akita support will not be able to see any errors you encounter.\n")
+		printer.Infof("Please send this log message to support@akitasoftware.com.\n")
 		analyticsClient = nullClient{}
 	} else {
 		analyticsEnabled = true
@@ -129,6 +132,8 @@ func getDistinctID() string {
 		}
 
 		printer.Infof("Telemetry using temporary ID; /v1/user API call failed: %v\n", err)
+		printer.Infof("This error may indicate a problem communicating with the Akita servers,\n")
+		printer.Infof("but the agent will still attempt to send telemetry Akita support.\n")
 	}
 
 	if key != "" {
@@ -276,5 +281,7 @@ func Shutdown() {
 	err := analyticsClient.Close()
 	if err != nil {
 		printer.Stderr.Errorf("Error flushing telemetry: %v\n", err)
+		printer.Infof("Akita support may not be able to see the last error message you received.\n")
+		printer.Infof("Please send the CLI output to support@akitasoftware.com.\n")
 	}
 }
