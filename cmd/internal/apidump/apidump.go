@@ -40,6 +40,7 @@ var (
 	statsLogDelay           int
 	telemetryInterval       int
 	collectTCPAndTLSReports bool
+	parseTLSHandshakes      bool
 )
 
 var Cmd = &cobra.Command{
@@ -128,7 +129,7 @@ var Cmd = &cobra.Command{
 			deploymentFlag = ""
 		} else {
 			if os.Getenv("AKITA_DEPLOYMENT") != "" && os.Getenv("AKITA_DEPLOYMENT") != deploymentFlag {
-				printer.Stderr.Warningf("Deployment in environment variable %q overridden by the command line value %q.",
+				printer.Stderr.Warningf("Deployment in environment variable %q overridden by the command line value %q.\n",
 					os.Getenv("AKITA_DEPLOYMENT"),
 					deploymentFlag,
 				)
@@ -138,6 +139,14 @@ var Cmd = &cobra.Command{
 		// Rate limit must be greater than zero.
 		if rateLimitFlag <= 0.0 {
 			rateLimitFlag = 1000.0
+		}
+
+		// If we collect TLS information, we have to parse it
+		if collectTCPAndTLSReports {
+			if !parseTLSHandshakes {
+				printer.Stderr.Warningf("Overriding parse-tls-handshakes=false because TLS report collection is enabled.\n")
+				parseTLSHandshakes = true
+			}
 		}
 
 		args := apidump.Args{
@@ -161,6 +170,7 @@ var Cmd = &cobra.Command{
 			StatsLogDelay:           statsLogDelay,
 			TelemetryInterval:       telemetryInterval,
 			CollectTCPAndTLSReports: collectTCPAndTLSReports,
+			ParseTLSHandshakes:      parseTLSHandshakes,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -321,4 +331,12 @@ func init() {
 		"Collect TCP and TLS reports.",
 	)
 	Cmd.Flags().MarkHidden("report-tcp-and-tls")
+
+	Cmd.Flags().BoolVar(
+		&parseTLSHandshakes,
+		"parse-tls-handshakes",
+		true,
+		"Parse TLS handshake packets.",
+	)
+	Cmd.Flags().MarkHidden("parse-tls-handshakes")
 }
