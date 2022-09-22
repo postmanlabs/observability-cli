@@ -86,10 +86,8 @@ func init() {
 			Build:     version.GitVersion(),
 			Namespace: "",
 		},
-		// FIXME: we would prefer false, but that crashes if
-		// the segment library has to log something on failure, instead
-		// of just being silent.
-		IsLoggingEnabled: true,
+		// No output from the Segment library
+		IsLoggingEnabled: false,
 		// IsMixpanelEnabled: false,  -- irrelevant for us, leaving at default value
 		BatchSize: 1, // disable batching
 	})
