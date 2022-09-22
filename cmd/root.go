@@ -96,6 +96,10 @@ func preRun(cmd *cobra.Command, args []string) {
 	// information if no command is given.
 	printer.Stdout.Infof("Akita Agent %s\n", version.ReleaseVersion())
 
+	// This is after argument parsing so that rest.Domain is correct,
+	// but won't be called if there is an error parsing the flags.
+	telemetry.CommandLine(cmd.Name(), os.Args)
+
 	startProfiling(cmd, args)
 }
 
@@ -146,16 +150,15 @@ func stopProfiling(cmd *cobra.Command, args []string) {
 func Execute() {
 	defer telemetry.Shutdown()
 
-	cmd, _, err := rootCmd.Find(os.Args[1:])
-	if err == nil {
-		telemetry.CommandLine(cmd.Name(), os.Args)
-	}
-
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		if _, isAkitaErr := err.(cmderr.AkitaErr); !isAkitaErr {
 			// Print usage for CLI usage errors (e.g. missing arg) but not for akita
 			// errors (e.g. failed to find the service).
 			cmd.Println(cmd.UsageString())
+
+			// Dump the command line; the call in preRun  will not have been executed.
+			telemetry.CommandLine("unknown", os.Args)
+
 		}
 		telemetry.Error("command execution", err)
 
