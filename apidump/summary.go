@@ -75,7 +75,6 @@ func (s *Summary) PrintWarnings() {
 	// Check summary to see if the trace will have anything in it.
 	totalCount := s.FilterSummary.Total()
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
-		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
 			if s.CapturingNegation && s.NegationSummary.Total().TCPPackets == 0 {
 				msg := "Did not capture any TCP packets during the trace. " +
@@ -91,7 +90,7 @@ func (s *Summary) PrintWarnings() {
 			msg := fmt.Sprintf("Captured %d TLS handshake messages out of %d total TCP seegments. ", totalCount.TLSHello, totalCount.TCPPackets) +
 				"This may mean you are trying to capture HTTPS traffic, which is currently unsupported."
 			printer.Stderr.Infof("%s\n", msg)
-		} else if totalCount.TLSHello > 0 {
+		} else if totalCount.Unparsed > 0 {
 			msg := fmt.Sprintf("Captured %d TCP packets total; %d unparsed TCP segments. ", totalCount.TCPPackets, totalCount.Unparsed) +
 				"No TLS headers were found, so this may represent a network protocol that the agent does not know how to parse."
 			printer.Stderr.Infof("%s\n", msg)
