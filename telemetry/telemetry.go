@@ -160,8 +160,7 @@ func distinctID() string {
 		// (rest can't call telemetry directly because we call rest above!)
 		rest.SetAPIErrorHandler(APIError)
 
-		// TODO: I tried to dump the ID out using "printer.Debugf" but the
-		// debug level is not yet set.
+		printer.Debugf("Using ID %q for telemetry\n", userDistinctID)
 	})
 	return userDistinctID
 }
