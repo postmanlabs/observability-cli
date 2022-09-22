@@ -15,6 +15,7 @@ import (
 )
 
 var Cmd = &cobra.Command{
+	Deprecated:   `Use "apidump" to capture traffic. API models are built automatically in the Akita app.`,
 	Use:          "upload [FILE...]",
 	Short:        "Upload an API model or a set of traces to Akita.",
 	SilenceUsage: true,
