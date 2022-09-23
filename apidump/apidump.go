@@ -117,6 +117,7 @@ type Args struct {
 	CollectTCPAndTLSReports bool
 
 	// Parse TLS handshake messages (even if not reported)
+	// Invariant: this is true if CollectTCPAndTLSReports is true
 	ParseTLSHandshakes bool
 }
 
