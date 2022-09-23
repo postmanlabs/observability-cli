@@ -87,7 +87,7 @@ func (s *Summary) PrintWarnings() {
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow(msg))
 			}
 		} else if totalCount.TLSHello > 0 {
-			msg := fmt.Sprintf("Captured %d TLS handshake messages out of %d total TCP seegments. ", totalCount.TLSHello, totalCount.TCPPackets) +
+			msg := fmt.Sprintf("Captured %d TLS handshake messages out of %d total TCP segments. ", totalCount.TLSHello, totalCount.TCPPackets) +
 				"This may mean you are trying to capture HTTPS traffic, which is currently unsupported."
 			printer.Stderr.Infof("%s\n", msg)
 		} else if totalCount.Unparsed > 0 {
