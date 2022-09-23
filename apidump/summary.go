@@ -156,7 +156,7 @@ func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map
 		if filterStates[i] == matchedFilter {
 			logf("----------- matching filter ------------\n")
 		} else {
-			logf("------- not matching filter ------------\n")
+			logf("--------- not matching filter ----------\n")
 		}
 		byPort := summary.AllPorts()
 		// We don't really know what's in the BPF filter; we know every packet in
