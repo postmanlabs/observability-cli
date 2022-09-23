@@ -154,7 +154,7 @@ func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map
 	logf("%8v %7v %5v %5v %5v %5v\n", "port", "packets", "req", "resp", "hello", "unk")
 	for i, summary := range toReport {
 		if filterStates[i] == matchedFilter {
-			logf("--------- matching filter --------------\n")
+			logf("----------- matching filter ------------\n")
 		} else {
 			logf("------- not matching filter ------------\n")
 		}
