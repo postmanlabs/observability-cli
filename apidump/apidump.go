@@ -2,6 +2,7 @@ package apidump
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/akitasoftware/akita-libs/api_schema"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/buffer_pool"
 	"github.com/pkg/errors"
@@ -121,6 +123,107 @@ type Args struct {
 	ParseTLSHandshakes bool
 }
 
+// TODO: either remove write-to-local-HAR-file completely,
+// or refactor into a separate class to avoid all the branching.
+type apidump struct {
+	*Args
+
+	backendSvc  akid.ServiceID
+	learnClient rest.LearnClient
+
+	startTime   time.Time
+	dumpSummary *Summary
+}
+
+// Start a new apidump session based on the given arguments.
+func newSession(args *Args) *apidump {
+	a := &apidump{
+		Args:      args,
+		startTime: time.Now(),
+	}
+	return a
+}
+
+// Is the target the Akita backend as expected, or a local HAR file?
+func (a *apidump) TargetIsRemote() bool {
+	return a.Out.AkitaURI != nil
+}
+
+// Lookup the service and create a learn client targeting it.
+func (a *apidump) LookupService() error {
+	if !a.TargetIsRemote() {
+		return nil
+	}
+	frontClient := rest.NewFrontClient(a.Domain, a.ClientID)
+	backendSvc, err := util.GetServiceIDByName(frontClient, a.Out.AkitaURI.ServiceName)
+	if err != nil {
+		return err
+	}
+	a.backendSvc = backendSvc
+	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, backendSvc)
+	return nil
+}
+
+// Send the initial mesage to the backend indicating successful start
+func (a *apidump) SendInitialTelemetry() {
+	// The observed duration serves as a key for upsert, so
+	// it should be the same on the initial empty report indicating
+	// succesful startup, and the one sixty seconds later.
+	req := &kgxapi.PostClientPacketCaptureStatsRequest{
+		ObservedDurationInSeconds: a.StatsLogDelay,
+	}
+	a.SendTelemetry(req)
+}
+
+// Send a message to the backend indicating failure to start and a cause
+func (a *apidump) SendErrorTelemetry(errorType api_schema.ApidumpErrorType, err error) {
+	req := &kgxapi.PostClientPacketCaptureStatsRequest{
+		ObservedDurationInSeconds: a.StatsLogDelay,
+		ApidumpError:              errorType,
+		ApidumpErrorText:          err.Error(),
+	}
+	a.SendTelemetry(req)
+}
+
+// Helper method to detect filter errors
+func isBpfFilterError(e error) bool {
+	// FIXME: can't use errors.Is because we don't have a class for this.
+	return strings.Contains(e.Error(), "failed to set BPF filter")
+}
+
+// Update the backend with new current capture stats.
+func (a *apidump) SendPacketTelemetry(observedDuration int) {
+	req := &kgxapi.PostClientPacketCaptureStatsRequest{
+		ObservedDurationInSeconds: observedDuration,
+	}
+	if a.dumpSummary != nil {
+		req.PacketCountSummary = a.dumpSummary.FilterSummary.Summary(topNForSummary)
+	}
+	a.SendTelemetry(req)
+}
+
+// Fill in the client ID and start time and send telemetry to the backend.
+func (a *apidump) SendTelemetry(req *kgxapi.PostClientPacketCaptureStatsRequest) {
+	// Do not send packet capture telemetry for local captures.
+	if !a.TargetIsRemote() {
+		return
+	}
+
+	req.ClientID = a.ClientID
+	req.ObservedStartingAt = a.startTime
+
+	fmt.Printf("Sending stats: %+v\n", req)
+	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
+	defer cancel()
+	err := a.learnClient.PostClientPacketCaptureStats(ctx, a.backendSvc, a.Deployment, *req)
+	if err != nil {
+		// Log an error and continue.
+		printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
+		telemetry.Error("telemetry", err)
+	}
+}
+
+// Clean up the arguments and warn about any modifications.
 func (args *Args) lint() {
 	// Modifies the input to remove empty strings. Returns true if the input was
 	// modified.
@@ -221,7 +324,8 @@ func compileRegexps(filters []string, name string) ([]*regexp.Regexp, error) {
 }
 
 // Periodically create a new learn session with a random name.
-func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.LearnSessionCollector, learnClient rest.LearnClient, backendSvc akid.ServiceID, traceTags map[tags.Key]string) {
+func (a *apidump) RotateLearnSession(done <-chan struct{}, collectors []trace.LearnSessionCollector, traceTags map[tags.Key]string) {
+	var args *Args = a.Args
 	t := time.NewTicker(args.LearnSessionLifetime)
 	defer t.Stop()
 
@@ -232,7 +336,7 @@ func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.Lea
 
 		case <-t.C:
 			traceName := util.RandomLearnSessionName()
-			backendLrn, err := util.NewLearnSession(args.Domain, args.ClientID, backendSvc, traceName, traceTags, nil)
+			backendLrn, err := util.NewLearnSession(args.Domain, args.ClientID, a.backendSvc, traceName, traceTags, nil)
 			if err != nil {
 				telemetry.Error("new learn session", err)
 				printer.Errorf("Failed to create trace %s: %v\n", traceName, err)
@@ -255,55 +359,35 @@ func RotateLearnSession(args *Args, done <-chan struct{}, collectors []trace.Lea
 //
 // Sends telemetry to the server on a regular basis.
 // Omits if args.TelemetryInterval is <= 0
-func SendTelemetry(args *Args, learnClient rest.LearnClient, backendSvc akid.ServiceID, dumpSummary *Summary, done <-chan struct{}) {
-	if args.StatsLogDelay <= 0 && args.TelemetryInterval <= 0 {
+func (a *apidump) TelemetryWorker(done <-chan struct{}) {
+	if a.StatsLogDelay <= 0 && a.TelemetryInterval <= 0 {
 		return
 	}
 
-	req := kgxapi.PostClientPacketCaptureStatsRequest{
-		ClientID:                  args.ClientID,
-		ObservedStartingAt:        time.Now().UTC(),
-		ObservedDurationInSeconds: args.StatsLogDelay,
-	}
+	a.SendInitialTelemetry()
 
-	// Upload "req" to the server.
-	send := func() {
-		req.PacketCountSummary = dumpSummary.FilterSummary.Summary(topNForSummary)
-		ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
-		defer cancel()
-		err := learnClient.PostClientPacketCaptureStats(ctx, backendSvc, args.Deployment, req)
-		if err != nil {
-			// Log an error and continue.
-			printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
-			telemetry.Error("telemetry", err)
-		}
-	}
-
-	// Send telemetry start event.  Stats are nil.
-	send()
-
-	if args.StatsLogDelay > 0 {
+	if a.StatsLogDelay > 0 {
 		// Wait while capturing statistics.
-		time.Sleep(time.Duration(args.StatsLogDelay) * time.Second)
+		time.Sleep(time.Duration(a.StatsLogDelay) * time.Second)
 
 		// Print telemetry data.
-		printer.Stderr.Infof("Printing packet capture statistics after %d seconds of capture.\n", args.StatsLogDelay)
-		dumpSummary.PrintPacketCounts()
-		dumpSummary.PrintWarnings()
+		printer.Stderr.Infof("Printing packet capture statistics after %d seconds of capture.\n", a.StatsLogDelay)
+		a.dumpSummary.PrintPacketCounts()
+		a.dumpSummary.PrintWarnings()
 
-		send()
+		a.SendPacketTelemetry(a.StatsLogDelay)
 	}
 
-	if args.TelemetryInterval > 0 {
-		ticker := time.NewTicker(time.Duration(args.TelemetryInterval) * time.Second)
+	if a.TelemetryInterval > 0 {
+		ticker := time.NewTicker(time.Duration(a.TelemetryInterval) * time.Second)
 
 		for {
 			select {
 			case <-done:
 				return
 			case now := <-ticker.C:
-				req.ObservedDurationInSeconds = int(now.Sub(req.ObservedStartingAt) / time.Second)
-				send()
+				duration := int(now.Sub(a.startTime) / time.Second)
+				a.SendPacketTelemetry(duration)
 			}
 		}
 	}
@@ -319,6 +403,21 @@ type interfaceError struct {
 func Run(args Args) error {
 	args.lint()
 
+	a := newSession(&args)
+	return a.Run()
+}
+
+func (a *apidump) Run() error {
+	var args *Args = a.Args
+
+	// Lookup service *first* (if we are remote) so that we can
+	// send telemetry even before starting packet capture.
+	// This means "sudo" problems will occur after authentication or project-name
+	err := a.LookupService()
+	if err != nil {
+		return err
+	}
+
 	// During debugging, capture packets not matching the user's filters so we can
 	// report statistics on those packets.
 	capturingNegation := viper.GetBool("debug")
@@ -330,12 +429,16 @@ func Run(args Args) error {
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
 	if err != nil {
+		a.SendErrorTelemetry(api_schema.ApidumpError_PCAPPermission, err)
 		return errors.Wrap(err, "failed to list network interfaces")
 	}
 
 	// Build the user-specified filter and its negation for each interface.
 	userFilters, negationFilters, err := createBPFFilters(interfaces, args.Filter, capturingNegation, 0)
 	if err != nil {
+		// Unfortunately the filters aren't actually parsed here.
+		// An error will show up below when we call pcap.Collect()
+		a.SendErrorTelemetry(api_schema.ApidumpError_InvalidFilters, err)
 		return err
 	}
 	printer.Debugln("User-specified BPF filters:", userFilters)
@@ -343,23 +446,27 @@ func Run(args Args) error {
 		printer.Debugln("Negation BPF filters:", negationFilters)
 	}
 
-	traceTags := collectTraceTags(&args)
+	traceTags := collectTraceTags(args)
 
 	// Build path filters.
 	pathExclusions, err := compileRegexps(args.PathExclusions, "path exclusion")
 	if err != nil {
+		a.SendErrorTelemetry(api_schema.ApidumpError_InvalidFilters, err)
 		return err
 	}
 	hostExclusions, err := compileRegexps(args.HostExclusions, "host exclusion")
 	if err != nil {
+		a.SendErrorTelemetry(api_schema.ApidumpError_InvalidFilters, err)
 		return err
 	}
 	pathAllowlist, err := compileRegexps(args.PathAllowlist, "path filter")
 	if err != nil {
+		a.SendErrorTelemetry(api_schema.ApidumpError_InvalidFilters, err)
 		return err
 	}
 	hostAllowlist, err := compileRegexps(args.HostAllowlist, "host filter")
 	if err != nil {
+		a.SendErrorTelemetry(api_schema.ApidumpError_InvalidFilters, err)
 		return err
 	}
 
@@ -394,30 +501,23 @@ func Run(args Args) error {
 
 	// If the output is targeted at the backend, create a shared backend
 	// learn session.
-	var backendSvc akid.ServiceID
 	var backendLrn akid.LearnSessionID
-	var learnClient rest.LearnClient
-	if uri := args.Out.AkitaURI; uri != nil {
-		frontClient := rest.NewFrontClient(args.Domain, args.ClientID)
-		backendSvc, err = util.GetServiceIDByName(frontClient, uri.ServiceName)
-		if err != nil {
-			return err
-		}
-		learnClient = rest.NewLearnClient(args.Domain, args.ClientID, backendSvc)
-
-		backendLrn, err = util.NewLearnSession(args.Domain, args.ClientID, backendSvc, uri.ObjectName, traceTags, nil)
+	if a.TargetIsRemote() {
+		uri := a.Out.AkitaURI
+		backendLrn, err = util.NewLearnSession(args.Domain, args.ClientID, a.backendSvc, uri.ObjectName, traceTags, nil)
 		if err == nil {
 			printer.Infof("Created new trace on Akita Cloud: %s\n", uri)
 		} else {
 			var httpErr rest.HTTPError
 			if ok := errors.As(err, &httpErr); ok && httpErr.StatusCode == 409 {
-				backendLrn, err = util.GetLearnSessionIDByName(learnClient, uri.ObjectName)
+				backendLrn, err = util.GetLearnSessionIDByName(a.learnClient, uri.ObjectName)
 				if err != nil {
 					return errors.Wrapf(err, "failed to lookup ID for existing trace %s", uri)
 				}
 				printer.Infof("Adding to existing trace: %s\n", uri)
 			} else {
-				return errors.Wrap(err, "failed to create or fetch trace already")
+				a.SendErrorTelemetry(api_schema.ApidumpError_TraceCreation, err)
+				return errors.Wrap(err, "failed to create trace or fetch existing trace")
 			}
 		}
 	}
@@ -439,7 +539,7 @@ func Run(args Args) error {
 	// Backend collectors that need trace rotation
 	var toRotate []trace.LearnSessionCollector
 
-	dumpSummary := NewSummary(
+	a.dumpSummary = NewSummary(
 		capturingNegation,
 		interfaces,
 		negationFilters,
@@ -457,8 +557,8 @@ func Run(args Args) error {
 
 	// If we're sending traffic to the cloud, then start telemetry and stop
 	// when the main collection process does.
-	if args.Out.AkitaURI != nil {
-		go SendTelemetry(&args, learnClient, backendSvc, dumpSummary, stop)
+	if a.TargetIsRemote() {
+		go a.TelemetryWorker(stop)
 	}
 
 	// Start collecting -- set up one or two collectors per interface, depending on whether filters are in use
@@ -506,13 +606,13 @@ func Run(args Args) error {
 
 				var backendCollector trace.Collector
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
-					backendCollector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
+					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, args.Plugins)
 					collector = trace.TeeCollector{
 						Dst1: backendCollector,
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					backendCollector = trace.NewBackendCollector(backendSvc, backendLrn, learnClient, args.Plugins)
+					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, args.Plugins)
 					collector = backendCollector
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector
@@ -601,7 +701,7 @@ func Run(args Args) error {
 
 	if len(toRotate) > 0 && args.LearnSessionLifetime != time.Duration(0) {
 		printer.Debugf("Rotating learn sessions with interval %v\n", args.LearnSessionLifetime)
-		go RotateLearnSession(&args, stop, toRotate, learnClient, backendSvc, traceTags)
+		go a.RotateLearnSession(stop, toRotate, traceTags)
 	}
 
 	{
@@ -721,9 +821,18 @@ func Run(args Args) error {
 	printer.Stderr.Infof("Trace collection stopped\n")
 
 	// Print errors per interface.
+	reportedFilterError := false
 	if len(errorsByInterface) > 0 {
 		printer.Stderr.Errorf("Encountered errors on %d / %d interfaces\n", len(errorsByInterface), numCollectors)
 		for interfaceName, err := range errorsByInterface {
+			// These errors we can be certain show up right away.
+			// Other errors might not?  We will get them via Segment, but until we have more
+			// examples I don't think we can be sure that we'll show them to the user in a
+			// meaningful way.
+			if isBpfFilterError(err) && !reportedFilterError {
+				a.SendErrorTelemetry(api_schema.ApidumpError_InvalidFilters, err)
+				reportedFilterError = true
+			}
 			printer.Stderr.Errorf("%12s %s\n", interfaceName, err)
 		}
 
@@ -741,9 +850,9 @@ func Run(args Args) error {
 	}
 
 	// Print warnings
-	dumpSummary.PrintWarnings()
+	a.dumpSummary.PrintWarnings()
 
-	if dumpSummary.IsEmpty() {
+	if a.dumpSummary.IsEmpty() {
 		telemetry.Failure("empty API trace")
 		return errors.New("API trace is empty")
 	}
