@@ -2,7 +2,6 @@ package apidump
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -212,7 +211,6 @@ func (a *apidump) SendTelemetry(req *kgxapi.PostClientPacketCaptureStatsRequest)
 	req.ClientID = a.ClientID
 	req.ObservedStartingAt = a.startTime
 
-	fmt.Printf("Sending stats: %+v\n", req)
 	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
 	defer cancel()
 	err := a.learnClient.PostClientPacketCaptureStats(ctx, a.backendSvc, a.Deployment, *req)
