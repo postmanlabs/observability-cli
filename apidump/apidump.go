@@ -115,6 +115,10 @@ type Args struct {
 
 	// Whether to report TCP connections and TLS handshakes.
 	CollectTCPAndTLSReports bool
+
+	// Parse TLS handshake messages (even if not reported)
+	// Invariant: this is true if CollectTCPAndTLSReports is true
+	ParseTLSHandshakes bool
 }
 
 func (args *Args) lint() {
@@ -567,6 +571,8 @@ func Run(args Args) error {
 				}
 			}
 
+			// If this is false, we will still parse TLS client and server hello messages
+			// but not process them futher.
 			if args.CollectTCPAndTLSReports {
 				// Process TLS traffic into TLS-connection metadata.
 				collector = tls_conn_tracker.NewCollector(collector)
@@ -583,7 +589,7 @@ func Run(args Args) error {
 			go func(interfaceName, filter string) {
 				defer doneWG.Done()
 				// Collect trace. This blocks until stop is closed or an error occurs.
-				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, args.CollectTCPAndTLSReports, collector, summary, pool); err != nil {
+				if err := pcap.Collect(stop, interfaceName, filter, bufferShare, args.ParseTLSHandshakes, collector, summary, pool); err != nil {
 					errChan <- interfaceError{
 						interfaceName: interfaceName,
 						err:           errors.Wrapf(err, "failed to collect trace on interface %s", interfaceName),

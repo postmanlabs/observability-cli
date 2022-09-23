@@ -116,6 +116,13 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			DstPort:       t.DstPort,
 			HTTPResponses: 1,
 		})
+	case akinet.TLSClientHello, akinet.TLSServerHello:
+		pc.PacketCounts.Update(client_telemetry.PacketCounts{
+			Interface: t.Interface,
+			SrcPort:   t.SrcPort,
+			DstPort:   t.DstPort,
+			TLSHello:  1,
+		})
 	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
 		// Don't count TCP metadata.
 	case akinet.TLSHandshakeMetadata:

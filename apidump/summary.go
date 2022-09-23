@@ -75,7 +75,6 @@ func (s *Summary) PrintWarnings() {
 	// Check summary to see if the trace will have anything in it.
 	totalCount := s.FilterSummary.Total()
 	if totalCount.HTTPRequests == 0 && totalCount.HTTPResponses == 0 {
-		// TODO: recognize TLS handshakes and count them separately!
 		if totalCount.TCPPackets == 0 {
 			if s.CapturingNegation && s.NegationSummary.Total().TCPPackets == 0 {
 				msg := "Did not capture any TCP packets during the trace. " +
@@ -87,13 +86,13 @@ func (s *Summary) PrintWarnings() {
 					"This may mean your filter is incorrect, such as the wrong TCP port."
 				printer.Stderr.Infof("%s\n", printer.Color.Yellow(msg))
 			}
+		} else if totalCount.TLSHello > 0 {
+			msg := fmt.Sprintf("Captured %d TLS handshake messages out of %d total TCP segments. ", totalCount.TLSHello, totalCount.TCPPackets) +
+				"This may mean you are trying to capture HTTPS traffic, which is currently unsupported."
+			printer.Stderr.Infof("%s\n", msg)
 		} else if totalCount.Unparsed > 0 {
 			msg := fmt.Sprintf("Captured %d TCP packets total; %d unparsed TCP segments. ", totalCount.TCPPackets, totalCount.Unparsed) +
-				"This may mean you are trying to capture HTTPS traffic." +
-				"See https://docs.akita.software/docs/proxy-for-encrypted-traffic " +
-				"for instructions on using a proxy, or generate a HAR file with " +
-				"your browser as described in " +
-				"https://docs.akita.software/docs/collect-client-side-traffic-2."
+				"No TLS headers were found, so this may represent a network protocol that the agent does not know how to parse."
 			printer.Stderr.Infof("%s\n", msg)
 		} else if s.NumUserFilters > 0 && s.PrefilterSummary.Total().HTTPRequests != 0 {
 			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
@@ -129,45 +128,47 @@ func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map
 	}
 
 	if showInterface {
-		logf("==================================================\n")
+		logf("========================================================\n")
 		logf("Packets per interface:\n")
-		logf("%15v %8v %7v %11v %5v\n", "", "", "TCP  ", "HTTP   ", "")
-		logf("%15v %8v %7v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "unk")
+		logf("%15v %9v %7v %11v %5v %5v\n", "", "", "TCP  ", "HTTP   ", "TLS  ", "")
+		logf("%15v %9v %7v %5v %5v %5v %5v\n", "interface", "dir", "packets", "req", "resp", "hello", "unk")
 		for n := range interfaces {
 			for i, summary := range toReport {
 				count := summary.TotalOnInterface(n)
-				logf("%15s %9s %7d %5d %5d %5d\n",
+				logf("%15s %9s %7d %5d %5d %5d %5d\n",
 					n,
 					filterStates[i],
 					count.TCPPackets,
 					count.HTTPRequests,
 					count.HTTPResponses,
+					count.TLSHello,
 					count.Unparsed,
 				)
 			}
 		}
 	}
 
-	logf("==================================================\n")
+	logf("========================================================\n")
 	logf("Packets per port:\n")
-	logf("%8v %7v %11v %5v\n", "", "TCP  ", "HTTP   ", "")
-	logf("%8v %7v %5v %5v %5v\n", "port", "packets", "req", "resp", "unk")
+	logf("%8v %7v %11v %5v %5v\n", "", "TCP  ", "HTTP   ", "TLS  ", "")
+	logf("%8v %7v %5v %5v %5v %5v\n", "port", "packets", "req", "resp", "hello", "unk")
 	for i, summary := range toReport {
 		if filterStates[i] == matchedFilter {
-			logf("--------- matching filter --------\n")
+			logf("----------- matching filter ------------\n")
 		} else {
-			logf("------- not matching filter ------\n")
+			logf("--------- not matching filter ----------\n")
 		}
 		byPort := summary.AllPorts()
 		// We don't really know what's in the BPF filter; we know every packet in
 		// matchedSummary must have matched, but that could be multiple ports, or
 		// some other criteria.
 		for _, count := range byPort {
-			logf("%8d %7d %5d %5d %5d\n",
+			logf("%8d %7d %5d %5d %5d %5d\n",
 				count.SrcPort,
 				count.TCPPackets,
 				count.HTTPRequests,
 				count.HTTPResponses,
+				count.TLSHello,
 				count.Unparsed,
 			)
 		}
