@@ -2,6 +2,7 @@ package apidump
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -46,17 +47,91 @@ func NewSummary(
 // If the debug flag is set, also prints packets taht were captured but not
 // sent to the backend.
 func (s *Summary) PrintPacketCounts() {
-	if len(s.NegationFilters) == 0 {
-		DumpPacketCounters(printer.Stderr.Infof, s.Interfaces, s.FilterSummary, nil, true)
-	} else {
-		DumpPacketCounters(printer.Stderr.Infof, s.Interfaces, s.FilterSummary, s.NegationSummary, true)
-	}
+	s.PrintPacketCountHighlights()
 
 	if viper.GetBool("debug") {
+		if len(s.NegationFilters) == 0 {
+			DumpPacketCounters(printer.Stderr.Infof, s.Interfaces, s.FilterSummary, nil, true)
+		} else {
+			DumpPacketCounters(printer.Stderr.Infof, s.Interfaces, s.FilterSummary, s.NegationSummary, true)
+		}
 		if s.NumUserFilters > 0 {
 			printer.Stderr.Debugf("+++ Counts before allow and exclude filters and sampling +++\n")
 			DumpPacketCounters(printer.Stderr.Debugf, s.Interfaces, s.PrefilterSummary, nil, false)
 		}
+	}
+}
+
+// Summarize the top sources of traffic seen in a log-friendly format.
+// This appears before PrintWarnings, and should highlight the raw data.
+//
+// TODO: it would be nice to show hostnames if we have them? To more clearly
+// identify the traffic.
+func (s *Summary) PrintPacketCountHighlights() {
+	top := s.FilterSummary.Summary(20)
+
+	totalTraffic := top.Total.TCPPackets
+	if totalTraffic == 0 {
+		// PrintWarnings already covers this case
+		return
+	}
+
+	// Sort by TCP traffic volume and list in descending order.
+	// This is already sorted in topNByTcpPacketCount but that ordering
+	// doesn't seem accessible here.
+	ports := make([]int, 0, len(top.TopByPort))
+	for p := range top.TopByPort {
+		ports = append(ports, p)
+	}
+	sort.Slice(ports, func(i, j int) bool {
+		return top.TopByPort[ports[i]].TCPPackets > top.TopByPort[ports[j]].TCPPackets
+	})
+
+	totalListed := 0
+	for i, p := range ports {
+		thisPort := top.TopByPort[p]
+		pct := thisPort.TCPPackets * 100 / totalTraffic
+		totalListed += thisPort.TCPPackets
+
+		// Stop when the running total would be >100%.  (Each packet is counted both
+		// in the source port and in the destination port; we want to avoid
+		// showing a bunch of ephemeral ports even if they're all above the threshold.)
+		//
+		// Before that limit is hit, list at least two sources, but stop when less than 3% of traffic.
+		if (totalListed > totalTraffic) || (pct < 3 && i >= 2) {
+			break
+		}
+
+		// If we saw any HTTP traffic, report that.  But, if there's a high percentage of unparsed packets, note that too.
+		if thisPort.HTTPRequests+thisPort.HTTPResponses > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), %d HTTP requests, %d HTTP responses, %d TLS handshakes, %d unparsed packets.\n",
+				p, thisPort.TCPPackets, pct, thisPort.HTTPRequests, thisPort.HTTPResponses, thisPort.TLSHello, thisPort.Unparsed)
+			if thisPort.TLSHello > 0 {
+				printer.Stderr.Infof("TCP Port %5d: appears to contain a mix of encrypted and unencrypted traffic.\n")
+			} else if thisPort.Unparsed > thisPort.TCPPackets*3/10 {
+				printer.Stderr.Infof("TCP Port %5d: has an unusually high amount of traffic that Akita cannot parse.\n")
+			}
+			continue
+		}
+
+		// If we saw HTTP traffic but it was filtered, give the pre-filter statistics
+		preFilter := s.PrefilterSummary.TotalOnPort(p)
+		if preFilter.HTTPRequests+preFilter.HTTPResponses > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses satisfied all the filters you gave, but %d HTTP requests and %d HTTP responses were seen before your path and host filters were applied.\n",
+				p, thisPort.TCPPackets, pct, preFilter.HTTPRequests, preFilter.HTTPResponses)
+			continue
+		}
+
+		// If we saw TLS, report the presence of encrypted traffic
+		if thisPort.TLSHello > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses, %d TLS handshakes indicating encrypted traffic.\n",
+				p, thisPort.TCPPackets, pct, thisPort.TLSHello)
+			continue
+		}
+
+		// Flag as unparsable
+		printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses; the data to this service could not be parsed.\n",
+			p, thisPort.TCPPackets, pct)
 	}
 }
 
@@ -117,8 +192,9 @@ func (s *Summary) IsEmpty() bool {
 }
 
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
-// at Debug level, to stderr.  The first argument should be the keyed by interface names (as created
-// in the Run function below); all we really need are those names.
+// to the logging function specified in the first argument.
+// The "interfaces" argument should be the map keyed by interface names (as created
+// in the apidump.Run function); all we really need are those names.
 func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCounter, unmatchedSummary *trace.PacketCounter, showInterface bool) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
 	filterStates := []filterState{matchedFilter, notMatchedFilter}

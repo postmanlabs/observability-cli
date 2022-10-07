@@ -718,7 +718,7 @@ func (a *apidump) Run() error {
 		}
 	}
 	if unfiltered {
-		printer.Stderr.Warningf("%s\n", printer.Color.Yellow("--filter flag is not set, this means that all network traffic is treated as your API traffic"))
+		printer.Stderr.Infof("%s\n", printer.Color.Yellow("--filter flag is not set; capturing all network traffic to and from your services."))
 	}
 
 	// Keep track of errors by interface, as well as errors from the subcommand
