@@ -194,7 +194,7 @@ func (s *Summary) IsEmpty() bool {
 // DumpPacketCounters prints the accumulated packet counts per interface and per port,
 // to the logging function specified in the first argument.
 // The "interfaces" argument should be the map keyed by interface names (as created
-// in the Run function below); all we really need are those names.
+// in the apidump.Run function); all we really need are those names.
 func DumpPacketCounters(logf func(f string, args ...interface{}), interfaces map[string]interfaceInfo, matchedSummary *trace.PacketCounter, unmatchedSummary *trace.PacketCounter, showInterface bool) {
 	// Using a map gives inconsistent order when iterating (even on the same run!)
 	filterStates := []filterState{matchedFilter, notMatchedFilter}
