@@ -117,7 +117,7 @@ func (s *Summary) PrintPacketCountHighlights() {
 		// If we saw HTTP traffic but it was filtered, give the pre-filter statistics
 		preFilter := s.PrefilterSummary.TotalOnPort(p)
 		if preFilter.HTTPRequests+preFilter.HTTPResponses > 0 {
-			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses passed the filter, but %d HTTP requests and %d HTTP responses were seen before your allow and exclusions filters were applied.\n",
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses satisfied all the filters you gave, but %d HTTP requests and %d HTTP responses were seen before your path and host filters were applied.\n",
 				p, thisPort.TCPPackets, pct, preFilter.HTTPRequests, preFilter.HTTPResponses)
 			continue
 		}
