@@ -44,6 +44,8 @@ Running the following commands will generate the `akita-cli` binary:
 
 See our docs: [Single Host/VM](https://docs.akita.software/docs/run-locally).
 
+Note: if you're planning to use the Akita CLI with the Akita Console, we recommend using our [statically linked binaries](https://github.com/akitasoftware/akita-cli/releases) if possible.
+
 ## Getting involved
 * Please file bugs as issues to this repository.
 * We welcome contributions! If you want to make changes or build your own
