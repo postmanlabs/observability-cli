@@ -1,24 +1,14 @@
 # Welcome! 👋
 
-Drop in Akita for instant API observability.
+Drop-in API monitoring, no code changes necessary.
 
-Powered by eBPF and state-of-the-art API traffic modeling algorithms, Akita
-enables any developer to understand and track API endpoints and their usage in
-real time:
+Built for busy developer teams who don't have time to become experts in monitoring and observability, Akita makes it possible to quickly track API endpoints and their usage in real time.
 
-  * **Understand what API endpoints you have.** Get a continuously up-to-date,
-    searchable map of your API endpoints, fields, data types, and more. Export
-    as OpenAPI specs.
+  * **See API endpoints.** Automatically get a searchable map of your API endpoints in use. Explore by latency, errors, and usage. Export as OpenAPI specs.
+  * **Get drop-in API monitoring.** Get a drop-in view of volume, latency, and errors, updated in near real-time. Set per-endpoint alerts.
+  * **Quickly understand the impact of changes.** Keep track of the endpoints you care about and identify how new deployments impact your endpoints.
 
-  * **Understand API usage.** Get an automatically updated, per-endpoint view
-    of volume, latency, and errors—without having to make code changes or build
-    your own dashboards.
-
-  * **Automatically understand API behavior changes.** Quickly get a summary of
-    changes to performance and errors, added and removed endpoints, and more.
-
-Simply drop Akita into your system to understand your system behavior, without
-having to use a proxy or instrument code service by service.
+Simply drop Akita into your system to understand your system behavior, without having to instrument code or build your own dashboards.
 
 We're in beta and would love to have you try us out!
 [Join here](https://www.akitasoftware.com/beta-signup).
