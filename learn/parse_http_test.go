@@ -10,7 +10,6 @@ import (
 	as "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/spec_util"
-
 	"github.com/spf13/viper"
 )
 
@@ -33,6 +32,7 @@ func init() {
 var testBodyDict = `
 {
   "name": "prince",
+  "name_with_escaped_CRLF": "prince\\r\\n",
   "number_teeth": 9000,
   "dog": true,
   "canadian_social_insurance_number": "378734493671000",
@@ -65,6 +65,7 @@ func newTestBodySpec(statusCode int) *as.Data {
 func newTestBodySpecContentType(contentType string, statusCode int) *as.Data {
 	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, contentType, map[string]*as.Data{
 		"name":                             dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
+		"name_with_escaped_CRLF":           dataFromPrimitive(spec_util.NewPrimitiveString("prince\\r\\n")),
 		"number_teeth":                     dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
 		"dog":                              dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
 		"canadian_social_insurance_number": dataFromPrimitive(annotateIfSensitiveForTest(true, spec_util.NewPrimitiveString("378734493671000"))),
@@ -590,6 +591,26 @@ func TestFailingParse(t *testing.T) {
 				[]*http.Cookie{},
 			),
 		},
+		{
+			Name: "json error: invalid '\t\r\n' in string literal",
+			TestContent: newTestHTTPResponse(
+				200,
+				[]byte("{\"field\t\r\n\": 3}"),
+				"application/json",
+				map[string][]string{},
+				[]*http.Cookie{},
+			),
+		},
+		{
+			Name: "json error: invalid '\t\r\r' not in string literal",
+			TestContent: newTestHTTPResponse(
+				200,
+				[]byte("{\"field\": 3\t\r\n}"),
+				"application/json",
+				map[string][]string{},
+				[]*http.Cookie{},
+			),
+		},
 	}
 	for _, tc := range testCases {
 		_, err := ParseHTTP(tc.TestContent)
@@ -600,5 +621,4 @@ func TestFailingParse(t *testing.T) {
 	}
 
 	viper.Set("debug", false)
-
 }
