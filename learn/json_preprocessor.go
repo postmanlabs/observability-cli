@@ -2,7 +2,6 @@ package learn
 
 import (
 	"io"
-	"unicode"
 )
 
 type stripControlCharactersReader struct {
@@ -13,7 +12,7 @@ func newStripControlCharactersReader(wrapped io.Reader) stripControlCharactersRe
 	return stripControlCharactersReader{wrapped: wrapped}
 }
 
-// Read up to len(p) bytes, removing any unescaped control characters found.
+// Read up to len(p) bytes, removing any control characters found.
 // Removed characters do not count toward the total bytes read.  Returns the
 // number of bytes read.
 func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
@@ -30,12 +29,13 @@ func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
 		var bufN int
 		bufN, err = r.wrapped.Read(bufSlice)
 
-		// Copy from buf to p, skipping unescaped control characters.
-		for _, r := range string(bufSlice) {
-			if unicode.IsControl(r) {
+		// Copy from buf to p, skipping control characters.
+		for _, c := range bufSlice {
+			if c < 0x1f {
 				continue
 			}
-			pIdx += copy(p[pIdx:], string([]rune{r}))
+			p[pIdx] = c
+			pIdx += 1
 		}
 
 		// If we hit an error or read fewer bytes than the size of the buffer,

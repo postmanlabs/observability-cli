@@ -1,6 +1,7 @@
 package learn
 
 import (
+	"encoding/json"
 	"io"
 	"strings"
 	"testing"
@@ -96,6 +97,61 @@ func TestSkipCarriageReturnReader(t *testing.T) {
 		}
 		assert.Equal(t, expectedBuf, buf, tc.Name+": string")
 		assert.Equal(t, expectedN-numCRs, n, tc.Name+": character count")
+	}
+}
+
+func TestSkipControlCharacterReader_JSON(t *testing.T) {
+	testCases := []struct {
+		Name          string
+		Input         string
+		Expected      interface{}
+		ExpectedError bool
+	}{
+		{
+			Name:     "no control characters",
+			Input:    `{"foo": "bar"}`,
+			Expected: map[string]interface{}{"foo": "bar"},
+		},
+		{
+			Name:     "remove control characters",
+			Input:    "{\"foo\r\n\": \"bar\"}",
+			Expected: map[string]interface{}{"foo": "bar"},
+		},
+		{
+			Name:  "escaped control char",
+			Input: "{\"foo\\\r\\\n\": \"bar\"}",
+
+			// The Go JSON parser doesn't support escaping control characters.
+			// However, if someone were to try, the preprocessor would remove
+			// the control character but leave the backslash.
+			Expected: map[string]interface{}{`foo\`: "bar"},
+		},
+		{
+			Name: "newline in string",
+			Input: `{
+  "greeting": "hello \
+",
+  "subject": "world"
+}`,
+			Expected: map[string]interface{}{"greeting": "hello", "subject": "world"},
+
+			// After the newline is removed, the JSON parser interprets the backslash
+			// as escaping the quote.
+			ExpectedError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		// Parse JSON after removing control strings.
+		var parsed interface{}
+		decoder := json.NewDecoder(newStripControlCharactersReader(strings.NewReader(tc.Input)))
+		err := decoder.Decode(&parsed)
+		if tc.ExpectedError {
+			assert.Error(t, err, tc.Name)
+		} else {
+			assert.NoError(t, err, tc.Name)
+			assert.Equal(t, tc.Expected, parsed, tc.Name)
+		}
 	}
 }
 
