@@ -30,7 +30,7 @@ func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
 		bufN, err = r.wrapped.Read(bufSlice)
 
 		// Copy from buf to p, skipping control characters.
-		for _, c := range bufSlice {
+		for _, c := range bufSlice[:bufN] {
 			if c <= 0x1f {
 				continue
 			}
