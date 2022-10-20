@@ -18,19 +18,20 @@ func newStripControlCharactersReader(wrapped io.Reader) stripControlCharactersRe
 // number of bytes read.
 func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
 	pIdx := 0
+	buf := make([]byte, len(p))
 
 	// Read up to len(p) bytes, then discard any control characters.  Continue
 	// reading (and discarding control characters) until p is full or there are
 	// no more bytes to read.
 	for pIdx < len(p) {
 		remaining := len(p) - pIdx
-		buf := make([]byte, remaining)
+		bufSlice := buf[:remaining]
 
 		var bufN int
-		bufN, err = r.wrapped.Read(buf)
+		bufN, err = r.wrapped.Read(bufSlice)
 
 		// Copy from buf to p, skipping unescaped control characters.
-		for _, r := range string(buf) {
+		for _, r := range string(bufSlice) {
 			if unicode.IsControl(r) {
 				continue
 			}
