@@ -31,7 +31,7 @@ func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
 
 		// Copy from buf to p, skipping control characters.
 		for _, c := range bufSlice {
-			if c < 0x1f {
+			if c <= 0x1f {
 				continue
 			}
 			p[pIdx] = c
