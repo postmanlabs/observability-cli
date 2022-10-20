@@ -32,7 +32,7 @@ func init() {
 var testBodyDict = `
 {
   "name": "prince",
-  "name_with_escaped_CRLF": "prince\\r\\n",
+  "name_with_escaped_CRLF": "prince\r\n",
   "number_teeth": 9000,
   "dog": true,
   "canadian_social_insurance_number": "378734493671000",
@@ -65,7 +65,7 @@ func newTestBodySpec(statusCode int) *as.Data {
 func newTestBodySpecContentType(contentType string, statusCode int) *as.Data {
 	return newTestBodySpecFromStruct(statusCode, as.HTTPBody_JSON, contentType, map[string]*as.Data{
 		"name":                             dataFromPrimitive(spec_util.NewPrimitiveString("prince")),
-		"name_with_escaped_CRLF":           dataFromPrimitive(spec_util.NewPrimitiveString("prince\\r\\n")),
+		"name_with_escaped_CRLF":           dataFromPrimitive(spec_util.NewPrimitiveString("prince\r\n")),
 		"number_teeth":                     dataFromPrimitive(spec_util.NewPrimitiveInt64(9000)),
 		"dog":                              dataFromPrimitive(spec_util.NewPrimitiveBool(true)),
 		"canadian_social_insurance_number": dataFromPrimitive(annotateIfSensitiveForTest(true, spec_util.NewPrimitiveString("378734493671000"))),

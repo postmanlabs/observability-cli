@@ -30,13 +30,9 @@ func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
 		bufN, err = r.wrapped.Read(buf)
 
 		// Copy from buf to p, skipping unescaped control characters.
-		hasPrecedingSlash := false
 		for _, r := range string(buf) {
-			if unicode.IsControl(r) && !hasPrecedingSlash {
+			if unicode.IsControl(r) {
 				continue
-			}
-			if r == '\\' {
-				hasPrecedingSlash = !hasPrecedingSlash
 			}
 			pIdx += copy(p[pIdx:], string([]rune{r}))
 		}
