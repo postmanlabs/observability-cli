@@ -102,10 +102,9 @@ func TestSkipCarriageReturnReader(t *testing.T) {
 
 func TestSkipControlCharacterReader_JSON(t *testing.T) {
 	testCases := []struct {
-		Name          string
-		Input         string
-		Expected      interface{}
-		ExpectedError bool
+		Name     string
+		Input    string
+		Expected interface{}
 	}{
 		{
 			Name:     "no control characters",
@@ -119,11 +118,11 @@ func TestSkipControlCharacterReader_JSON(t *testing.T) {
 		},
 		{
 			Name:  "escaped control char",
-			Input: "{\"foo\\\r\\\n\": \"bar\"}",
+			Input: "{\"foo\\\r\": \"bar\"}",
 
 			// The Go JSON parser doesn't support escaping control characters.
 			// However, if someone were to try, the preprocessor would remove
-			// the control character but leave the backslash.
+			// the control character and replace it with a backslash.
 			Expected: map[string]interface{}{`foo\`: "bar"},
 		},
 		{
@@ -133,25 +132,49 @@ func TestSkipControlCharacterReader_JSON(t *testing.T) {
 ",
   "subject": "world"
 }`,
-			Expected: map[string]interface{}{"greeting": "hello", "subject": "world"},
-
-			// After the newline is removed, the JSON parser interprets the backslash
-			// as escaping the quote.
-			ExpectedError: true,
+			Expected: map[string]interface{}{"greeting": "hello \\", "subject": "world"},
 		},
 	}
 
 	for _, tc := range testCases {
 		// Parse JSON after removing control strings.
 		var parsed interface{}
+		var err error
+
+		// Try parsing using a JSON decoder.
 		decoder := json.NewDecoder(newStripControlCharactersReader(strings.NewReader(tc.Input)))
-		err := decoder.Decode(&parsed)
-		if tc.ExpectedError {
-			assert.Error(t, err, tc.Name)
-		} else {
-			assert.NoError(t, err, tc.Name)
-			assert.Equal(t, tc.Expected, parsed, tc.Name)
+		err = decoder.Decode(&parsed)
+		assert.NoError(t, err, "["+tc.Name+", decoder] error")
+		assert.Equal(t, tc.Expected, parsed, "["+tc.Name+", decoder] not equal")
+
+		// Try reading all bytes from the reader, one byte at a time, and then
+		// parsing.
+		bytesToRead := 1
+		reader := newStripControlCharactersReader(strings.NewReader(tc.Input))
+		read := make([]byte, 0, len([]byte(tc.Input)))
+		buf := make([]byte, bytesToRead)
+		for {
+			var n int
+			n, err = reader.Read(buf)
+
+			read = append(read, buf[:n]...)
+
+			if err != nil {
+				break
+			}
+
+			// Clear the buffer.
+			for i, _ := range buf {
+				buf[i] = '\x00'
+			}
 		}
+
+		// Parse.
+		if err == io.EOF {
+			err = json.Unmarshal(read, &parsed)
+		}
+		assert.NoError(t, err, "["+tc.Name+", byte-by-byte] error")
+		assert.Equal(t, tc.Expected, parsed, "["+tc.Name+", byte-by-byte] not equal")
 	}
 }
 
