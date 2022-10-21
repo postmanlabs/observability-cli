@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -16,6 +15,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/andybalholm/brotli"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -23,13 +24,14 @@ import (
 	"golang.org/x/text/transform"
 	"gopkg.in/yaml.v2"
 
-	"github.com/akitasoftware/akita-cli/printer"
-	"github.com/akitasoftware/akita-cli/telemetry"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
 	"github.com/akitasoftware/akita-libs/akinet"
 	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
+
+	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/telemetry"
 )
 
 var (
@@ -632,7 +634,7 @@ func parseMethodMeta(req *akinet.HTTPRequest) *pb.MethodMeta {
 
 func parseHTTPBodyJSON(stream io.Reader) (*pb.Data, error) {
 	var top interface{}
-	decoder := json.NewDecoder(stream)
+	decoder := json.NewDecoder(newStripControlCharactersReader(stream))
 	decoder.UseNumber()
 
 	err := decoder.Decode(&top)
