@@ -5,17 +5,23 @@ import (
 )
 
 type stripControlCharactersReader struct {
-	wrapped io.Reader
+	hasPrecedingBackslash bool
+	wrapped               io.Reader
 }
 
-func newStripControlCharactersReader(wrapped io.Reader) stripControlCharactersReader {
-	return stripControlCharactersReader{wrapped: wrapped}
+func newStripControlCharactersReader(wrapped io.Reader) *stripControlCharactersReader {
+	return &stripControlCharactersReader{wrapped: wrapped}
 }
 
 // Read up to len(p) bytes, removing any control characters found.
-// Removed characters do not count toward the total bytes read.  Returns the
-// number of bytes read.
-func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
+// Removed characters do not count toward the total bytes read.
+//
+// If the control character is preceded by a backslash, it is replaced with a
+// backslash rather than removed, e.g. "\<CR>" becomes "\\".  This prevents
+// the JSON parser from applying the backslash to escape the next character.
+//
+// Returns the number of bytes read.
+func (r *stripControlCharactersReader) Read(p []byte) (n int, err error) {
 	pIdx := 0
 	buf := make([]byte, len(p))
 
@@ -31,10 +37,26 @@ func (r stripControlCharactersReader) Read(p []byte) (n int, err error) {
 
 		// Copy from buf to p, skipping control characters.
 		for _, c := range bufSlice[:bufN] {
+			toWrite := c
+
 			if c <= 0x1f {
-				continue
+				if r.hasPrecedingBackslash {
+					// If the control character is escaped, replace it with a
+					// backslash.
+					toWrite = '\\'
+				} else {
+					// Otherwise, just remove it.
+					continue
+				}
 			}
-			p[pIdx] = c
+
+			if c == '\\' {
+				r.hasPrecedingBackslash = !r.hasPrecedingBackslash
+			} else {
+				r.hasPrecedingBackslash = false
+			}
+
+			p[pIdx] = toWrite
 			pIdx += 1
 		}
 
