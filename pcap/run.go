@@ -8,6 +8,7 @@ import (
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-libs/akinet"
 	akihttp "github.com/akitasoftware/akita-libs/akinet/http"
+	akihttp2 "github.com/akitasoftware/akita-libs/akinet/http2"
 	"github.com/akitasoftware/akita-libs/akinet/tls"
 	"github.com/akitasoftware/akita-libs/buffer_pool"
 	. "github.com/akitasoftware/akita-libs/client_telemetry"
@@ -28,6 +29,7 @@ func Collect(
 	facts := []akinet.TCPParserFactory{
 		akihttp.NewHTTPRequestParserFactory(pool),
 		akihttp.NewHTTPResponseParserFactory(pool),
+		akihttp2.NewHTTP2PrefaceParserFactory(),
 	}
 	if parseTCPAndTLS {
 		facts = append(facts,
