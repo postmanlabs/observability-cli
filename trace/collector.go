@@ -129,17 +129,17 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		// Don't count TLS metadata.
 	case akinet.HTTP2ConnectionPreface:
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
-			Interface:    t.Interface,
-			SrcPort:      t.SrcPort,
-			DstPort:      t.DstPort,
-			HTTP2Preface: 1,
-		})
-	case akinet.QUICHandshakeMetadata:
-		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface:     t.Interface,
 			SrcPort:       t.SrcPort,
 			DstPort:       t.DstPort,
-			QUICHandshake: 1,
+			HTTP2Prefaces: 1,
+		})
+	case akinet.QUICHandshakeMetadata:
+		pc.PacketCounts.Update(client_telemetry.PacketCounts{
+			Interface:      t.Interface,
+			SrcPort:        t.SrcPort,
+			DstPort:        t.DstPort,
+			QUICHandshakes: 1,
 		})
 	default:
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
