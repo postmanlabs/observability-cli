@@ -107,9 +107,12 @@ func (s *Summary) PrintPacketCountHighlights() {
 			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), %d HTTP requests, %d HTTP responses, %d TLS handshakes, %d unparsed packets.\n",
 				p, thisPort.TCPPackets, pct, thisPort.HTTPRequests, thisPort.HTTPResponses, thisPort.TLSHello, thisPort.Unparsed)
 			if thisPort.TLSHello > 0 {
-				printer.Stderr.Infof("TCP Port %5d: appears to contain a mix of encrypted and unencrypted traffic.\n")
+				printer.Stderr.Infof("TCP Port %5d: appears to contain a mix of encrypted and unencrypted traffic.\n", p)
 			} else if thisPort.Unparsed > thisPort.TCPPackets*3/10 {
-				printer.Stderr.Infof("TCP Port %5d: has an unusually high amount of traffic that Akita cannot parse.\n")
+				printer.Stderr.Infof("TCP Port %5d: has an unusually high amount of traffic that Akita cannot parse.\n", p)
+			}
+			if thisPort.HTTP2Prefaces > 0 {
+				printer.Stderr.Infof("TCP Port %5d: Contains HTTP/2 traffic (%d connections detected), which Akita cannot parse.\n", p, thisPort.HTTP2Prefaces)
 			}
 			continue
 		}
@@ -126,6 +129,13 @@ func (s *Summary) PrintPacketCountHighlights() {
 		if thisPort.TLSHello > 0 {
 			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses, %d TLS handshakes indicating encrypted traffic.\n",
 				p, thisPort.TCPPackets, pct, thisPort.TLSHello)
+			continue
+		}
+
+		// If we saw HTTP/2, report it.
+		if thisPort.HTTP2Prefaces > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP/1.1 requests or responses, %d HTTP/2 connection attempts. Akita cannot currently parse HTTP/2.\n",
+				p, thisPort.TCPPackets, pct, thisPort.HTTP2Prefaces)
 			continue
 		}
 
