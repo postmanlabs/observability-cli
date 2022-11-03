@@ -1,5 +1,7 @@
 package apidump
 
+import "time"
+
 // Specifies default values for command-line parameters.
 const (
 	// Whether to send TCP and TLS reports to the back end.
@@ -23,4 +25,7 @@ const (
 
 	// How often to upload client telemetry.
 	DefaultTelemetryInterval_seconds = 5 * 60 // 5 minutes
+
+	// How often to rotate traces in the back end.
+	DefaultTraceRotateInterval = time.Hour
 )

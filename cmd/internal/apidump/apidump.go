@@ -113,7 +113,7 @@ var Cmd = &cobra.Command{
 				}
 			} else {
 				if outFlag.AkitaURI.ObjectName == "" {
-					traceRotateInterval = time.Hour
+					traceRotateInterval = apidump.DefaultTraceRotateInterval
 				}
 			}
 		}

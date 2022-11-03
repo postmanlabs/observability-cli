@@ -179,7 +179,7 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 		ExecCommand:             execCommandFlag,
 		ExecCommandUser:         execCommandUserFlag,
 		Plugins:                 plugins,
-		LearnSessionLifetime:    time.Hour,
+		LearnSessionLifetime:    apidump.DefaultTraceRotateInterval,
 		Deployment:              apidump.DefaultDeployment,
 		StatsLogDelay:           statsLogDelay,
 		TelemetryInterval:       apidump.DefaultTelemetryInterval_seconds,
