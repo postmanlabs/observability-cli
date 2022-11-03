@@ -3,6 +3,7 @@ package apidump
 import (
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
 )
@@ -29,6 +31,40 @@ func (w interfaceWrapper) Addrs() ([]net.Addr, error) {
 	return w.addrs, nil
 }
 
+// Show a warning about failure to check permission, and
+// return an appropriate top-level error message.
+func showPermissionErrors(sampleError error) error {
+	// TODO: pcapPermError needs an Unwrap method to use error.Is().  But
+	// I don't know what error this is anyway! So we're back to substring search.
+	if strings.Contains(sampleError.Error(), "Operation not permitted") {
+		// Permission denied == not enough capabilities
+		// Are we running as root?
+		if os.Geteuid() == 0 {
+			if env.InDocker() {
+				printer.Warningf("Although you are running as root, this container lacks the CAP_NET_RAW capability.\n")
+				printer.Warningf("It might be that you are in a PaaS that disallows packet capture, or the local configuration has disabled that privilege by default.\n")
+				return errors.Errorf("Insufficient permissions in container.")
+			} else {
+				printer.Warningf("Although you are running as root, the Akita agent lacks the CAP_NET_RAW capability.\n")
+				printer.Warningf("It might be that you are in a restricted environment which disallows packet capture, even as the root user.\n")
+				return errors.Errorf("Insufficient permissions.")
+			}
+		} else {
+			// Non-root user
+			printer.Warningf("The agent needs the CAP_NET_RAW capability to capture packets. You are running as an unprivileged (non-root) user.\n")
+			return errors.Errorf("Insufficient permissions, try using \"sudo\" to run as root.")
+		}
+	}
+
+	// Some other failure cause.
+	// TODO: Known errors without error-specific help:
+	//   * "The device is not up"
+	//   * "SIOCETHTOOL(ETHTOOL_GET_TS_INFO) ioctl failed: Function not implemented"
+	printer.Warningf("The agent could not access any network interfaces. Please contact\n")
+	printer.Warningf("support@akitasoftware.com with the log messages above.\n")
+	return errors.Errorf("Error while checking permissions.")
+}
+
 // Get the list of interface names that we should listen on. By default, this is
 // all interfaces on the machine that are up. User may override this with
 // --interface flag.
@@ -44,10 +80,10 @@ func getEligibleInterfaces(userSpecified []string) (map[string]interfaceInfo, er
 		}
 
 		ifaceErrs := checkPcapPermissions(results)
-		for _, err := range ifaceErrs {
-			// Return error if we're not able to listen on a user-specified
-			// interface.
-			return nil, errors.Errorf("%v (hint: try using sudo)", err)
+		for i, err := range ifaceErrs {
+			// Return error if we're not able to listen on a user-specified interface.
+			printer.Errorf("Error on interface %q: %v\n", i, err)
+			return nil, showPermissionErrors(err)
 		}
 		return results, nil
 	}
@@ -77,13 +113,33 @@ func getEligibleInterfaces(userSpecified []string) (map[string]interfaceInfo, er
 	// interfaces, and just listen to the interfaces we have the permissions
 	// for.
 	ifaceErrs := checkPcapPermissions(results)
+	var sampleError error
 	for ifaceName, err := range ifaceErrs {
 		printer.Warningf("Skipping interface %s for collecting packets because of error: %v\n", ifaceName, err)
+		sampleError = err
 		delete(results, ifaceName)
 	}
 
 	if len(results) == 0 {
-		return nil, errors.Errorf("failed to automatically find interfaces to listen on (hint: try using sudo)")
+		// Tailor the message to the error received and the current context.
+		if sampleError != nil {
+			return nil, showPermissionErrors(sampleError)
+		}
+
+		// These two failure would be very odd, because how did we get past looking up a project ID without one?
+		if len(ifaces) == 0 {
+			if env.InDocker() {
+				printer.Warningf("The agent did not see any network interfaces in its container.\n")
+				printer.Warningf("Try running Docker with the \"--network host\" flag, or attaching to a container that has a network interface.\n")
+			} else {
+				printer.Warningf("The agent did not see any network interfaces attached to this machine.\n")
+			}
+		} else {
+			printer.Warningf("The agent could not automatically identify any network interfaces to use\n")
+			printer.Warningf("All the interfaces were deselected because they lacked IP addresses. Use the --interfaces flag to manually select one or more network interfaces to use.\n")
+		}
+
+		return nil, errors.Errorf("Failed to automatically find interfaces.")
 	}
 
 	return results, nil
