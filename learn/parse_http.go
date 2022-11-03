@@ -529,7 +529,7 @@ func parseHeader(header http.Header, responseCodeOpt optionals.Optional[int]) []
 	datas := []*pb.Data{}
 
 	// If the header is in a request, use 0 (default value) as the response code.
-	isResponse := responseCodeOpt.IsSome()
+	isRequest := responseCodeOpt.IsNone()
 	responseCode := responseCodeOpt.GetOrDefault(0)
 
 	// Sort the keys so there is a consistent ordering for resultant data structure
@@ -560,7 +560,7 @@ func parseHeader(header http.Header, responseCodeOpt optionals.Optional[int]) []
 			// If the authorization header is in the request, create an
 			// HTTPAuth object.  Treat authorization headers in the response
 			// the same as any other header.
-			if !isResponse {
+			if isRequest {
 				lv := strings.ToLower(v)
 
 				var authType pb.HTTPAuth_HTTPAuthType
