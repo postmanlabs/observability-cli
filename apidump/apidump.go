@@ -428,7 +428,7 @@ func (a *apidump) Run() error {
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
 	if err != nil {
 		a.SendErrorTelemetry(api_schema.ApidumpError_PCAPPermission, err)
-		return errors.Wrap(err, "failed to list network interfaces")
+		return errors.Wrap(err, "No network interfaces could be used")
 	}
 
 	// Build the user-specified filter and its negation for each interface.
