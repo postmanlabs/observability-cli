@@ -1,8 +1,7 @@
 package learn
 
 import (
-	"time"
-
+	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/location"
 )
@@ -14,11 +13,9 @@ var (
 	filterFlag     string
 	interfacesFlag []string
 	tagsFlag       []string
-	versionsFlag   []string
 	sampleRateFlag float64
 	rateLimitFlag  float64
 
-	pathParamsFlag     []string
 	pathExclusionsFlag []string
 	hostExclusionsFlag []string
 	pathAllowlistFlag  []string
@@ -30,29 +27,13 @@ var (
 
 	pluginsFlag []string
 
-	checkpointTimeoutFlag time.Duration
-
-	// GitHub integration
-	githubBranchFlag string
-	githubCommitFlag string
-	githubPRFlag     int
-	githubRepoFlag   string
-
-	// GitLab integration
-	gitlabProjectFlag string
-	gitlabMRFlag      string
-	gitlabBranchFlag  string
-	gitlabCommitFlag  string
-
 	// Hidden legacy flags to preserve compatibility with old CLI.
 	legacyBPFFlag       string
 	legacyPortFlag      uint16
-	legacyExtendFlag    string
 	legacySessionFlag   string
 	legacyHARFlag       bool
 	legacyHARDirFlag    string
 	legacyHARSampleFlag float64
-	legacyGitHubURLFlag string
 )
 
 func init() {
@@ -69,24 +50,27 @@ func registerOptionalFlags() {
 		&serviceFlag,
 		"project",
 		"",
-		"Your Akita project. Only needed if --out is not an AkitaURI.")
+		"Your Akita project.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"service",
 		"",
-		"Your Akita project. DEPRECATED, prefer --project.")
+		"Your Akita project.")
+	Cmd.Flags().MarkDeprecated("service", "use --project instead.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita project. DEPRECATED, prefer --project.")
+		"Your Akita project.")
+	Cmd.Flags().MarkDeprecated("cluster", "use --project instead.")
 
 	Cmd.Flags().Var(
 		&outFlag,
 		"out",
-		"The location to store the spec. Can be an AkitaURI or a local file. Defaults to Akita Cloud.")
+		"An AkitaURI or a file. Used to derive your Akita project, and is ignored if it names a file.")
+	Cmd.Flags().MarkDeprecated("out", "use --project instead.")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,
@@ -104,10 +88,9 @@ Ignored if --session is used to attach to an existing learn session.
 `,
 	)
 
-	Cmd.Flags().StringSliceVar(
-		&versionsFlag,
-		"versions",
-		nil,
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"versions"},
 		`Assigns versions to the spec.  Versions are similar to tags, but a version may only be assigned to one spec within a project. Specified as a comma separated list of strings.
 
 Ignored if --session is used to attach to an existing learn session.
@@ -129,27 +112,29 @@ If not set, defaults to all interfaces on the host.
 You may specify multiple interfaces by using a comma-separated list (e.g.
 "--interface 'lo, eth0'") or specifying this flag multiple times (e.g.
 "--interface lo --interface eth0").
-`)
+`,
+	)
 
 	Cmd.Flags().Float64Var(
 		&sampleRateFlag,
 		"sample-rate",
 		1.0,
-		"A number between [0.0, 1.0] to control sampling. DEPRECATED, prefer --rate-limit.",
+		"A number between [0.0, 1.0] to control sampling.",
 	)
+	Cmd.Flags().MarkDeprecated("sample-rate", "use --rate-limit instead.")
 
 	Cmd.Flags().Float64Var(
 		&rateLimitFlag,
 		"rate-limit",
-		1000.0,
+		apidump.DefaultRateLimit,
 		"Number of requests per minute to capture.",
 	)
 
-	Cmd.Flags().StringSliceVar(
-		&pathParamsFlag,
-		"path-parameters",
-		nil,
-		"List of patterns used to override endpoint paths that have been automatically inferred by Akita. See akita man apispec for more details.")
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"path-parameters"},
+		"List of patterns used to override endpoint paths that have been automatically inferred by Akita. See akita man apispec for more details.",
+	)
 
 	Cmd.Flags().StringSliceVar(
 		&pathExclusionsFlag,
@@ -182,79 +167,68 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 	Cmd.Flags().IntVar(
 		&statsLogDelay,
 		"stats-log-delay",
-		60,
+		apidump.DefaultStatsLogDelay_seconds,
 		"Print packet capture statistics after N seconds.",
 	)
 	// GitHub integration flags.
 	// Both underscore and dash versions are supported to support legacy behavior
 	// that uses underscore. Exception is --github-repo, which replaces
 	// --github_repo_url.
-	Cmd.Flags().StringVar(
-		&githubRepoFlag,
-		"github-repo",
-		"",
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"github-repo"},
 		"GitHub repo name of the form <repo_owner>/<repo_name> that this spec belongs to. Used to enable GitHub integration.",
 	)
-	akiflag.RenameIntFlag(
+
+	akiflag.IgnoreIntFlags(
 		Cmd.Flags(),
-		&githubPRFlag,
-		"github_pr",
-		"github-pr",
-		0,
+		[]string{"github_pr", "github-pr"},
 		"GitHub PR number.",
 	)
-	akiflag.RenameStringFlag(
+
+	akiflag.IgnoreStringFlags(
 		Cmd.Flags(),
-		&githubCommitFlag,
-		"github_commit",
-		"github-commit",
-		"",
+		[]string{"github_commit", "github-commit"},
 		"Commit SHA for the GitHub commit under test.",
 	)
-	akiflag.RenameStringFlag(
+
+	akiflag.IgnoreStringFlags(
 		Cmd.Flags(),
-		&githubBranchFlag,
-		"github_branch",
-		"github-branch",
-		"",
+		[]string{"github_branch", "github-branch"},
 		"Name of the the GitHub branch under test.",
 	)
 
 	// GitLab integration
-	Cmd.Flags().StringVar(
-		&gitlabProjectFlag,
-		"gitlab-project",
-		"",
-		"Gitlab project ID or URL-encoded path")
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"gitlab-project"},
+		"Gitlab project ID or URL-encoded path",
+	)
 
-	Cmd.Flags().StringVar(
-		&gitlabMRFlag,
-		"gitlab-mr",
-		"",
-		"GitLab merge request IID")
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"gitlab-mr"},
+		"GitLab merge request IID",
+	)
 
-	Cmd.Flags().StringVar(
-		&gitlabBranchFlag,
-		"gitlab-branch",
-		"",
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"gitlab-branch"},
 		"Name of gitlab branch that this spec belongs to.",
 	)
 
-	Cmd.Flags().StringVar(
-		&gitlabCommitFlag,
-		"gitlab-commit",
-		"",
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"gitlab-commit"},
 		"SHA of gitlab commit that this spec belongs to.",
 	)
 
 	// Hidden optional flags
-	Cmd.Flags().DurationVar(
-		&checkpointTimeoutFlag,
-		"checkpoint_timeout",
-		60*time.Second, // matches ALB gateway timeout
+	akiflag.IgnoreDurationFlags(
+		Cmd.Flags(),
+		[]string{"checkpoint_timeout"},
 		`Timeout for creating a checkpoint.`,
 	)
-	Cmd.Flags().MarkHidden("checkpoint_timeout")
 
 	Cmd.Flags().StringVarP(
 		&execCommandFlag,
@@ -282,10 +256,9 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 }
 
 func registerHiddenLegacyFlags() {
-	Cmd.Flags().StringVar(
-		&legacyExtendFlag,
-		"extend",
-		"",
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"extend"},
 		`An API spec ID or version name for the API spec to expand on.
 
 If specified, Akita will add learnings about your API from this run into the API
@@ -294,7 +267,6 @@ spec specified, allowing you to improve your API spec incrementally.
 Use "latest" to specify the most recently created API spec.
 `,
 	)
-	Cmd.Flags().MarkHidden("extend")
 
 	Cmd.Flags().StringVar(
 		&legacySessionFlag,
@@ -367,11 +339,9 @@ conjunction with --bpf-filter.
 	Cmd.Flags().MarkHidden("har_sample_rate")
 
 	// GitHub integration
-	Cmd.Flags().StringVar(
-		&legacyGitHubURLFlag,
-		"github_repo_url",
-		"",
+	akiflag.IgnoreStringFlags(
+		Cmd.Flags(),
+		[]string{"github_repo_url"},
 		"URL of the GitHub repo under test. Use this to set up GitHub integration manually.",
 	)
-	Cmd.Flags().MarkHidden("github_repo_url")
 }
