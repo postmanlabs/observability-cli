@@ -113,13 +113,13 @@ var Cmd = &cobra.Command{
 				}
 			} else {
 				if outFlag.AkitaURI.ObjectName == "" {
-					traceRotateInterval = time.Hour
+					traceRotateInterval = apidump.DefaultTraceRotateInterval
 				}
 			}
 		}
 
 		if deploymentFlag == "" {
-			deploymentFlag = "default"
+			deploymentFlag = apidump.DefaultDeployment
 			if os.Getenv("AKITA_DEPLOYMENT") != "" {
 				deploymentFlag = os.Getenv("AKITA_DEPLOYMENT")
 			}
@@ -195,13 +195,15 @@ func init() {
 		&serviceFlag,
 		"service",
 		"",
-		"Your Akita project. DEPRECATED, prefer --project.")
+		"Your Akita project.")
+	Cmd.Flags().MarkDeprecated("service", "use --project instead.")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"cluster",
 		"",
-		"Your Akita project. DEPRECATED, prefer --project.")
+		"Your Akita project.")
+	Cmd.Flags().MarkDeprecated("cluster", "use --project instead.")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,
@@ -219,13 +221,14 @@ func init() {
 		&sampleRateFlag,
 		"sample-rate",
 		1.0,
-		"A number between [0.0, 1.0] to control sampling. DEPRECATED, prefer --rate-limit.",
+		"A number between [0.0, 1.0] to control sampling.",
 	)
+	Cmd.Flags().MarkDeprecated("sample-rate", "use --rate-limit instead.")
 
 	Cmd.Flags().Float64Var(
 		&rateLimitFlag,
 		"rate-limit",
-		1000.0,
+		apidump.DefaultRateLimit,
 		"Number of requests per minute to capture.",
 	)
 
@@ -241,6 +244,7 @@ func init() {
 		"append-by-tag",
 		false,
 		"Add to the most recent Akita trace with matching tag.")
+	Cmd.Flags().MarkDeprecated("append-by-tag", "and is no longer necessary. All traces in a project are now combined into a single model. Please remove this flag.")
 
 	Cmd.Flags().StringSliceVar(
 		&pathExclusionsFlag,
@@ -306,20 +310,21 @@ func init() {
 		&deploymentFlag,
 		"deployment",
 		"",
-		"Deployment name to use.  DEPRECATED, prefer creating separate projects for different deployment environments, e.g. 'my-project-prod' and 'my-project-staging'.",
+		"Deployment name to use.",
 	)
+	Cmd.Flags().MarkDeprecated("deployment", "create separate projects for different deployment environments instead. For example, 'my-project-prod' and 'my-project-staging'.")
 
 	Cmd.Flags().IntVar(
 		&statsLogDelay,
 		"stats-log-delay",
-		60,
+		apidump.DefaultStatsLogDelay_seconds,
 		"Print packet capture statistics after N seconds.",
 	)
 
 	Cmd.Flags().IntVar(
 		&telemetryInterval,
 		"telemetry-interval",
-		5*60, // 5 minutes
+		apidump.DefaultTelemetryInterval_seconds,
 		"Upload client telemetry every N seconds.",
 	)
 	Cmd.Flags().MarkHidden("telemetry-interval")
@@ -327,7 +332,7 @@ func init() {
 	Cmd.Flags().BoolVar(
 		&collectTCPAndTLSReports,
 		"report-tcp-and-tls",
-		false,
+		apidump.DefaultCollectTCPAndTLSReports,
 		"Collect TCP and TLS reports.",
 	)
 	Cmd.Flags().MarkHidden("report-tcp-and-tls")
@@ -335,7 +340,7 @@ func init() {
 	Cmd.Flags().BoolVar(
 		&parseTLSHandshakes,
 		"parse-tls-handshakes",
-		true,
+		apidump.DefaultParseTLSHandshakes,
 		"Parse TLS handshake packets.",
 	)
 	Cmd.Flags().MarkHidden("parse-tls-handshakes")
