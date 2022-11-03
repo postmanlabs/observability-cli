@@ -29,6 +29,7 @@ import (
 	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
+	"github.com/akitasoftware/go-utils/optionals"
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -488,22 +489,29 @@ func parseMultipartBody(multipartType string, boundary string, bodyStream io.Rea
 
 func parseRequest(req *akinet.HTTPRequest) (*pb.MethodMeta, []*pb.Data) {
 	datas := []*pb.Data{}
+	noStatusCode := optionals.None[int]()
 	datas = append(datas, parseQuery(req.URL)...)
-	datas = append(datas, parseHeader(req.Header, 0)...)
-	datas = append(datas, parseCookies(req.Cookies, 0)...)
+	datas = append(datas, parseHeader(req.Header, noStatusCode)...)
+	datas = append(datas, parseCookies(req.Cookies, noStatusCode)...)
 
 	return parseMethodMeta(req), datas
 }
 
 func parseResponse(resp *akinet.HTTPResponse) []*pb.Data {
 	datas := []*pb.Data{}
-	datas = append(datas, parseHeader(resp.Header, resp.StatusCode)...)
-	datas = append(datas, parseCookies(resp.Cookies, resp.StatusCode)...)
+	statusCode := optionals.Some(resp.StatusCode)
+	datas = append(datas, parseHeader(resp.Header, statusCode)...)
+	datas = append(datas, parseCookies(resp.Cookies, statusCode)...)
 
 	return datas
 }
 
-func parseCookies(cs []*http.Cookie, responseCode int) []*pb.Data {
+// Translate cookies into data objects.  optionals.None indicates that the
+// header is in a request.
+func parseCookies(cs []*http.Cookie, responseCodeOpt optionals.Optional[int]) []*pb.Data {
+	// If the header is in a request, use 0 (default value) as the response code.
+	responseCode := responseCodeOpt.GetOrDefault(0)
+
 	datas := []*pb.Data{}
 	for _, c := range cs {
 		d := &pb.Data{
@@ -515,8 +523,14 @@ func parseCookies(cs []*http.Cookie, responseCode int) []*pb.Data {
 	return datas
 }
 
-func parseHeader(header http.Header, responseCode int) []*pb.Data {
+// Translate headers to data objects.  optionals.None indicates that the header
+// is in a request.
+func parseHeader(header http.Header, responseCodeOpt optionals.Optional[int]) []*pb.Data {
 	datas := []*pb.Data{}
+
+	// If the header is in a request, use 0 (default value) as the response code.
+	isRequest := responseCodeOpt.IsNone()
+	responseCode := responseCodeOpt.GetOrDefault(0)
 
 	// Sort the keys so there is a consistent ordering for resultant data structure
 	ks := []string{}
@@ -543,35 +557,40 @@ func parseHeader(header http.Header, responseCode int) []*pb.Data {
 			// Handled by parseBody.
 			continue
 		case "authorization":
-			lv := strings.ToLower(v)
+			// If the authorization header is in the request, create an
+			// HTTPAuth object.  Treat authorization headers in the response
+			// the same as any other header.
+			if isRequest {
+				lv := strings.ToLower(v)
 
-			var authType pb.HTTPAuth_HTTPAuthType
-			var token string
-			if strings.HasPrefix(lv, "bearer ") {
-				authType = pb.HTTPAuth_BEARER
-				token = v[len("bearer "):]
-			} else if strings.HasPrefix(lv, "basic ") {
-				authType = pb.HTTPAuth_BASIC
-				token = v[len("basic "):]
-			} else {
-				authType = pb.HTTPAuth_UNKNOWN
-				token = v
-			}
+				var authType pb.HTTPAuth_HTTPAuthType
+				var token string
+				if strings.HasPrefix(lv, "bearer ") {
+					authType = pb.HTTPAuth_BEARER
+					token = v[len("bearer "):]
+				} else if strings.HasPrefix(lv, "basic ") {
+					authType = pb.HTTPAuth_BASIC
+					token = v[len("basic "):]
+				} else {
+					authType = pb.HTTPAuth_UNKNOWN
+					token = v
+				}
 
-			authData := &pb.Data{
-				Value: &pb.Data_Primitive{spec_util.CategorizeString(token).Obfuscate().ToProto()},
-				Meta: &pb.DataMeta{
-					Meta: &pb.DataMeta_Http{
-						Http: &pb.HTTPMeta{
-							Location:     &pb.HTTPMeta_Auth{Auth: &pb.HTTPAuth{Type: authType}},
-							ResponseCode: int32(responseCode),
+				authData := &pb.Data{
+					Value: &pb.Data_Primitive{spec_util.CategorizeString(token).Obfuscate().ToProto()},
+					Meta: &pb.DataMeta{
+						Meta: &pb.DataMeta_Http{
+							Http: &pb.HTTPMeta{
+								Location:     &pb.HTTPMeta_Auth{Auth: &pb.HTTPAuth{Type: authType}},
+								ResponseCode: int32(responseCode),
+							},
 						},
 					},
-				},
-			}
-			datas = append(datas, authData)
+				}
+				datas = append(datas, authData)
 
-			continue
+				continue
+			}
 		}
 
 		d := &pb.Data{
