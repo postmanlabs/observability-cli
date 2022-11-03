@@ -42,7 +42,7 @@ func showPermissionErrors(sampleError error) error {
 		if os.Geteuid() == 0 {
 			if env.InDocker() {
 				printer.Warningf("Although you are running as root, this container lacks the CAP_NET_RAW capability.\n")
-				printer.Warningf("It might be that you are in a PaaS which disallows packet capture, or the local configuration has disabled that privilege by default.\n")
+				printer.Warningf("It might be that you are in a PaaS that disallows packet capture, or the local configuration has disabled that privilege by default.\n")
 				return errors.Errorf("Insufficient permissions in container.")
 			} else {
 				printer.Warningf("Although you are running as root, the Akita agent lacks the CAP_NET_RAW capability.\n")
