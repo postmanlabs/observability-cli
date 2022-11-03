@@ -488,7 +488,7 @@ prince:
 			),
 		},
 		&parseTest{
-			name: "auth header",
+			name: "auth header in request",
 			testContent: newTestHTTPRequest(
 				"GET",
 				"https://www.akitasoftware.com",
@@ -502,6 +502,25 @@ prince:
 			expectedMethod: newMethod([]*as.Data{
 				newAuth(as.HTTPAuth_BASIC, "38aa49900bbe50228ad9b56b5549dcce3c36912a"),
 			}, nil, standardMethodMeta),
+		},
+		{
+			name: "auth header in response",
+			testContent: newTestHTTPResponse(
+				200,
+				nil,
+				applicationJSON,
+				map[string][]string{
+					"Authorization": {"basic 38aa49900bbe50228ad9b56b5549dcce3c36912a"},
+				},
+				[]*http.Cookie{},
+			),
+			expectedMethod: newMethod(
+				nil,
+				[]*as.Data{
+					newDataHeader("Authorization", 200, spec_util.NewPrimitiveString("basic 38aa49900bbe50228ad9b56b5549dcce3c36912a"), false),
+				},
+				UnknownHTTPMethodMeta(),
+			),
 		},
 		&parseTest{
 			name: "multipart/form-data",
