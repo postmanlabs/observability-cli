@@ -9,6 +9,7 @@ import (
 	"github.com/akitasoftware/akita-cli/rest"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/batcher"
+	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/pkg/errors"
 )
 
@@ -22,15 +23,17 @@ type rawReport struct {
 type reportBuffer struct {
 	collector *BackendCollector
 	kgxapi.UploadReportsRequest
-	maxSize_bytes int
+	maxSize_bytes        int
+	maxWitnessSize_bytes optionals.Optional[int]
 }
 
 var _ batcher.Buffer[rawReport] = (*reportBuffer)(nil)
 
-func newReportBuffer(collector *BackendCollector, maxSize_bytes int) *reportBuffer {
+func newReportBuffer(collector *BackendCollector, maxSize_bytes int, maxWitnessSize_bytes optionals.Optional[int]) *reportBuffer {
 	return &reportBuffer{
-		collector:     collector,
-		maxSize_bytes: maxSize_bytes,
+		collector:            collector,
+		maxSize_bytes:        maxSize_bytes,
+		maxWitnessSize_bytes: maxWitnessSize_bytes,
 	}
 }
 
@@ -39,6 +42,8 @@ func (buf *reportBuffer) Add(raw rawReport) (bool, error) {
 		witnessReport, err := raw.Witness.toReport()
 		if err != nil {
 			printer.Warningf("Failed to convert witness to report: %v\n", err)
+		} else if maxSize, exists := buf.maxWitnessSize_bytes.Get(); exists && len(witnessReport.WitnessProto) > maxSize {
+			// Drop the witness; it's too large.
 		} else {
 			buf.UploadReportsRequest.AddWitnessReport(witnessReport)
 		}

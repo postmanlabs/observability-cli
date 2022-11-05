@@ -3,6 +3,7 @@ package cloud_client
 import (
 	"fmt"
 
+	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -11,6 +12,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/sampled_err"
+	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/google/uuid"
 )
 
@@ -153,7 +155,14 @@ func (client *cloudClient) startTraceEventCollector(serviceID akid.ServiceID, lo
 func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnClient, serviceID akid.ServiceID, loggingOptions daemon.LoggingOptions, plugins []plugin.AkitaPlugin) {
 	// Create the collector.
 	packetCountSummary := trace.NewPacketCounter()
-	collector := trace.NewBackendCollector(serviceID, loggingOptions.TraceID, learnClient, plugins)
+	collector := trace.NewBackendCollector(
+		serviceID,
+		loggingOptions.TraceID,
+		learnClient,
+		// TODO Make this configurable.
+		optionals.Some(apidump.DefaultMaxWitnessSize_bytes),
+		plugins,
+	)
 	collector = &trace.PacketCountCollector{
 		PacketCounts: packetCountSummary,
 		Collector:    collector,

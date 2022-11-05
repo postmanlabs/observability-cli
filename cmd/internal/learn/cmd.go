@@ -185,6 +185,7 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 		TelemetryInterval:       apidump.DefaultTelemetryInterval_seconds,
 		CollectTCPAndTLSReports: apidump.DefaultCollectTCPAndTLSReports,
 		ParseTLSHandshakes:      apidump.DefaultParseTLSHandshakes,
+		MaxWitnessSize_bytes:    apidump.DefaultMaxWitnessSize_bytes,
 	}
 
 	return traceOut.AkitaURI, apidump.Run(args)
