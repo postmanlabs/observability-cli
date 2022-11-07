@@ -127,7 +127,7 @@ type BackendCollector struct {
 	pairCache sync.Map
 
 	// Batch of reports (witnesses, TCP-connection reports, etc.) pending upload.
-	uploadReportBatch *batcher.InMemory[rawReport, *reportBuffer]
+	uploadReportBatch *batcher.InMemory[rawReport]
 
 	// Channel controlling periodic cache flush
 	flushDone chan struct{}
