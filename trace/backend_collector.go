@@ -1,11 +1,8 @@
 package trace
 
 import (
-	"context"
 	"encoding/base64"
 	"net"
-	"net/http"
-	"reflect"
 	"sync"
 	"time"
 
@@ -34,7 +31,7 @@ const (
 	pairCacheCleanupInterval = 30 * time.Second
 
 	// Max size per upload batch.
-	uploadBatchMaxSize = 120
+	uploadBatchMaxSize_bytes = 60_000_000 // 60 MB
 
 	// How often to flush the upload batch.
 	uploadBatchFlushDuration = 30 * time.Second
@@ -129,7 +126,7 @@ type BackendCollector struct {
 	pairCache sync.Map
 
 	// Batch of reports (witnesses, TCP-connection reports, etc.) pending upload.
-	uploadReportBatch *batcher.InMemory
+	uploadReportBatch *batcher.InMemory[rawReport]
 
 	// Channel controlling periodic cache flush
 	flushDone chan struct{}
@@ -153,10 +150,10 @@ func NewBackendCollector(svc akid.ServiceID,
 		plugins:        plugins,
 	}
 
-	col.uploadReportBatch = batcher.NewInMemory(
-		col.uploadReports,
-		uploadBatchMaxSize,
-		uploadBatchFlushDuration)
+	col.uploadReportBatch = batcher.NewInMemory[rawReport](
+		newReportBuffer(col, uploadBatchMaxSize_bytes),
+		uploadBatchFlushDuration,
+	)
 
 	go col.periodicFlush()
 
@@ -235,28 +232,32 @@ func (c *BackendCollector) processTCPConnection(packet akinet.ParsedNetworkTraff
 		srcAddr, srcPort, dstAddr, dstPort = dstAddr, dstPort, srcAddr, srcPort
 	}
 
-	c.uploadReportBatch.Add(&kgxapi.TCPConnectionReport{
-		ID:             tcp.ConnectionID,
-		SrcAddr:        srcAddr,
-		SrcPort:        uint16(srcPort),
-		DestAddr:       dstAddr,
-		DestPort:       uint16(dstPort),
-		FirstObserved:  packet.ObservationTime,
-		LastObserved:   packet.FinalPacketTime,
-		InitiatorKnown: tcp.Initiator != akinet.UnknownTCPConnectionInitiator,
-		EndState:       tcp.EndState,
+	c.uploadReportBatch.Add(rawReport{
+		TCPReport: &kgxapi.TCPConnectionReport{
+			ID:             tcp.ConnectionID,
+			SrcAddr:        srcAddr,
+			SrcPort:        uint16(srcPort),
+			DestAddr:       dstAddr,
+			DestPort:       uint16(dstPort),
+			FirstObserved:  packet.ObservationTime,
+			LastObserved:   packet.FinalPacketTime,
+			InitiatorKnown: tcp.Initiator != akinet.UnknownTCPConnectionInitiator,
+			EndState:       tcp.EndState,
+		},
 	})
 	return nil
 }
 
 func (c *BackendCollector) processTLSHandshake(tls akinet.TLSHandshakeMetadata) error {
-	c.uploadReportBatch.Add(&kgxapi.TLSHandshakeReport{
-		ID:                      tls.ConnectionID,
-		Version:                 tls.Version,
-		SNIHostname:             tls.SNIHostname,
-		SupportedProtocols:      tls.SupportedProtocols,
-		SelectedProtocol:        tls.SelectedProtocol,
-		SubjectAlternativeNames: tls.SubjectAlternativeNames,
+	c.uploadReportBatch.Add(rawReport{
+		TLSHandshakeReport: &kgxapi.TLSHandshakeReport{
+			ID:                      tls.ConnectionID,
+			Version:                 tls.Version,
+			SNIHostname:             tls.SNIHostname,
+			SupportedProtocols:      tls.SupportedProtocols,
+			SelectedProtocol:        tls.SelectedProtocol,
+			SubjectAlternativeNames: tls.SubjectAlternativeNames,
+		},
 	})
 	return nil
 }
@@ -273,7 +274,9 @@ func (c *BackendCollector) queueUpload(w *witnessWithInfo) {
 	// Obfuscate the original value so type inference engine can use it on the
 	// backend without revealing the actual value.
 	obfuscate(w.witness.GetMethod())
-	c.uploadReportBatch.Add(w)
+	c.uploadReportBatch.Add(rawReport{
+		Witness: w,
+	})
 }
 
 func (c *BackendCollector) Close() error {
@@ -295,58 +298,10 @@ func (c *BackendCollector) getLearnSession() akid.LearnSessionID {
 	return c.learnSessionID
 }
 
-func (c *BackendCollector) uploadReports(in []interface{}) {
-	witnesses := make([]*kgxapi.WitnessReport, 0, len(in))
-	tcpConnections := make([]*kgxapi.TCPConnectionReport, 0, len(in))
-	tlsHandshakes := make([]*kgxapi.TLSHandshakeReport, 0, len(in))
-	for _, i := range in {
-		switch i := i.(type) {
-		case *witnessWithInfo:
-			r, err := i.toReport()
-			if err == nil {
-				witnesses = append(witnesses, r)
-			} else {
-				printer.Warningf("Failed to convert witness to report: %v\n", err)
-			}
-
-		case *kgxapi.TCPConnectionReport:
-			tcpConnections = append(tcpConnections, i)
-
-		case *kgxapi.TLSHandshakeReport:
-			tlsHandshakes = append(tlsHandshakes, i)
-
-		default:
-			printer.Warningf("Ignoring unknown report type %s. (This is an internal error.)\n", reflect.TypeOf(i).Name())
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	upload := kgxapi.UploadReportsRequest{
-		Witnesses:      witnesses,
-		TCPConnections: tcpConnections,
-		TLSHandshakes:  tlsHandshakes,
-	}
-	err := c.learnClient.AsyncReportsUpload(ctx, c.getLearnSession(), &upload)
-	if err != nil {
-		switch e := err.(type) {
-		case rest.HTTPError:
-			if e.StatusCode == http.StatusTooManyRequests {
-				// XXX Not all commands that call into this code have a --rate-limit
-				// option.
-				err = errors.Wrap(err, "your witness uploads are being throttled. Akita will generate partial results. Try reducing the --rate-limit value to avoid this.")
-			}
-		}
-		printer.Warningf("Failed to upload to Akita Cloud: %v\n", err)
-	}
-	printer.Debugf("Uploaded %d witnesses and %d TCP connection reports\n", len(witnesses), len(tcpConnections))
-}
-
 func (c *BackendCollector) periodicFlush() {
 	ticker := time.NewTicker(pairCacheCleanupInterval)
 
-	for true {
+	for {
 		select {
 		case <-ticker.C:
 			c.flushPairCache(time.Now().Add(-1 * pairCacheExpiration))

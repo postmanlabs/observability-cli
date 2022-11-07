@@ -97,7 +97,7 @@ func TestObfuscate(t *testing.T) {
 	assert.NoError(t, col.Close())
 
 	expectedWitnesses := []*pb.Witness{
-		&pb.Witness{
+		{
 			Method: &pb.Method{
 				Id: &pb.MethodID{
 					ApiType: pb.ApiType_HTTP_REST,
@@ -298,9 +298,8 @@ func TestMultipleInterfaces(t *testing.T) {
 // Demonstrate that periodic flush exits
 func TestFlushExit(t *testing.T) {
 	b := &BackendCollector{}
-	b.uploadReportBatch = batcher.NewInMemory(
-		func(_ []interface{}) {},
-		uploadBatchMaxSize,
+	b.uploadReportBatch = batcher.NewInMemory[rawReport](
+		newReportBuffer(b, uploadBatchMaxSize_bytes),
 		uploadBatchFlushDuration,
 	)
 	b.flushDone = make(chan struct{})
