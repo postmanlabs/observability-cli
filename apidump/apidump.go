@@ -16,6 +16,7 @@ import (
 	"github.com/akitasoftware/akita-libs/api_schema"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/buffer_pool"
+	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -120,6 +121,9 @@ type Args struct {
 	// Parse TLS handshake messages (even if not reported)
 	// Invariant: this is true if CollectTCPAndTLSReports is true
 	ParseTLSHandshakes bool
+
+	// The maximum witness size to upload. Anything larger is dropped.
+	MaxWitnessSize_bytes int
 }
 
 // TODO: either remove write-to-local-HAR-file completely,
@@ -604,13 +608,13 @@ func (a *apidump) Run() error {
 
 				var backendCollector trace.Collector
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
-					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, args.Plugins)
+					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, optionals.Some(a.MaxWitnessSize_bytes), args.Plugins)
 					collector = trace.TeeCollector{
 						Dst1: backendCollector,
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, args.Plugins)
+					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, optionals.Some(a.MaxWitnessSize_bytes), args.Plugins)
 					collector = backendCollector
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector

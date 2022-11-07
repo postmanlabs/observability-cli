@@ -19,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
@@ -34,6 +35,7 @@ import (
 	pp "github.com/akitasoftware/akita-libs/path_pattern"
 	"github.com/akitasoftware/akita-libs/tags"
 	"github.com/akitasoftware/akita-libs/time_span"
+	"github.com/akitasoftware/go-utils/optionals"
 
 	"github.com/akitasoftware/akita-cli/plugin"
 )
@@ -457,7 +459,15 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 			return nil, errors.Wrap(err, "failed to create backend learn session")
 		}
 
-		collector := trace.NewBackendCollector(svc, lrn, learnClient, plugins)
+		collector := trace.NewBackendCollector(
+			svc,
+			lrn,
+			learnClient,
+			// The apispec command is deprecated. Not bothering with configurability
+			// here.
+			optionals.Some(apidump.DefaultMaxWitnessSize_bytes),
+			plugins,
+		)
 		if !includeTrackers {
 			collector = trace.New3PTrackerFilterCollector(collector)
 		}

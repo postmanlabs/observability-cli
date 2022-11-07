@@ -41,6 +41,7 @@ var (
 	telemetryInterval       int
 	collectTCPAndTLSReports bool
 	parseTLSHandshakes      bool
+	maxWitnessSize_bytes    int
 )
 
 var Cmd = &cobra.Command{
@@ -171,6 +172,7 @@ var Cmd = &cobra.Command{
 			TelemetryInterval:       telemetryInterval,
 			CollectTCPAndTLSReports: collectTCPAndTLSReports,
 			ParseTLSHandshakes:      parseTLSHandshakes,
+			MaxWitnessSize_bytes:    maxWitnessSize_bytes,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -344,4 +346,12 @@ func init() {
 		"Parse TLS handshake packets.",
 	)
 	Cmd.Flags().MarkHidden("parse-tls-handshakes")
+
+	Cmd.Flags().IntVar(
+		&maxWitnessSize_bytes,
+		"max-witness-size-bytes",
+		apidump.DefaultMaxWitnessSize_bytes,
+		"Don't send witnesses larger than this.",
+	)
+	Cmd.Flags().MarkHidden("max-witness-size-bytes")
 }

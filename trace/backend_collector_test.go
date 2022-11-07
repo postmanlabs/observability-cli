@@ -20,6 +20,7 @@ import (
 	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/memview"
 	"github.com/akitasoftware/akita-libs/spec_util"
+	"github.com/akitasoftware/go-utils/optionals"
 )
 
 var (
@@ -91,7 +92,7 @@ func TestObfuscate(t *testing.T) {
 		},
 	}
 
-	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, nil)
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, optionals.None[int](), nil)
 	assert.NoError(t, col.Process(req))
 	assert.NoError(t, col.Process(resp))
 	assert.NoError(t, col.Close())
@@ -227,7 +228,7 @@ func TestTiming(t *testing.T) {
 		FinalPacketTime: startTime.Add(13 * time.Millisecond),
 	}
 
-	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, nil)
+	col := NewBackendCollector(fakeSvc, fakeLrn, mockClient, optionals.None[int](), nil)
 	assert.NoError(t, col.Process(req))
 	assert.NoError(t, col.Process(resp))
 	assert.NoError(t, col.Close())
@@ -249,7 +250,7 @@ func TestMultipleInterfaces(t *testing.T) {
 		AnyTimes().
 		Return(nil)
 
-	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, nil)
+	bc := NewBackendCollector(fakeSvc, fakeLrn, mockClient, optionals.None[int](), nil)
 
 	var wg sync.WaitGroup
 	fakeTrace := func(count int, start_seq int) {
@@ -299,7 +300,7 @@ func TestMultipleInterfaces(t *testing.T) {
 func TestFlushExit(t *testing.T) {
 	b := &BackendCollector{}
 	b.uploadReportBatch = batcher.NewInMemory[rawReport](
-		newReportBuffer(b, uploadBatchMaxSize_bytes),
+		newReportBuffer(b, uploadBatchMaxSize_bytes, optionals.None[int]()),
 		uploadBatchFlushDuration,
 	)
 	b.flushDone = make(chan struct{})

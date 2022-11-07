@@ -12,6 +12,9 @@ const (
 	// The name of the deployment.
 	DefaultDeployment = "default"
 
+	// The maximum witness size. Any witnesses larger than this are dropped.
+	DefaultMaxWitnessSize_bytes = 30_000_000 // 30 MB
+
 	// Whether to enable parsing of TLS handshakes.
 	//
 	// Invariant: if this is false, then so is DefaultCollectTCPAndTLSReports.

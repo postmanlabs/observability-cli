@@ -21,6 +21,7 @@ import (
 	"github.com/akitasoftware/akita-libs/batcher"
 	"github.com/akitasoftware/akita-libs/spec_util"
 	"github.com/akitasoftware/akita-libs/spec_util/ir_hash"
+	"github.com/akitasoftware/go-utils/optionals"
 )
 
 const (
@@ -139,9 +140,13 @@ type BackendCollector struct {
 
 var _ LearnSessionCollector = (*BackendCollector)(nil)
 
-func NewBackendCollector(svc akid.ServiceID,
-	lrn akid.LearnSessionID, lc rest.LearnClient,
-	plugins []plugin.AkitaPlugin) Collector {
+func NewBackendCollector(
+	svc akid.ServiceID,
+	lrn akid.LearnSessionID,
+	lc rest.LearnClient,
+	maxWitnessSize_bytes optionals.Optional[int],
+	plugins []plugin.AkitaPlugin,
+) Collector {
 	col := &BackendCollector{
 		serviceID:      svc,
 		learnSessionID: lrn,
@@ -151,7 +156,7 @@ func NewBackendCollector(svc akid.ServiceID,
 	}
 
 	col.uploadReportBatch = batcher.NewInMemory[rawReport](
-		newReportBuffer(col, uploadBatchMaxSize_bytes),
+		newReportBuffer(col, uploadBatchMaxSize_bytes, maxWitnessSize_bytes),
 		uploadBatchFlushDuration,
 	)
 
