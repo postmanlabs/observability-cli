@@ -44,6 +44,7 @@ func (buf *reportBuffer) Add(raw rawReport) (bool, error) {
 			printer.Warningf("Failed to convert witness to report: %v\n", err)
 		} else if maxSize, exists := buf.maxWitnessSize_bytes.Get(); exists && len(witnessReport.WitnessProto) > maxSize {
 			// Drop the witness; it's too large.
+			printer.Debugf("Dropping oversized witness (%d MB)\n", len(witnessReport.WitnessProto)/1_000_000)
 		} else {
 			buf.UploadReportsRequest.AddWitnessReport(witnessReport)
 		}
