@@ -19,7 +19,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
-	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
@@ -465,7 +464,7 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 			learnClient,
 			// The apispec command is deprecated. Not bothering with configurability
 			// here.
-			optionals.Some(apidump.DefaultMaxWitnessSize_bytes),
+			optionals.Some(DefaultMaxWitnessSize_bytes),
 			plugins,
 		)
 		if !includeTrackers {

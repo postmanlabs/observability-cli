@@ -1,4 +1,4 @@
-package apidump
+package apispec
 
 import "time"
 
