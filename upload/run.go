@@ -13,7 +13,6 @@ import (
 	"github.com/akitasoftware/akita-libs/tags"
 	"github.com/akitasoftware/go-utils/optionals"
 
-	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -133,7 +132,7 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 		learnClient,
 		// The upload command is deprecated. Not bothering with configurability
 		// here.
-		optionals.Some(apidump.DefaultMaxWitnessSize_bytes),
+		optionals.Some(apispec.DefaultMaxWitnessSize_bytes),
 		args.Plugins,
 	)
 	defer inboundCollector.Close()

@@ -13,6 +13,7 @@ import (
 	"github.com/akitasoftware/akita-libs/tags"
 
 	"github.com/akitasoftware/akita-cli/apidump"
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -179,13 +180,13 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 		ExecCommand:             execCommandFlag,
 		ExecCommandUser:         execCommandUserFlag,
 		Plugins:                 plugins,
-		LearnSessionLifetime:    apidump.DefaultTraceRotateInterval,
-		Deployment:              apidump.DefaultDeployment,
+		LearnSessionLifetime:    apispec.DefaultTraceRotateInterval,
+		Deployment:              apispec.DefaultDeployment,
 		StatsLogDelay:           statsLogDelay,
-		TelemetryInterval:       apidump.DefaultTelemetryInterval_seconds,
-		CollectTCPAndTLSReports: apidump.DefaultCollectTCPAndTLSReports,
-		ParseTLSHandshakes:      apidump.DefaultParseTLSHandshakes,
-		MaxWitnessSize_bytes:    apidump.DefaultMaxWitnessSize_bytes,
+		TelemetryInterval:       apispec.DefaultTelemetryInterval_seconds,
+		CollectTCPAndTLSReports: apispec.DefaultCollectTCPAndTLSReports,
+		ParseTLSHandshakes:      apispec.DefaultParseTLSHandshakes,
+		MaxWitnessSize_bytes:    apispec.DefaultMaxWitnessSize_bytes,
 	}
 
 	return traceOut.AkitaURI, apidump.Run(args)
