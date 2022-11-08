@@ -3,7 +3,7 @@ module github.com/akitasoftware/akita-cli
 go 1.18
 
 require (
-	github.com/AlecAivazis/survey/v2 v2.3.2
+	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20220630210013-8926783978fe
@@ -11,6 +11,7 @@ require (
 	github.com/akitasoftware/go-utils v0.0.0-20220606224752-aad0f81bb9e7
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
+	github.com/aws/aws-sdk-go v1.44.132
 	github.com/gdamore/tcell/v2 v2.1.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
@@ -35,7 +36,8 @@ require (
 	github.com/stretchr/testify v1.7.1
 	github.com/yudai/gojsondiff v1.0.0
 	golang.org/x/exp v0.0.0-20220428152302-39d4317da171
-	golang.org/x/text v0.3.7
+	golang.org/x/term v0.1.0
+	golang.org/x/text v0.4.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -51,6 +53,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
@@ -70,8 +73,7 @@ require (
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 // indirect
-	golang.org/x/sys v0.0.0-20211019181941-9d821ace8654 // indirect
-	golang.org/x/term v0.0.0-20210503060354-a79de5458b56 // indirect
+	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect

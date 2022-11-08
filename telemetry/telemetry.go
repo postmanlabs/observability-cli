@@ -265,6 +265,17 @@ func Success(message string) {
 	)
 }
 
+// Report a step in a multi-part workflow.
+func WorkflowStep(workflow string, message string) {
+	analyticsClient.Track(distinctID(),
+		message,
+		map[string]any{
+			"type":     "workflow",
+			"workflow": workflow,
+		},
+	)
+}
+
 // Report command line flags (before any error checking.)
 func CommandLine(command string, commandLine []string) {
 	analyticsClient.Track(distinctID(),
