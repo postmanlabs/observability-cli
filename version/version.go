@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	ver "github.com/hashicorp/go-version"
@@ -27,5 +28,5 @@ func GitVersion() string {
 }
 
 func CLIDisplayString() string {
-	return fmt.Sprintf("%s (%s)", releaseVersion.String(), gitVersion)
+	return fmt.Sprintf("%s (%s, %s)", releaseVersion.String(), gitVersion, runtime.GOARCH)
 }
