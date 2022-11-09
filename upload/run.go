@@ -133,6 +133,7 @@ func uploadTraces(learnClient rest.LearnClient, args Args, serviceID akid.Servic
 		// The upload command is deprecated. Not bothering with configurability
 		// here.
 		optionals.Some(apispec.DefaultMaxWitnessSize_bytes),
+		inboundCount,
 		args.Plugins,
 	)
 	defer inboundCollector.Close()

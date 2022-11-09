@@ -9,6 +9,7 @@ import (
 	"github.com/akitasoftware/akita-cli/rest"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/batcher"
+	"github.com/akitasoftware/akita-libs/client_telemetry"
 	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/pkg/errors"
 )
@@ -23,15 +24,23 @@ type rawReport struct {
 type reportBuffer struct {
 	collector *BackendCollector
 	kgxapi.UploadReportsRequest
+
+	packetCounts         PacketCountConsumer
 	maxSize_bytes        int
 	maxWitnessSize_bytes optionals.Optional[int]
 }
 
 var _ batcher.Buffer[rawReport] = (*reportBuffer)(nil)
 
-func newReportBuffer(collector *BackendCollector, maxSize_bytes int, maxWitnessSize_bytes optionals.Optional[int]) *reportBuffer {
+func newReportBuffer(
+	collector *BackendCollector,
+	packetCounts PacketCountConsumer,
+	maxSize_bytes int,
+	maxWitnessSize_bytes optionals.Optional[int],
+) *reportBuffer {
 	return &reportBuffer{
 		collector:            collector,
+		packetCounts:         packetCounts,
 		maxSize_bytes:        maxSize_bytes,
 		maxWitnessSize_bytes: maxWitnessSize_bytes,
 	}
@@ -44,7 +53,14 @@ func (buf *reportBuffer) Add(raw rawReport) (bool, error) {
 			printer.Warningf("Failed to convert witness to report: %v\n", err)
 		} else if maxSize, exists := buf.maxWitnessSize_bytes.Get(); exists && len(witnessReport.WitnessProto) > maxSize {
 			// Drop the witness; it's too large.
-			printer.Debugf("Dropping oversized witness (%d MB)\n", len(witnessReport.WitnessProto)/1_000_000)
+			printer.Debugf("Dropping oversized witness (%d MB) captured on interface %s\n", len(witnessReport.WitnessProto)/1_000_000, raw.Witness.netInterface)
+
+			buf.packetCounts.Update(client_telemetry.PacketCounts{
+				Interface:          raw.Witness.netInterface,
+				SrcPort:            int(raw.Witness.srcPort),
+				DstPort:            int(raw.Witness.dstPort),
+				OversizedWitnesses: 1,
+			})
 		} else {
 			buf.UploadReportsRequest.AddWitnessReport(witnessReport)
 		}

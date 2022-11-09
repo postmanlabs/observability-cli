@@ -39,10 +39,13 @@ const (
 )
 
 type witnessWithInfo struct {
-	srcIP           net.IP
-	srcPort         uint16
-	dstIP           net.IP
-	dstPort         uint16
+	// The name of the interface on which this witness was captured.
+	netInterface string
+
+	srcIP           net.IP // The HTTP client's IP address.
+	srcPort         uint16 // The HTTP client's port number.
+	dstIP           net.IP // The HTTP server's IP address.
+	dstPort         uint16 // The HTTP server's port number.
 	observationTime time.Time
 	id              akid.WitnessID
 	requestEnd      time.Time
@@ -145,6 +148,7 @@ func NewBackendCollector(
 	lrn akid.LearnSessionID,
 	lc rest.LearnClient,
 	maxWitnessSize_bytes optionals.Optional[int],
+	packetCounts PacketCountConsumer,
 	plugins []plugin.AkitaPlugin,
 ) Collector {
 	col := &BackendCollector{
@@ -156,7 +160,7 @@ func NewBackendCollector(
 	}
 
 	col.uploadReportBatch = batcher.NewInMemory[rawReport](
-		newReportBuffer(col, uploadBatchMaxSize_bytes, maxWitnessSize_bytes),
+		newReportBuffer(col, packetCounts, uploadBatchMaxSize_bytes, maxWitnessSize_bytes),
 		uploadBatchFlushDuration,
 	)
 
@@ -213,6 +217,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		// Store the partial witness for now, waiting for its pair or a
 		// flush timeout.
 		w := &witnessWithInfo{
+			netInterface:    t.Interface,
 			srcIP:           t.SrcIP,
 			srcPort:         uint16(t.SrcPort),
 			dstIP:           t.DstIP,
