@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,12 +55,46 @@ func showPermissionErrors(sampleError error) error {
 			printer.Warningf("The agent needs the CAP_NET_RAW capability to capture packets. You are running as an unprivileged (non-root) user.\n")
 			return errors.Errorf("Insufficient permissions, try using \"sudo\" to run as root.")
 		}
+	} else if strings.Contains(sampleError.Error(), "SIOCETHTOOL(ETHTOOL_GET_TS_INFO) ioctl failed: Function not implemented") {
+		// This happens when the binary was built for a different architecture, e.g.
+		// if the user pulled the amd64 Docker image on arm64.
+
+		// Use architecture names consistent with our CLI releases.
+		var arch string
+		switch runtime.GOARCH {
+		case "x86_64", "amd64":
+			arch = "amd64"
+		case "aarch64", "arm64":
+			arch = "arm64"
+		default:
+			arch = runtime.GOARCH
+		}
+
+		printer.Warningf(
+			"The agent received \"Function not implemented\" when trying to read from your network interfaces.  "+
+				"This often indicates that the Akita agent was built for a different architecture than your host architecture."+
+				"This Akita agent binary was built for %s.\n",
+			arch,
+		)
+
+		if os.Getenv("__X_AKITA_CLI_DOCKER") != "true" {
+			return errors.Errorf(
+				"Unable to read network interfaces.  If your host architecture is not %s, try using "+
+					"`docker pull --platform $YOUR_ARCHITECTURE akitasoftware/cli:latest` to pull an Akita agent "+""+
+					"built for your architecture.",
+				arch,
+			)
+		} else {
+			return errors.Errorf(
+				"Unable to read network interfaces.  If your host architecture is not %s, try downloading an Akita agent built for your architecture from https://github.com/akitasoftware/akita-cli/releases.",
+				arch,
+			)
+		}
 	}
 
 	// Some other failure cause.
 	// TODO: Known errors without error-specific help:
 	//   * "The device is not up"
-	//   * "SIOCETHTOOL(ETHTOOL_GET_TS_INFO) ioctl failed: Function not implemented"
 	printer.Warningf("The agent could not access any network interfaces. Please contact\n")
 	printer.Warningf("support@akitasoftware.com with the log messages above.\n")
 	return errors.Errorf("Error while checking permissions.")
