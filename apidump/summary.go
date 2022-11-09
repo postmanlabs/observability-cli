@@ -12,10 +12,13 @@ import (
 
 // Captures apidump progress.
 type Summary struct {
+	// Indicates whether this summary includes information about packets that did
+	// not meet the BPF filters specified by the user.
 	CapturingNegation bool
-	Interfaces        map[string]interfaceInfo
-	NegationFilters   map[string]string
-	NumUserFilters    int
+
+	Interfaces      map[string]interfaceInfo
+	NegationFilters map[string]string
+	NumUserFilters  int
 
 	// Values that change over the course of apidump are pointers.
 	FilterSummary    *trace.PacketCounter

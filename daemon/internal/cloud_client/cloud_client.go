@@ -160,6 +160,7 @@ func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnC
 		learnClient,
 		// TODO Make this configurable.
 		optionals.Some(apispec.DefaultMaxWitnessSize_bytes),
+		packetCountSummary,
 		plugins,
 	)
 	collector = &trace.PacketCountCollector{
