@@ -609,13 +609,13 @@ func (a *apidump) Run() error {
 
 				var backendCollector trace.Collector
 				if args.Out.AkitaURI != nil && args.Out.LocalPath != nil {
-					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, optionals.Some(a.MaxWitnessSize_bytes), args.Plugins)
+					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, optionals.Some(a.MaxWitnessSize_bytes), summary, args.Plugins)
 					collector = trace.TeeCollector{
 						Dst1: backendCollector,
 						Dst2: localCollector,
 					}
 				} else if args.Out.AkitaURI != nil {
-					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, optionals.Some(a.MaxWitnessSize_bytes), args.Plugins)
+					backendCollector = trace.NewBackendCollector(a.backendSvc, backendLrn, a.learnClient, optionals.Some(a.MaxWitnessSize_bytes), summary, args.Plugins)
 					collector = backendCollector
 				} else if args.Out.LocalPath != nil {
 					collector = localCollector

@@ -465,6 +465,7 @@ func uploadLocalTraces(domain string, clientID akid.ClientID, svc akid.ServiceID
 			// The apispec command is deprecated. Not bothering with configurability
 			// here.
 			optionals.Some(DefaultMaxWitnessSize_bytes),
+			trace.NewPacketCounter(),
 			plugins,
 		)
 		if !includeTrackers {
