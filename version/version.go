@@ -2,10 +2,11 @@ package version
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	ver "github.com/hashicorp/go-version"
+
+	"github.com/akitasoftware/akita-cli/architecture"
 )
 
 var (
@@ -28,5 +29,5 @@ func GitVersion() string {
 }
 
 func CLIDisplayString() string {
-	return fmt.Sprintf("%s (%s, %s)", releaseVersion.String(), gitVersion, runtime.GOARCH)
+	return fmt.Sprintf("%s (%s, %s)", releaseVersion.String(), gitVersion, architecture.GetCanonicalArch())
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/architecture"
 	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -58,17 +58,7 @@ func showPermissionErrors(sampleError error) error {
 	} else if strings.Contains(sampleError.Error(), "SIOCETHTOOL(ETHTOOL_GET_TS_INFO) ioctl failed: Function not implemented") {
 		// This happens when the binary was built for a different architecture, e.g.
 		// if the user pulled the amd64 Docker image on arm64.
-
-		// Use architecture names consistent with our CLI releases.
-		var arch string
-		switch runtime.GOARCH {
-		case "x86_64", "amd64":
-			arch = "amd64"
-		case "aarch64", "arm64":
-			arch = "arm64"
-		default:
-			arch = runtime.GOARCH
-		}
+		arch := architecture.GetCanonicalArch()
 
 		printer.Warningf(
 			"The agent received \"Function not implemented\" when trying to read from your network interfaces. "+
