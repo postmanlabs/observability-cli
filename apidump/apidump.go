@@ -20,6 +20,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/akita-libs/akiuri"
+	"github.com/akitasoftware/akita-libs/tags"
+
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
 	"github.com/akitasoftware/akita-cli/location"
@@ -32,9 +36,6 @@ import (
 	"github.com/akitasoftware/akita-cli/tls_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/util"
-	"github.com/akitasoftware/akita-libs/akid"
-	"github.com/akitasoftware/akita-libs/akiuri"
-	"github.com/akitasoftware/akita-libs/tags"
 )
 
 // TODO(kku): make pcap timings more robust (e.g. inject a sentinel packet to
@@ -431,7 +432,7 @@ func (a *apidump) Run() error {
 	// Get the interfaces to listen on.
 	interfaces, err := getEligibleInterfaces(args.Interfaces)
 	if err != nil {
-		a.SendErrorTelemetry(api_schema.ApidumpError_PCAPPermission, err)
+		a.SendErrorTelemetry(GetErrorTypeWithDefault(err, api_schema.ApidumpError_PCAPInterfaceOther), err)
 		return errors.Wrap(err, "No network interfaces could be used")
 	}
 
