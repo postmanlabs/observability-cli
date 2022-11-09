@@ -71,22 +71,22 @@ func showPermissionErrors(sampleError error) error {
 		}
 
 		printer.Warningf(
-			"The agent received \"Function not implemented\" when trying to read from your network interfaces.  "+
-				"This often indicates that the Akita agent was built for a different architecture than your host architecture."+
+			"The agent received \"Function not implemented\" when trying to read from your network interfaces. "+
+				"This often indicates that the Akita agent was built for a different architecture than your host architecture. "+
 				"This Akita agent binary was built for %s.\n",
 			arch,
 		)
 
-		if os.Getenv("__X_AKITA_CLI_DOCKER") != "true" {
+		if os.Getenv("__X_AKITA_CLI_DOCKER") == "true" {
 			return errors.Errorf(
-				"Unable to read network interfaces.  If your host architecture is not %s, try using "+
+				"Unable to read network interfaces. If your host architecture is not %s, try using "+
 					"`docker pull --platform $YOUR_ARCHITECTURE akitasoftware/cli:latest` to pull an Akita agent "+""+
 					"built for your architecture.",
 				arch,
 			)
 		} else {
 			return errors.Errorf(
-				"Unable to read network interfaces.  If your host architecture is not %s, try downloading an Akita agent built for your architecture from https://github.com/akitasoftware/akita-cli/releases.",
+				"Unable to read network interfaces. If your host architecture is not %s, try downloading an Akita agent built for your architecture from https://github.com/akitasoftware/akita-cli/releases.",
 				arch,
 			)
 		}
