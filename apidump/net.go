@@ -69,7 +69,8 @@ func showPermissionErrors(sampleError error) error {
 		)
 
 		if env.InDocker() {
-			return errors.Errorf(
+			return NewApidumpErrorf(
+				api_schema.ApidumpError_PCAPInterfaceNotImplemented,
 				"Unable to read network interfaces. If your host architecture is not %s, try using "+
 					"`docker pull --platform $YOUR_ARCHITECTURE akitasoftware/cli:latest` to pull an Akita agent "+
 					"built for your architecture.",
