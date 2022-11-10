@@ -9,9 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/google/gopacket/pcap"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/architecture"
 	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -43,26 +45,52 @@ func showPermissionErrors(sampleError error) error {
 			if env.InDocker() {
 				printer.Warningf("Although you are running as root, this container lacks the CAP_NET_RAW capability.\n")
 				printer.Warningf("It might be that you are in a PaaS that disallows packet capture, or the local configuration has disabled that privilege by default.\n")
-				return errors.Errorf("Insufficient permissions in container.")
+				return NewApidumpError(api_schema.ApidumpError_PCAPPermission, "Insufficient permissions in container.")
 			} else {
 				printer.Warningf("Although you are running as root, the Akita agent lacks the CAP_NET_RAW capability.\n")
 				printer.Warningf("It might be that you are in a restricted environment which disallows packet capture, even as the root user.\n")
-				return errors.Errorf("Insufficient permissions.")
+				return NewApidumpError(api_schema.ApidumpError_PCAPPermission, "Insufficient permissions.")
 			}
 		} else {
 			// Non-root user
 			printer.Warningf("The agent needs the CAP_NET_RAW capability to capture packets. You are running as an unprivileged (non-root) user.\n")
-			return errors.Errorf("Insufficient permissions, try using \"sudo\" to run as root.")
+			return NewApidumpError(api_schema.ApidumpError_PCAPPermission, "Insufficient permissions, try using \"sudo\" to run as root.")
+		}
+	} else if strings.Contains(sampleError.Error(), "SIOCETHTOOL(ETHTOOL_GET_TS_INFO) ioctl failed: Function not implemented") {
+		// This happens when the binary was built for a different architecture, e.g.
+		// if the user pulled the amd64 Docker image on arm64.
+		arch := architecture.GetCanonicalArch()
+
+		printer.Warningf(
+			"The agent received \"Function not implemented\" when trying to read from your network interfaces. "+
+				"This often indicates that the Akita agent was built for a different architecture than your host architecture. "+
+				"This Akita agent binary was built for %s.\n",
+			arch,
+		)
+
+		if env.InDocker() {
+			return NewApidumpErrorf(
+				api_schema.ApidumpError_PCAPInterfaceNotImplemented,
+				"Unable to read network interfaces. If your host architecture is not %s, try using "+
+					"`docker pull --platform $YOUR_ARCHITECTURE akitasoftware/cli:latest` to pull an Akita agent "+
+					"built for your architecture.",
+				arch,
+			)
+		} else {
+			return NewApidumpErrorf(
+				api_schema.ApidumpError_PCAPInterfaceNotImplemented,
+				"Unable to read network interfaces. If your host architecture is not %s, try using the Akita install script: `bash -c \"$(curl -L https://releases.akita.software/scripts/install_akita.sh)\"`",
+				arch,
+			)
 		}
 	}
 
 	// Some other failure cause.
 	// TODO: Known errors without error-specific help:
 	//   * "The device is not up"
-	//   * "SIOCETHTOOL(ETHTOOL_GET_TS_INFO) ioctl failed: Function not implemented"
 	printer.Warningf("The agent could not access any network interfaces. Please contact\n")
 	printer.Warningf("support@akitasoftware.com with the log messages above.\n")
-	return errors.Errorf("Error while checking permissions.")
+	return NewApidumpError(api_schema.ApidumpError_PCAPInterfaceOther, "Error while checking permissions.")
 }
 
 // Get the list of interface names that we should listen on. By default, this is
@@ -139,7 +167,7 @@ func getEligibleInterfaces(userSpecified []string) (map[string]interfaceInfo, er
 			printer.Warningf("All the interfaces were deselected because they lacked IP addresses. Use the --interfaces flag to manually select one or more network interfaces to use.\n")
 		}
 
-		return nil, errors.Errorf("Failed to automatically find interfaces.")
+		return nil, NewApidumpError(api_schema.ApidumpError_PCAPInterfaceOther, "Failed to automatically find interfaces.")
 	}
 
 	return results, nil
