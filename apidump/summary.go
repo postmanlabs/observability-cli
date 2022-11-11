@@ -70,9 +70,6 @@ func (s *Summary) PrintPacketCounts() {
 
 // Summarize the top sources of traffic seen in a log-friendly format.
 // This appears before PrintWarnings, and should highlight the raw data.
-//
-// TODO: it would be nice to show hostnames if we have them? To more clearly
-// identify the traffic.
 func (s *Summary) PrintPacketCountHighlights() {
 	summaryLimit := 20
 	top := s.FilterSummary.Summary(summaryLimit)
@@ -92,7 +89,10 @@ func (s *Summary) PrintPacketCountHighlights() {
 		)
 	}
 
+	printer.Stderr.Infof("Top ports by traffic volume:\n")
 	s.printPortHighlights(top)
+
+	printer.Stderr.Infof("Top hosts by traffic volume:\n")
 	s.printHostHighlights(top)
 }
 
