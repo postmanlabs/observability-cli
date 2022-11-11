@@ -66,7 +66,7 @@ type AddWorkflow struct {
 // Errors that are UsageErrors should be returned as-is; other
 // errors should be wrapped to avoid showing usage.  (This is reversed
 // from the other command conventions, but there are relatively few
-// usage errors here.
+// usage errors here.)
 func RunAddWorkflow() error {
 	wf := &AddWorkflow{
 		currentState: initState,
