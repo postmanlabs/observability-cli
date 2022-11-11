@@ -47,7 +47,7 @@ var AddToECSCmd = &cobra.Command{
 var RemoveFromECSCmd = &cobra.Command{
 	Use:          "remove",
 	Short:        "Remove the Akita agent from AWS ECS.",
-	Long:         "Remove a previously-installed Akita container from an ECS Task.",
+	Long:         "Remove a previously installed Akita container from an ECS Task.",
 	SilenceUsage: true,
 	RunE:         removeAgentFromECS,
 }
