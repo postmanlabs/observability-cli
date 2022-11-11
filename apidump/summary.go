@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/akitasoftware/akita-libs/client_telemetry"
+	"github.com/akitasoftware/go-utils/math"
+	"github.com/spf13/viper"
+
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/trace"
-	"github.com/spf13/viper"
 )
 
 // Captures apidump progress.
@@ -67,11 +70,9 @@ func (s *Summary) PrintPacketCounts() {
 
 // Summarize the top sources of traffic seen in a log-friendly format.
 // This appears before PrintWarnings, and should highlight the raw data.
-//
-// TODO: it would be nice to show hostnames if we have them? To more clearly
-// identify the traffic.
 func (s *Summary) PrintPacketCountHighlights() {
-	top := s.FilterSummary.Summary(20)
+	summaryLimit := 20
+	top := s.FilterSummary.Summary(summaryLimit)
 
 	totalTraffic := top.Total.TCPPackets
 	if totalTraffic == 0 {
@@ -79,8 +80,27 @@ func (s *Summary) PrintPacketCountHighlights() {
 		return
 	}
 
+	// If we hit the limit of the number of ports we tracked, mention so.
+	// This should (hopefully) be unlikely.
+	if top.ByPortOverflow != nil {
+		printer.Stderr.Infof(
+			"More than %d ports with traffic.  Showing the top %d of the first %d.\n",
+			top.ByPortOverflowLimit, math.Min(summaryLimit, top.ByPortOverflowLimit), top.ByPortOverflowLimit,
+		)
+	}
+
+	printer.Stderr.Infof("Top ports by traffic volume:\n")
+	s.printPortHighlights(top)
+
+	printer.Stderr.Infof("Top hosts by traffic volume:\n")
+	s.printHostHighlights(top)
+}
+
+func (s *Summary) printPortHighlights(top *client_telemetry.PacketCountSummary) {
+	totalTraffic := top.Total.TCPPackets
+
 	// Sort by TCP traffic volume and list in descending order.
-	// This is already sorted in topNByTcpPacketCount but that ordering
+	// This is already sorted in TopN but that ordering
 	// doesn't seem accessible here.
 	ports := make([]int, 0, len(top.TopByPort))
 	for p := range top.TopByPort {
@@ -90,18 +110,18 @@ func (s *Summary) PrintPacketCountHighlights() {
 		return top.TopByPort[ports[i]].TCPPackets > top.TopByPort[ports[j]].TCPPackets
 	})
 
-	totalListed := 0
+	totalListedForPorts := 0
 	for i, p := range ports {
 		thisPort := top.TopByPort[p]
 		pct := thisPort.TCPPackets * 100 / totalTraffic
-		totalListed += thisPort.TCPPackets
+		totalListedForPorts += thisPort.TCPPackets
 
 		// Stop when the running total would be >100%.  (Each packet is counted both
 		// in the source port and in the destination port; we want to avoid
 		// showing a bunch of ephemeral ports even if they're all above the threshold.)
 		//
 		// Before that limit is hit, list at least two sources, but stop when less than 3% of traffic.
-		if (totalListed > totalTraffic) || (pct < 3 && i >= 2) {
+		if (totalListedForPorts > totalTraffic) || (pct < 3 && i >= 2) {
 			break
 		}
 
@@ -145,6 +165,98 @@ func (s *Summary) PrintPacketCountHighlights() {
 		// Flag as unparsable
 		printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses; the data to this service could not be parsed.\n",
 			p, thisPort.TCPPackets, pct)
+	}
+}
+
+// XXX(cns): Not all metrics can be associated with a host.  We currently have
+//    HTTP requests and TLS handshakes.
+func (s *Summary) printHostHighlights(top *client_telemetry.PacketCountSummary) {
+	// Sort by HTTP traffic volume, then TLS handshake counts, both descending.
+	// We do not have TCP packet counts for hosts.
+	hosts := make([]string, 0, len(top.TopByHost))
+	totalCountForHosts := 0
+	for h, c := range top.TopByHost {
+		hosts = append(hosts, h)
+		totalCountForHosts += c.HTTPRequests + c.HTTPResponses + c.TLSHello
+	}
+	sort.Slice(hosts, func(i, j int) bool {
+		left := top.TopByHost[hosts[i]]
+		right := top.TopByHost[hosts[j]]
+
+		leftCount := left.HTTPRequests + left.TLSHello
+		rightCount := right.HTTPRequests + right.TLSHello
+
+		if leftCount != rightCount {
+			return leftCount > rightCount
+		} else if left.HTTPRequests != right.HTTPRequests {
+			return left.HTTPRequests > right.HTTPRequests
+		} else if left.TLSHello != right.TLSHello {
+			return left.TLSHello > right.TLSHello
+		} else {
+			return hosts[i] < hosts[j]
+		}
+	})
+
+	// Take up to the first N hosts capturing at least 80% of the data. Until
+	// that limit, show at least two hosts but stop when the traffic per host
+	// drops below 3%. This avoids a long tail of hosts with very few TLS
+	// handshakes.
+	printUpTo := 0
+	longestHostLength := 0
+	countSoFar := 0
+	for i, h := range hosts {
+		thisHost := top.TopByHost[h]
+		thisCount := thisHost.HTTPRequests + thisHost.HTTPResponses + thisHost.TLSHello
+		pct := thisCount * 100 / totalCountForHosts
+		countSoFar += thisCount
+		pctSoFar := countSoFar * 100 / totalCountForHosts
+
+		if 80 < pctSoFar || (pct < 3 && i >= 2) {
+			break
+		}
+
+		printUpTo = i + 1
+		longestHostLength = math.Max(longestHostLength, len(h))
+	}
+
+	for _, h := range hosts[:printUpTo] {
+		thisHost := top.TopByHost[h]
+		labelPreamble := "Host "
+		label := fmt.Sprintf("%s%-*s", labelPreamble, longestHostLength, h)
+		if h == trace.HostnameUnavailable {
+			label = fmt.Sprintf("%-*s", longestHostLength+len(labelPreamble), h)
+		}
+
+		// If we saw any HTTP traffic, report that.  But, if there's a high
+		// percentage of TLS handshakes, note that too.  Hosts don't have
+		// counts for unparsed packets.
+		if thisHost.HTTPRequests+thisHost.HTTPResponses > 0 {
+			printer.Stderr.Infof("%s %d HTTP requests, %d TLS handshakes.\n",
+				label, thisHost.HTTPRequests, thisHost.TLSHello)
+			if thisHost.TLSHello > 0 {
+				printer.Stderr.Infof("%s appears to contain a mix of encrypted and unencrypted traffic.\n", label)
+			}
+			continue
+		}
+
+		// If we saw HTTP traffic but it was filtered, give the pre-filter statistics.
+		preFilter := s.PrefilterSummary.TotalOnHost(h)
+		if preFilter.HTTPRequests+preFilter.HTTPResponses > 0 {
+			printer.Stderr.Infof("%s no HTTP requests satisfied all the filters you gave, but %d HTTP requests were seen before your path and host filters were applied.\n",
+				label, preFilter.HTTPRequests)
+			continue
+		}
+
+		// If we saw TLS, report the presence of encrypted traffic
+		if thisHost.TLSHello > 0 {
+			printer.Stderr.Infof("%s no HTTP requests, %d TLS handshakes indicating encrypted traffic.\n",
+				label, thisHost.TLSHello)
+			continue
+		}
+
+		// Flag as unparsable
+		printer.Stderr.Infof("%s no HTTP requests or responses; the data to this service could not be parsed.\n",
+			label)
 	}
 }
 

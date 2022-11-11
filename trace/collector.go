@@ -2,14 +2,16 @@ package trace
 
 import (
 	"math"
+	"sort"
 	"strconv"
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/akitasoftware/akita-libs/client_telemetry"
 
-	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
+
+	"github.com/akitasoftware/akita-cli/util"
 )
 
 type Collector interface {
@@ -101,24 +103,52 @@ type PacketCountCollector struct {
 }
 
 func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
-	switch t.Content.(type) {
+	switch c := t.Content.(type) {
 	case akinet.HTTPRequest:
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface:    t.Interface,
+			DstHost:      c.Host,
 			SrcPort:      t.SrcPort,
 			DstPort:      t.DstPort,
 			HTTPRequests: 1,
 		})
 	case akinet.HTTPResponse:
+		// TODO(cns): There's no easy way to get the host here to count HTTP
+		//    responses.  Revisit this if we ever add a pass to pair HTTP
+		//    requests and responses independently of the backend collector.
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface:     t.Interface,
 			SrcPort:       t.SrcPort,
 			DstPort:       t.DstPort,
 			HTTPResponses: 1,
 		})
-	case akinet.TLSClientHello, akinet.TLSServerHello:
+	case akinet.TLSClientHello:
+		dstHost := HostnameUnavailable
+		if c.Hostname != nil {
+			dstHost = *c.Hostname
+		}
+
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface: t.Interface,
+			DstHost:   dstHost,
+			SrcPort:   t.SrcPort,
+			DstPort:   t.DstPort,
+			TLSHello:  1,
+		})
+	case akinet.TLSServerHello:
+		// Ideally, we would pick the DNS name the client used in the
+		// Client Hello, but we don't pair those messages.  Barring that, any
+		// of the DNS names will serve as a reasonable identifier.  Pick the
+		// largest, which avoids "*" prefixes when possible.
+		dstHost := HostnameUnavailable
+		if 0 < len(c.DNSNames) {
+			sort.Strings(c.DNSNames)
+			dstHost = c.DNSNames[len(c.DNSNames)-1]
+		}
+
+		pc.PacketCounts.Update(client_telemetry.PacketCounts{
+			Interface: t.Interface,
+			DstHost:   dstHost,
 			SrcPort:   t.SrcPort,
 			DstPort:   t.DstPort,
 			TLSHello:  1,
