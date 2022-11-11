@@ -34,19 +34,19 @@ type PacketCounter struct {
 	byInterface *BoundedPacketCounter[string]
 	mutex       sync.RWMutex
 
-	// XXX(cns): Just TLS handshakes to start.
-	// TODO(cns):
-	// byHost BoundedPacketCounter[string]
+	// XXX(cns): This does not count HTTP responses (see collector.go:Process())
+	//   nor TCP packets (because the host is not available at that layer).
+	byHost *BoundedPacketCounter[string]
 }
 
 // The maximum number (each) of ports, interfaces, or hosts that we track.
-// const maxKeys = 10_000
-const maxKeys = 10
+const maxKeys = 10_000
 
 func NewPacketCounter() *PacketCounter {
 	return &PacketCounter{
 		byPort:      NewBoundedPacketCounter[int](maxKeys),
 		byInterface: NewBoundedPacketCounter[string](maxKeys),
+		byHost:      NewBoundedPacketCounter[string](maxKeys),
 	}
 }
 
@@ -54,6 +54,33 @@ func (s *PacketCounter) Update(c PacketCounts) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	// Add source host if we have host data.
+	if c.SrcHost != "" {
+		s.byHost.AddOrInsert(c.SrcHost, c, func(c PacketCounts) *PacketCounts {
+			new := &PacketCounts{
+				Interface: "*",
+				SrcHost:   c.SrcHost,
+			}
+			new.Add(c)
+			return new
+		})
+	}
+
+	// Add dest host if we have host data.
+	if c.DstHost != "" {
+		s.byHost.AddOrInsert(c.DstHost, c, func(c PacketCounts) *PacketCounts {
+			// Use SrcHost as the identifier in the
+			// accumulated counter
+			new := &PacketCounts{
+				Interface: "*",
+				SrcHost:   c.DstHost,
+			}
+			new.Add(c)
+			return new
+		})
+	}
+
+	// Add source port.
 	s.byPort.AddOrInsert(c.SrcPort, c, func(c PacketCounts) *PacketCounts {
 		new := &PacketCounts{
 			Interface: "*",
@@ -64,6 +91,7 @@ func (s *PacketCounter) Update(c PacketCounts) {
 		return new
 	})
 
+	// Add dest port.
 	s.byPort.AddOrInsert(c.DstPort, c, func(c PacketCounts) *PacketCounts {
 		// Use SrcPort as the identifier in the
 		// accumulated counter
@@ -76,6 +104,7 @@ func (s *PacketCounter) Update(c PacketCounts) {
 		return new
 	})
 
+	// Add interface.
 	s.byInterface.AddOrInsert(c.Interface, c, func(c PacketCounts) *PacketCounts {
 		new := &PacketCounts{
 			Interface: c.Interface,
@@ -116,6 +145,16 @@ func (s *PacketCounter) TotalOnPort(port int) PacketCounts {
 	return PacketCounts{Interface: "*", SrcPort: port}
 }
 
+// Packet counters summed over host
+func (s *PacketCounter) TotalOnHost(host string) PacketCounts {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if count, ok := s.byHost.Get(host); ok {
+		return *count
+	}
+	return PacketCounts{Interface: "*", SrcHost: host}
+}
+
 // All available port numbers
 func (s *PacketCounter) AllPorts() []PacketCounts {
 	s.mutex.RLock()
@@ -135,6 +174,7 @@ func (s *PacketCounter) Summary(n int) *PacketCountSummary {
 
 	topByPort, byPortOverflow := s.byPort.TopN(n, func(c *PacketCounts) int { return c.TCPPackets })
 	topByInterface, byInterfaceOverflow := s.byInterface.TopN(n, func(c *PacketCounts) int { return c.TCPPackets })
+	topByHost, byHostOverflow := s.byHost.TopN(n, func(c *PacketCounts) int { return c.TCPPackets })
 
 	var byPortOverflowPtr *PacketCounts
 	if overflow, exists := byPortOverflow.Get(); exists {
@@ -146,17 +186,25 @@ func (s *PacketCounter) Summary(n int) *PacketCountSummary {
 		byInterfaceOverflowPtr = &overflow
 	}
 
+	var byHostOverflowPtr *PacketCounts
+	if overflow, exists := byHostOverflow.Get(); exists {
+		byHostOverflowPtr = &overflow
+	}
+
 	return &PacketCountSummary{
 		Version:        Version,
 		Total:          s.total,
 		TopByPort:      topByPort,
 		TopByInterface: topByInterface,
+		TopByHost:      topByHost,
 
 		ByPortOverflowLimit:      maxKeys,
 		ByInterfaceOverflowLimit: maxKeys,
+		ByHostOverflowLimit:      maxKeys,
 
 		ByPortOverflow:      byPortOverflowPtr,
 		ByInterfaceOverflow: byInterfaceOverflowPtr,
+		ByHostOverflow:      byHostOverflowPtr,
 	}
 }
 

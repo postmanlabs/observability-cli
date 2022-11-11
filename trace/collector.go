@@ -2,14 +2,16 @@ package trace
 
 import (
 	"math"
+	"sort"
 	"strconv"
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/akitasoftware/akita-libs/client_telemetry"
 
-	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
+
+	"github.com/akitasoftware/akita-cli/util"
 )
 
 type Collector interface {
@@ -101,24 +103,48 @@ type PacketCountCollector struct {
 }
 
 func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
-	switch t.Content.(type) {
+	switch c := t.Content.(type) {
 	case akinet.HTTPRequest:
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface:    t.Interface,
+			DstHost:      c.Host,
 			SrcPort:      t.SrcPort,
 			DstPort:      t.DstPort,
 			HTTPRequests: 1,
 		})
 	case akinet.HTTPResponse:
+		// XXX(cns): Is there an easy way to get the host for a response?
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface:     t.Interface,
 			SrcPort:       t.SrcPort,
 			DstPort:       t.DstPort,
 			HTTPResponses: 1,
 		})
-	case akinet.TLSClientHello, akinet.TLSServerHello:
+	case akinet.TLSClientHello:
+		var srcHost string
+		if c.Hostname != nil {
+			srcHost = *c.Hostname
+		}
+
 		pc.PacketCounts.Update(client_telemetry.PacketCounts{
 			Interface: t.Interface,
+			SrcHost:   srcHost,
+			SrcPort:   t.SrcPort,
+			DstPort:   t.DstPort,
+			TLSHello:  1,
+		})
+	case akinet.TLSServerHello:
+		// Any of the DNS names should serve as a reasonable identifier.  Pick the
+		// largest, which avoids "*" prefixes when possible.
+		var dstHost string
+		if 0 < len(c.DNSNames) {
+			sort.Strings(c.DNSNames)
+			dstHost = c.DNSNames[len(c.DNSNames)-1]
+		}
+
+		pc.PacketCounts.Update(client_telemetry.PacketCounts{
+			Interface: t.Interface,
+			DstHost:   dstHost,
 			SrcPort:   t.SrcPort,
 			DstPort:   t.DstPort,
 			TLSHello:  1,
