@@ -217,7 +217,11 @@ func (s *Summary) printHostHighlights(top *client_telemetry.PacketCountSummary) 
 
 	for _, h := range hosts[:printUpTo] {
 		thisHost := top.TopByHost[h]
-		label := fmt.Sprintf("Host %-*s", longestHostLength, h)
+		labelPreamble := "Host "
+		label := fmt.Sprintf("%s%-*s", labelPreamble, longestHostLength, h)
+		if h == trace.HostnameUnavailable {
+			label = fmt.Sprintf("%-*s", longestHostLength+len(labelPreamble), h)
+		}
 
 		// If we saw any HTTP traffic, report that.  But, if there's a high
 		// percentage of TLS handshakes, note that too.  Hosts don't have

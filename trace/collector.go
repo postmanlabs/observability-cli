@@ -123,7 +123,7 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			HTTPResponses: 1,
 		})
 	case akinet.TLSClientHello:
-		var dstHost string
+		dstHost := HostnameUnavailable
 		if c.Hostname != nil {
 			dstHost = *c.Hostname
 		}
@@ -140,7 +140,7 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		// Client Hello, but we don't pair those messages.  Barring that, any
 		// of the DNS names will serve as a reasonable identifier.  Pick the
 		// largest, which avoids "*" prefixes when possible.
-		var dstHost string
+		dstHost := HostnameUnavailable
 		if 0 < len(c.DNSNames) {
 			sort.Strings(c.DNSNames)
 			dstHost = c.DNSNames[len(c.DNSNames)-1]

@@ -47,6 +47,10 @@ type PacketCounter struct {
 // The maximum number (each) of ports, interfaces, or hosts that we track.
 const maxKeys = 10_000
 
+// Special host name indicating that no host information was available, e.g.
+// because TLS 1.3 encrypts SNI data.
+const HostnameUnavailable = "(hosts without available names)"
+
 func NewPacketCounter() *PacketCounter {
 	return &PacketCounter{
 		byPort:      NewBoundedPacketCounter[int](maxKeys),
