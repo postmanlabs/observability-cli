@@ -4,14 +4,36 @@ import (
 	"testing"
 
 	. "github.com/akitasoftware/akita-libs/client_telemetry"
+	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCountByPort(t *testing.T) {
+	// Make enough ports to exceed the limit.
+	limitPlus1Inputs := make([]PacketCounts, maxKeys+1)
+	limitPlus1Expected := make(map[int]*PacketCounts, maxKeys)
+	for i := range limitPlus1Inputs {
+		limitPlus1Inputs[i] = PacketCounts{
+			Interface:  "*",
+			SrcPort:    i,
+			DstPort:    i,
+			TCPPackets: 1,
+		}
+		if i < maxKeys {
+			limitPlus1Expected[i] = &PacketCounts{
+				Interface:  "*",
+				SrcPort:    i,
+				TCPPackets: 2,
+			}
+		}
+	}
+
 	tests := []struct {
-		name     string
-		input    []PacketCounts
-		expected map[int]*PacketCounts
+		name             string
+		input            []PacketCounts
+		limit            int
+		expected         map[int]*PacketCounts
+		expectedOverflow optionals.Optional[PacketCounts]
 	}{
 		{
 			name: "init",
@@ -21,6 +43,7 @@ func TestCountByPort(t *testing.T) {
 				DstPort:    2,
 				TCPPackets: 3,
 			}},
+			limit: 100,
 			expected: map[int]*PacketCounts{
 				1: {
 					Interface:  "*",
@@ -34,6 +57,15 @@ func TestCountByPort(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "limit + 1",
+			input:    limitPlus1Inputs,
+			expected: limitPlus1Expected,
+			expectedOverflow: optionals.Some(PacketCounts{
+				Interface:  "*",
+				TCPPackets: 2,
+			}),
+		},
 	}
 
 	for _, tc := range tests {
@@ -42,7 +74,9 @@ func TestCountByPort(t *testing.T) {
 			c.Update(counts)
 		}
 
-		assert.Equal(t, tc.expected, c.byPort, tc.name)
+		// Set a summary above the limit to ensure we get all the ports.
+		assert.Equal(t, tc.expected, c.byPort.RawMap(), "["+tc.name+"] raw map")
+		assert.Equal(t, tc.expectedOverflow, c.byPort.GetOverflow(), "["+tc.name+"] overflow")
 	}
 }
 
@@ -109,7 +143,11 @@ func TestTopNTCP(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		actual := topNByTcpPacketCount(tc.from, tc.take)
+		bc := &BoundedPacketCounter[int]{
+			limit: 100,
+			m:     tc.from,
+		}
+		actual, _ := bc.TopN(tc.take, func(c *PacketCounts) int { return c.TCPPackets })
 		assert.Equal(t, tc.expected, actual, tc.name)
 	}
 }

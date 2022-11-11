@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/akitasoftware/go-utils/math"
+	"github.com/spf13/viper"
+
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/trace"
-	"github.com/spf13/viper"
 )
 
 // Captures apidump progress.
@@ -71,7 +73,8 @@ func (s *Summary) PrintPacketCounts() {
 // TODO: it would be nice to show hostnames if we have them? To more clearly
 // identify the traffic.
 func (s *Summary) PrintPacketCountHighlights() {
-	top := s.FilterSummary.Summary(20)
+	summaryLimit := 20
+	top := s.FilterSummary.Summary(summaryLimit)
 
 	totalTraffic := top.Total.TCPPackets
 	if totalTraffic == 0 {
@@ -79,8 +82,17 @@ func (s *Summary) PrintPacketCountHighlights() {
 		return
 	}
 
+	// If we hit the limit of the number of ports we tracked, mention so.
+	// This should (hopefully) be unlikely.
+	if top.ByPortOverflow != nil {
+		printer.Stderr.Infof(
+			"More than %d ports with traffic.  Showing the top %d of the first %d.\n",
+			top.ByPortOverflowLimit, math.Min(summaryLimit, top.ByPortOverflowLimit), top.ByPortOverflowLimit,
+		)
+	}
+
 	// Sort by TCP traffic volume and list in descending order.
-	// This is already sorted in topNByTcpPacketCount but that ordering
+	// This is already sorted in TopN but that ordering
 	// doesn't seem accessible here.
 	ports := make([]int, 0, len(top.TopByPort))
 	for p := range top.TopByPort {
