@@ -102,7 +102,7 @@ func (wf *AddWorkflow) createClient(region string) {
 	wf.ecsClient = ecs.NewFromConfig(wf.awsConfig)
 }
 
-// Create an ECS client asuming that the config has a default region.
+// Create an ECS client assuming that the config has a default region.
 func (wf *AddWorkflow) createClientWithDefaultRegion() {
 	wf.ecsClient = ecs.NewFromConfig(wf.awsConfig)
 }
