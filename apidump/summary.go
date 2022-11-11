@@ -92,6 +92,13 @@ func (s *Summary) PrintPacketCountHighlights() {
 		)
 	}
 
+	s.printPortHighlights(top)
+	s.printHostHighlights(top)
+}
+
+func (s *Summary) printPortHighlights(top *client_telemetry.PacketCountSummary) {
+	totalTraffic := top.Total.TCPPackets
+
 	// Sort by TCP traffic volume and list in descending order.
 	// This is already sorted in TopN but that ordering
 	// doesn't seem accessible here.
@@ -118,9 +125,52 @@ func (s *Summary) PrintPacketCountHighlights() {
 			break
 		}
 
-		printSummaryLine(fmt.Sprintf("TCP port %5d", p), *thisPort, s.PrefilterSummary.TotalOnPort(p), pct, true)
-	}
+		// If we saw any HTTP traffic, report that.  But, if there's a high percentage of unparsed packets, note that too.
+		if thisPort.HTTPRequests+thisPort.HTTPResponses > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), %d HTTP requests, %d HTTP responses, %d TLS handshakes, %d unparsed packets.\n",
+				p, thisPort.TCPPackets, pct, thisPort.HTTPRequests, thisPort.HTTPResponses, thisPort.TLSHello, thisPort.Unparsed)
+			if thisPort.TLSHello > 0 {
+				printer.Stderr.Infof("TCP Port %5d: appears to contain a mix of encrypted and unencrypted traffic.\n", p)
+			} else if thisPort.Unparsed > thisPort.TCPPackets*3/10 {
+				printer.Stderr.Infof("TCP Port %5d: has an unusually high amount of traffic that Akita cannot parse.\n", p)
+			}
+			if thisPort.HTTP2Prefaces > 0 {
+				printer.Stderr.Infof("TCP Port %5d: Contains HTTP/2 traffic (%d connections detected), which Akita cannot parse.\n", p, thisPort.HTTP2Prefaces)
+			}
+			continue
+		}
 
+		// If we saw HTTP traffic but it was filtered, give the pre-filter statistics
+		preFilter := s.PrefilterSummary.TotalOnPort(p)
+		if preFilter.HTTPRequests+preFilter.HTTPResponses > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses satisfied all the filters you gave, but %d HTTP requests and %d HTTP responses were seen before your path and host filters were applied.\n",
+				p, thisPort.TCPPackets, pct, preFilter.HTTPRequests, preFilter.HTTPResponses)
+			continue
+		}
+
+		// If we saw TLS, report the presence of encrypted traffic
+		if thisPort.TLSHello > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses, %d TLS handshakes indicating encrypted traffic.\n",
+				p, thisPort.TCPPackets, pct, thisPort.TLSHello)
+			continue
+		}
+
+		// If we saw HTTP/2, report it.
+		if thisPort.HTTP2Prefaces > 0 {
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP/1.1 requests or responses, %d HTTP/2 connection attempts. Akita cannot currently parse HTTP/2.\n",
+				p, thisPort.TCPPackets, pct, thisPort.HTTP2Prefaces)
+			continue
+		}
+
+		// Flag as unparsable
+		printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP requests or responses; the data to this service could not be parsed.\n",
+			p, thisPort.TCPPackets, pct)
+	}
+}
+
+// XXX(cns): Not all metrics can be associated with a host.  We currently have
+//    HTTP requests and TLS handshakes.
+func (s *Summary) printHostHighlights(top *client_telemetry.PacketCountSummary) {
 	// Sort by HTTP traffic volume, then TLS handshake counts, both descending.
 	// We do not have TCP packet counts for hosts.
 	hosts := make([]string, 0, len(top.TopByHost))
@@ -162,55 +212,39 @@ func (s *Summary) PrintPacketCountHighlights() {
 
 	for _, h := range hosts[:printUpTo] {
 		thisHost := top.TopByHost[h]
-		printSummaryLine(fmt.Sprintf("Host %-*s", longestHostLength, h), *thisHost, s.PrefilterSummary.TotalOnHost(h), 0 /* unused */, false)
-	}
-}
+		label := fmt.Sprintf("Host %-*s", longestHostLength, h)
 
-func printSummaryLine(label string, data, preFilter client_telemetry.PacketCounts, pct int, includeTCP bool) {
-	tcpMsg := ""
-	if includeTCP {
-		tcpMsg = fmt.Sprintf("%5d packets (%d%% of total), ", data.TCPPackets, pct)
-	}
-
-	// If we saw any HTTP traffic, report that.  But, if there's a high percentage of unparsed packets, note that too.
-	if data.HTTPRequests+data.HTTPResponses > 0 {
-		printer.Stderr.Infof("%s %s%d HTTP requests, %d HTTP responses, %d TLS handshakes, %d unparsed packets.\n",
-			label, tcpMsg, data.HTTPRequests, data.HTTPResponses, data.TLSHello, data.Unparsed)
-		if data.TLSHello > 0 {
-			printer.Stderr.Infof("%s appears to contain a mix of encrypted and unencrypted traffic.\n", label)
-		} else if data.Unparsed > data.TCPPackets*3/10 {
-			printer.Stderr.Infof("%s has an unusually high amount of traffic that Akita cannot parse.\n", label)
+		// If we saw any HTTP traffic, report that.  But, if there's a high
+		// percentage of TLS handshakes, note that too.  Hosts don't have
+		// counts for unparsed packets.
+		if thisHost.HTTPRequests+thisHost.HTTPResponses > 0 {
+			printer.Stderr.Infof("%s %d HTTP requests, %d TLS handshakes.\n",
+				label, thisHost.HTTPRequests, thisHost.TLSHello)
+			if thisHost.TLSHello > 0 {
+				printer.Stderr.Infof("%s appears to contain a mix of encrypted and unencrypted traffic.\n", label)
+			}
+			continue
 		}
-		if data.HTTP2Prefaces > 0 {
-			printer.Stderr.Infof("%s Contains HTTP/2 traffic (%d connections detected), which Akita cannot parse.\n", label, data.HTTP2Prefaces)
+
+		// If we saw HTTP traffic but it was filtered, give the pre-filter statistics.
+		preFilter := s.PrefilterSummary.TotalOnHost(h)
+		if preFilter.HTTPRequests+preFilter.HTTPResponses > 0 {
+			printer.Stderr.Infof("%s no HTTP requests satisfied all the filters you gave, but %d HTTP requests were seen before your path and host filters were applied.\n",
+				label, preFilter.HTTPRequests)
+			continue
 		}
-		return
-	}
 
-	// If we saw HTTP traffic but it was filtered, give the pre-filter statistics
-	if preFilter.HTTPRequests+preFilter.HTTPResponses > 0 {
-		printer.Stderr.Infof("%s %sno HTTP requests or responses satisfied all the filters you gave, but %d HTTP requests and %d HTTP responses were seen before your path and host filters were applied.\n",
-			label, tcpMsg, preFilter.HTTPRequests, preFilter.HTTPResponses)
-		return
-	}
+		// If we saw TLS, report the presence of encrypted traffic
+		if thisHost.TLSHello > 0 {
+			printer.Stderr.Infof("%s no HTTP requests, %d TLS handshakes indicating encrypted traffic.\n",
+				label, thisHost.TLSHello)
+			continue
+		}
 
-	// If we saw TLS, report the presence of encrypted traffic
-	if data.TLSHello > 0 {
-		printer.Stderr.Infof("%s %sno HTTP requests or responses, %d TLS handshakes indicating encrypted traffic.\n",
-			label, tcpMsg, data.TLSHello)
-		return
+		// Flag as unparsable
+		printer.Stderr.Infof("%s no HTTP requests or responses; the data to this service could not be parsed.\n",
+			label)
 	}
-
-	// If we saw HTTP/2, report it.
-	if data.HTTP2Prefaces > 0 {
-		printer.Stderr.Infof("%s %sno HTTP/1.1 requests or responses, %d HTTP/2 connection attempts. Akita cannot currently parse HTTP/2.\n",
-			label, tcpMsg, data.HTTP2Prefaces)
-		return
-	}
-
-	// Flag as unparsable
-	printer.Stderr.Infof("%s %sno HTTP requests or responses; the data to this service could not be parsed.\n",
-		label, tcpMsg)
 }
 
 // Prints warnings based on packet capture behavior, such as not capturing
