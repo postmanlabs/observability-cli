@@ -59,7 +59,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
 	Cmd.PersistentFlags().StringVar(&ecsServiceFlag, "service", "", "The name or ARN of your ECS service.")
 	Cmd.PersistentFlags().StringVar(&ecsTaskFlag, "task", "", "The name or ARN of your ECS task to modify.")
-	Cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", false, "Perform a dry-run: show what will be done, but do not modify ECS.")
+	Cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", false, "Perform a dry run: show what will be done, but do not modify ECS.")
 
 	// Support for credentials in a nonstandard location
 	Cmd.PersistentFlags().StringVar(&awsCredentialsFlag, "aws-credentials", "", "Location of AWS credentials file.")
