@@ -3,6 +3,7 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -43,7 +44,9 @@ func isUnauthorized(err error) (UnauthorizedOperationError, bool) {
 	if errors.As(err, &apiError) {
 		if errors.As(err, &opError) {
 			if apiError.ErrorCode() == "UnauthorizedOperation" ||
-				apiError.ErrorCode() == "AccessDeniedException" {
+				apiError.ErrorCode() == "AccessDeniedException" ||
+				// UnrecognizedClientException happens if a token is not recognized in that region
+				apiError.ErrorCode() == "UnrecognizedClientException" {
 				return UnauthorizedOperationError{
 					ServiceID:     opError.ServiceID,
 					OperationName: opError.OperationName,

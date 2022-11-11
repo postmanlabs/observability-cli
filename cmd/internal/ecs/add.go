@@ -216,7 +216,7 @@ func getRegionState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "In which AWS region is your ECS cluster?",
-			Help:    "Select the AWS region where you run the ECS cluster with the task you want to modify. You can select 'find all clusters' and we will search for all ECS clusters you can access, or 'default' to use the one specified in your AWS configuration.",
+			Help:    "Select the AWS region where you run the ECS cluster with the task you want to modify. You can select 'Search all regions' and we will search for all ECS clusters you can access.",
 			Options: append([]string{findAllClustersOption}, wf.awsRegions...),
 			Default: wf.awsConfig.Region,
 		},
@@ -256,6 +256,11 @@ func findClusterAndRegionState(wf *AddWorkflow) (nextState optionals.Optional[Ad
 				arnToName[a] = n
 			}
 		}
+	}
+
+	if len(arnToRegion) == 0 {
+		printer.Errorf("Could not find any ECS clusters in any region. Please select a different profile or hit Ctrl+C to exit.\n")
+		return awf_next(getProfileState)
 	}
 
 	choices := make([]string, 0, len(arnToName))
@@ -323,6 +328,7 @@ func getClusterState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	for c, _ := range clusters {
 		choices = append(choices, string(c))
 	}
+	sort.Strings(choices)
 	choices = append(choices, goBackOption)
 
 	var clusterAnswer string
