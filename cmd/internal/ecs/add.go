@@ -262,9 +262,7 @@ func findClusterAndRegionState(wf *AddWorkflow) (nextState optionals.Optional[Ad
 	for c, _ := range arnToName {
 		choices = append(choices, string(c))
 	}
-	sort.Slice(choices, func(i, j int) bool {
-		return choices[i] < choices[j]
-	})
+	sort.Strings(choices)
 
 	var clusterAnswer string
 	err = survey.AskOne(
