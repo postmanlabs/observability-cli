@@ -24,18 +24,23 @@ type PacketCountDiscard struct {
 func (d *PacketCountDiscard) Update(_ PacketCounts) {
 }
 
-// A consumer that sums the count by (interface, port) pairs.
+// A consumer that sums the count by (Interface, SrcPort, SrcHost) tuples.
+// (DstPort, DstHost) are unused.
+//
 // In the future, this could put counters on a pipe and do the increments
 // in a separate goroutine, but we would *still* need a mutex to read the
 // totals out.
+//
+// Imposes a hard limit on the number of ports, interfaces, and hosts that
+// are individually tracked.
 type PacketCounter struct {
 	total       PacketCounts
 	byPort      *BoundedPacketCounter[int]
 	byInterface *BoundedPacketCounter[string]
 	mutex       sync.RWMutex
 
-	// XXX(cns): This does not count HTTP responses (see collector.go:Process())
-	//   nor TCP packets (because the host is not available at that layer).
+	// XXX(cns): Only counts HTTPRequest and TLSHello.  Other metrics are not
+	//   easily tracked per-host.
 	byHost *BoundedPacketCounter[string]
 }
 
@@ -174,7 +179,7 @@ func (s *PacketCounter) Summary(n int) *PacketCountSummary {
 
 	topByPort, byPortOverflow := s.byPort.TopN(n, func(c *PacketCounts) int { return c.TCPPackets })
 	topByInterface, byInterfaceOverflow := s.byInterface.TopN(n, func(c *PacketCounts) int { return c.TCPPackets })
-	topByHost, byHostOverflow := s.byHost.TopN(n, func(c *PacketCounts) int { return c.TCPPackets })
+	topByHost, byHostOverflow := s.byHost.TopN(n, func(c *PacketCounts) int { return c.HTTPRequests + c.TLSHello })
 
 	var byPortOverflowPtr *PacketCounts
 	if overflow, exists := byPortOverflow.Get(); exists {
@@ -229,7 +234,8 @@ func NewBoundedPacketCounter[T constraints.Ordered](limit int) *BoundedPacketCou
 		limit: limit,
 		m:     make(map[T]*PacketCounts),
 
-		// Accumulate across all interfaces and ports.
+		// Accumulate across all hosts, interfaces and ports after reaching the
+		// limit.
 		overflow: PacketCounts{
 			Interface: "*",
 			SrcPort:   0,
@@ -278,7 +284,7 @@ func (bc *BoundedPacketCounter[T]) RawMap() map[T]*PacketCounts {
 // counts.  In the case of a tie for the Nth position, the entry with the
 // smallest key is selected.
 //
-// Returns the overflow count in overflow, or nil if there is no overflow.
+// Returns the overflow count in overflow, or None if there is no overflow.
 func (bc *BoundedPacketCounter[T]) TopN(n int, project func(*PacketCounts) int) (rv map[T]*PacketCounts, overflow optionals.Optional[PacketCounts]) {
 	rv = make(map[T]*PacketCounts, math.Min(len(bc.m), n))
 
