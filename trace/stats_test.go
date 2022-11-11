@@ -7,6 +7,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestCountByPort(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []PacketCounts
+		expected map[int]*PacketCounts
+	}{
+		{
+			name: "init",
+			input: []PacketCounts{{
+				Interface:  "lo0",
+				SrcPort:    1,
+				DstPort:    2,
+				TCPPackets: 3,
+			}},
+			expected: map[int]*PacketCounts{
+				1: {
+					Interface:  "*",
+					SrcPort:    1,
+					TCPPackets: 3,
+				},
+				2: {
+					Interface:  "*",
+					SrcPort:    2,
+					TCPPackets: 3,
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		c := NewPacketCounter()
+		for _, counts := range tc.input {
+			c.Update(counts)
+		}
+
+		assert.Equal(t, tc.expected, c.byPort, tc.name)
+	}
+}
+
 func TestTopNTCP(t *testing.T) {
 	tests := []struct {
 		name     string
