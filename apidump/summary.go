@@ -183,12 +183,17 @@ func (s *Summary) printHostHighlights(top *client_telemetry.PacketCountSummary) 
 		left := top.TopByHost[hosts[i]]
 		right := top.TopByHost[hosts[j]]
 
-		if left.HTTPRequests != right.HTTPRequests {
+		leftCount := left.HTTPRequests + left.TLSHello
+		rightCount := right.HTTPRequests + right.TLSHello
+
+		if leftCount != rightCount {
+			return leftCount > rightCount
+		} else if left.HTTPRequests != right.HTTPRequests {
 			return left.HTTPRequests > right.HTTPRequests
-		} else if left.HTTPResponses != right.HTTPResponses {
-			return left.HTTPResponses > right.HTTPResponses
-		} else {
+		} else if left.TLSHello != right.TLSHello {
 			return left.TLSHello > right.TLSHello
+		} else {
+			return hosts[i] < hosts[j]
 		}
 	})
 
