@@ -282,9 +282,9 @@ func findClusterAndRegionState(wf *AddWorkflow) (nextState optionals.Optional[Ad
 	)
 
 	wf.ecsClusterARN = arn(clusterAnswer)
-	wf.createClient(arnToRegion[wf.ecsClusterARN])
-	wf.awsRegion = arnToRegion[wf.ecsClusterARN]
 	wf.ecsCluster = arnToName[wf.ecsClusterARN]
+	wf.awsRegion = arnToRegion[wf.ecsClusterARN]
+	wf.createClient(wf.awsRegion)
 
 	return awf_done()
 }
