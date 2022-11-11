@@ -1,16 +1,19 @@
 package ecs
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/akitasoftware/go-utils/optionals"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/pkg/errors"
 	"golang.org/x/term"
 )
@@ -21,23 +24,39 @@ func reportStep(stepName string) {
 }
 
 // A function which executes the next part of the workflow,
-// and picks a next state or exits. Return "true" to continue
-// so that the zero value exits.
-type AddWorkflowState func(*AddWorkflow) (cont bool, err error)
+// and picks a next state (Some) or exits (None), or signals an eror.
+type AddWorkflowState func(*AddWorkflow) (next optionals.Optional[AddWorkflowState], err error)
 
+// Helper functions for choosing the next state.
+func awf_done() (optionals.Optional[AddWorkflowState], error) {
+	// I do not understand why Go cannot infer this type.
+	return optionals.None[AddWorkflowState](), nil
+}
+
+func awf_error(err error) (optionals.Optional[AddWorkflowState], error) {
+	return optionals.None[AddWorkflowState](), err
+}
+
+func awf_next(f AddWorkflowState) (optionals.Optional[AddWorkflowState], error) {
+	return optionals.Some[AddWorkflowState](f), nil
+}
+
+// Type for Amazon Resource Names, to distinguish from human-readable names
 type arn string
 
 type AddWorkflow struct {
 	currentState AddWorkflowState
+	ctx          context.Context
 
 	awsProfile string
-	awsCred    *credentials.Credentials
+	awsConfig  aws.Config
 	awsRegion  string
+	awsRegions []string
 
-	session *session.Session
+	ecsClient *ecs.Client
 
 	ecsCluster    string
-	ecsClusterArn arn
+	ecsClusterARN arn
 
 	ecsService string
 	ecsTask    string
@@ -51,12 +70,15 @@ type AddWorkflow struct {
 func RunAddWorkflow() error {
 	wf := &AddWorkflow{
 		currentState: initState,
+		ctx:          context.Background(),
+		awsProfile:   "default",
 	}
 
-	keepGoing := true
+	nextState := optionals.Some[AddWorkflowState](initState)
 	var err error = nil
-	for keepGoing && err == nil {
-		keepGoing, err = wf.currentState(wf)
+	for nextState.IsSome() && err == nil {
+		wf.currentState, _ = nextState.Get()
+		nextState, err = wf.currentState(wf)
 	}
 	if err == nil {
 		telemetry.Success("Add to ECS")
@@ -74,9 +96,48 @@ func RunAddWorkflow() error {
 	return err
 }
 
+// State machine ASCII art:
+//
+//         init     ---> fillFromFlags --> modifyTask
+//           |
+//           V
+//    --> getProfile
+//    |      |
+//    |      V
+//    |-> getRegion  --> findClusterAndRegion
+//    |      |                  |
+//    |      V                  |
+//    -- getCluster             |
+//         ^  |                 |
+//         |  V                 |
+//       getTask   <------------
+//         ^  |
+//         |  V
+//      getService
+//           |
+//           V
+//        confirm
+//           |
+//           V
+//       modifyTask
+//           |
+//           V
+//   waitForModification
+//           |
+//           V
+//     restartService
+//           |
+//           V
+//     waitForRestart
+//
+//
+// Backtracking occurs when there are permission errors, an empty result, or
+// the user asks to go back a step.
+//
+
 // Initial state: check if running interactively, if so then start
-// with collecting AWS profile.
-func initState(wf *AddWorkflow) (keepGoing bool, err error) {
+// with collecting AWS profile.`
+func initState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Start Add to ECS")
 
 	// Check if running interactively.
@@ -85,26 +146,26 @@ func initState(wf *AddWorkflow) (keepGoing bool, err error) {
 		return fillFromFlags(wf)
 	}
 
-	wf.currentState = getProfileState
-	return true, nil
+	return awf_next(getProfileState)
 }
 
 // Ask the user to specify a profile; "" is fine to use the default profile.
 // TODO: it seems very difficult to present a list (which is what I was trying
 // to do orginally) because the SDK doesn't provide an API to do that, and
 // its config file parser is internal.
-func getProfileState(wf *AddWorkflow) (keepGoing bool, err error) {
+func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get AWS Profile")
 
 	if awsProfileFlag != "" {
 		wf.awsProfile = awsProfileFlag
-		if err = wf.checkCredentials(); err != nil {
-			printer.Errorf("Could not find AWS credentials for profile %q. The error from the AWS library is shown below.\n")
-			return false, errors.Wrap(err, "Error loading credentials")
+		if err = wf.createConfig(); err != nil {
+			if errors.Is(err, NoSuchProfileError) {
+				printer.Errorf("The AWS credentials file does not have profile %q. The error from the AWS library is shown below.\n")
+			}
+			return awf_error(errors.Wrap(err, "Error loading AWS credentials"))
 		}
 
-		wf.currentState = getRegionState
-		return true, nil
+		return awf_next(getRegionState)
 	}
 
 	// Use the existing value as the default in case we repeat this step
@@ -117,161 +178,156 @@ func getProfileState(wf *AddWorkflow) (keepGoing bool, err error) {
 		&wf.awsProfile,
 	)
 	if err != nil {
-		return false, err
+		return awf_error(err)
 	}
 
-	wf.awsCred = credentials.NewSharedCredentials(awsCredentialsFlag, wf.awsProfile)
-	if err = wf.checkCredentials(); err != nil {
-		printer.Errorf("Error from AWS library: %v\n", err)
-		printer.Errorf("Could not find AWS credentials for profile %q, please try again or hit Ctrl+C to exit.\n", wf.awsProfile)
-		wf.awsProfile = ""
-		return true, nil
+	if err = wf.createConfig(); err != nil {
+		if errors.Is(err, NoSuchProfileError) {
+			printer.Errorf("Could not find AWS credentials for profile %q. Please try again or hit Ctrl+C to exit.\n", wf.awsProfile)
+			wf.awsProfile = "default"
+			return awf_next(getProfileState)
+		}
+		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to support@akitasoftware.com for assistance.\n", err)
+		return awf_error(errors.Wrapf(err, "Error loading AWS credentials"))
 	}
 
-	// TODO: I don't think there's even a way to show the profile name here?
-	printer.Infof("Successfully loaded AWS credentials.\n")
+	printer.Infof("Successfully loaded AWS credentials for profile %q\n", wf.awsProfile)
 
-	wf.currentState = getRegionState
-	return true, nil
+	return awf_next(getRegionState)
 }
 
-const findAllClusters = "find all clusters"
-
-var publicAWSRegions = []string{
-	"default",
-	findAllClusters,
-	"af-south-1",
-	"ap-east-1",
-	"ap-northeast-1",
-	"ap-northeast-2",
-	"ap-northeast-3",
-	"ap-south-1",
-	"ap-southeast-1",
-	"ap-southeast-2",
-	"ap-southeest-3",
-	"ca-central-1",
-	"eu-central-1",
-	"eu-central-1",
-	"eu-north-1",
-	"eu-south-1",
-	"eu-west-1",
-	"eu-west-2",
-	"eu-west-3",
-	"me-central-1",
-	"me-south-1",
-	"sa-east-1",
-	"us-east-1",
-	"us-east-2",
-	"us-west-1",
-	"us-west-2",
-}
+const findAllClustersOption = "Search all regions."
+const goBackOption = "Return to previous choice."
 
 // Ask the user to select a region.
-func getRegionState(wf *AddWorkflow) (keepGoing bool, err error) {
+func getRegionState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get AWS Region")
 
 	if awsRegionFlag != "" {
 		wf.awsRegion = awsRegionFlag
-		err = wf.createSession()
-		if err != nil {
-			printer.Errorf("Could not create a session to communicate with AWS. The error from the AWS library is shown below.\n")
-			printer.Infof("Please contact support@akitasoftware.com for assistance.\n")
-			return false, errors.Wrap(err, "Error creating session")
-		}
+		wf.createClient(wf.awsRegion)
+		return awf_next(getClusterState)
+	}
 
-		wf.currentState = getClusterState
-		return true, nil
+	if wf.awsRegions == nil {
+		wf.awsRegions = wf.listAWSRegions()
 	}
 
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "In which AWS region is your ECS cluster?",
 			Help:    "Select the AWS region where you run the ECS cluster with the task you want to modify. You can select 'find all clusters' and we will search for all ECS clusters you can access, or 'default' to use the one specified in your AWS configuration.",
-			Options: publicAWSRegions,
+			Options: append([]string{findAllClustersOption}, wf.awsRegions...),
+			Default: wf.awsConfig.Region,
 		},
 		&wf.awsRegion,
 	)
 	if err != nil {
-		return false, err
+		return awf_error(err)
 	}
 
-	if wf.awsRegion == "default" {
-		err = wf.createSessionFromConfig()
-		if err != nil {
-			switch err.(type) {
-			case session.SharedConfigProfileNotExistsError:
-				printer.Errorf("The profile you selected does not exist in the configuration file.\n")
-				printer.Infof("Please select a region from the list, or hit Ctrl+C to exit.\n")
-			case session.SharedConfigLoadError:
-				printer.Errorf("The Akita agent could not low an AWS configuration file: %v\n", err)
-				printer.Infof("Please select a region from the list, or hit Ctrl+C to exit.\n")
-			// TODO: what to do with SharedConfigAssumeRoleError?
-			default:
-				printer.Errorf("Error from AWS library: %v\n", err)
-				printer.Errorf("Could not find a working default region. Please select one or hit Ctrl+C to exit.\n")
-			}
-			return true, nil
-		}
-		wf.currentState = getClusterState
-		return true, nil
+	if wf.awsRegion == findAllClustersOption {
+		return awf_next(findClusterAndRegionState)
 	}
 
-	if wf.awsRegion == findAllClusters {
-		wf.currentState = findClusterAndRegionState
-		return true, nil
-	}
-
-	// TODO: what classes of error are possible here? It looks like only configuration problems.
-	err = wf.createSession()
-	if err != nil {
-		printer.Errorf("Could not create a session to communicate with AWS region %q. The error from the AWS library is shown below.\n",
-			wf.awsRegion)
-		printer.Infof("Please contact support@akitasoftware.com, or try specifying the --region flag.\n")
-		return false, errors.Wrap(err, "Error creating session")
-	}
-
-	wf.currentState = getClusterState
-	return true, nil
+	wf.createClient(wf.awsRegion)
+	return awf_next(getClusterState)
 }
 
 // Search all regions for ECS clusters. The reason this is not the default
-// is because it is very slow...
-func findClusterAndRegionState(wf *AddWorkflow) (keepGoing bool, err error) {
+// is because it is rather slow.
+func findClusterAndRegionState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get ECS Cluster and Region")
+	printer.Infof("Searching all regions for ECS clusters. This may take a minute to complete.\n")
 
-	printer.Errorf("Unimplemented!\n")
-	return false, nil
+	arnToRegion := make(map[arn]string, 0)
+	arnToName := make(map[arn]string, 0)
+	for _, region := range wf.awsRegions {
+		wf.createClient(region)
+		clusters, err := wf.listECSClusters()
+		if err != nil {
+			printer.Warningf("Skipping region %q, error: %v\n", region, err)
+			continue
+		}
+		if len(clusters) > 0 {
+			printer.Infof("Found %d clusters in region %q.\n", len(clusters), region)
+			for a, n := range clusters {
+				arnToRegion[a] = region
+				arnToName[a] = n
+			}
+		}
+	}
+
+	choices := make([]string, 0, len(arnToName))
+	for c, _ := range arnToName {
+		choices = append(choices, string(c))
+	}
+	sort.Slice(choices, func(i, j int) bool {
+		return choices[i] < choices[j]
+	})
+
+	var clusterAnswer string
+	err = survey.AskOne(
+		&survey.Select{
+			Message: "In which cluster does your application run?",
+			Help:    "Select ECS cluster with the task you want to modify.",
+			Options: choices,
+			Description: func(value string, _ int) string {
+				name := arnToName[arn(value)]
+				if name == "" {
+					return ""
+				}
+				return name + " in " + arnToRegion[arn(value)]
+			},
+		},
+		&clusterAnswer,
+	)
+
+	wf.ecsClusterARN = arn(clusterAnswer)
+	wf.createClient(arnToRegion[wf.ecsClusterARN])
+	wf.awsRegion = arnToRegion[wf.ecsClusterARN]
+	wf.ecsCluster = arnToName[wf.ecsClusterARN]
+
+	return awf_done()
 }
 
 // Find all ECS clusters in the selected region.
-func getClusterState(wf *AddWorkflow) (keepGoing bool, err error) {
+func getClusterState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get ECS Cluster")
 
 	if ecsClusterFlag != "" {
 		// TODO: lookup arn
-		return false, fmt.Errorf("Cluster flag is unimplemented")
+		return awf_error(fmt.Errorf("Cluster flag is unimplemented"))
 	}
 
 	clusters, listErr := wf.listECSClusters()
 	if listErr != nil {
-		// TODO: error handling, check permissions
-		// TODO: offer a chance to try a different profile or cluster
-		printer.Errorf("Could not list EC2 clusters: %v\n", listErr)
-		return false, listErr
+		var uoe UnauthorizedOperationError
+		if errors.As(listErr, &uoe) {
+			// Permissions error, pick a different profile or region (or quit.)
+			printer.Errorf("The provided credentials do not have permission to perform %s on ECS in region %s.\n",
+				uoe.OperationName, wf.awsConfig.Region)
+			printer.Infof("Please pick a different profile or region, or assign this permission in AWS IAM.\n")
+			return awf_next(getProfileState)
+		}
+		printer.Errorf("Could not list ECS clusters: %v\n", listErr)
+		return awf_error(errors.New("Error while listing ECS clusters; try using the --cluster flag instead."))
 	}
 
 	if len(clusters) == 0 {
 		printer.Errorf("Could not find any ECS clusters in this region. Please select a different one or hit Ctrl+C to exit.\n")
-		wf.currentState = getRegionState
-		return true, nil
+		return awf_next(getRegionState)
 	}
+
+	printer.Infof("Found %d clusters in region %q.\n", len(clusters), wf.awsRegion)
 
 	choices := make([]string, 0, len(clusters))
 	for c, _ := range clusters {
 		choices = append(choices, string(c))
 	}
+	choices = append(choices, goBackOption)
 
-	// TODO: add "find all tasks" option?
+	var clusterAnswer string
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "In which cluster does your application run?",
@@ -281,50 +337,54 @@ func getClusterState(wf *AddWorkflow) (keepGoing bool, err error) {
 				return clusters[arn(value)]
 			},
 		},
-		&wf.ecsClusterArn,
+		&clusterAnswer,
 	)
+	if err != nil {
+		return awf_error(err)
+	}
 
-	return false, nil
+	if clusterAnswer == goBackOption {
+		return awf_next(getRegionState)
+	}
+	wf.ecsClusterARN = arn(clusterAnswer)
+	wf.ecsCluster = clusters[wf.ecsClusterARN]
+
+	return awf_done()
 }
 
 // Run non-interactively and attempt to fill in all information from
 // command-line flags.
-func fillFromFlags(wf *AddWorkflow) (keepGoing bool, err error) {
+func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Fill ECS Info From Flags")
 
 	// Try to use default profile, "", if none specified
-	wf.awsCred = credentials.NewSharedCredentials(awsCredentialsFlag, awsProfileFlag)
-	if err = wf.checkCredentials(); err != nil {
-		return false, fmt.Errorf("Could not find AWS credentials for profile %q", awsProfileFlag)
+	if err = wf.createConfig(); err != nil {
+		// TODO: understand error cases
+		printer.Errorf("Error from AWS SDK: %v\n", err)
+		return awf_error(fmt.Errorf("Could not find AWS credentials for profile %q", awsProfileFlag))
 	}
 
 	// Default region is OK only if there there is a .config file with one.
 	// TODO: how do we check this?
-	if awsRegionFlag != "" {
-		err = wf.createSession()
-	} else {
-		err = wf.createSessionFromConfig()
-	}
-	if err != nil {
-		return false, errors.Wrapf(err, "Cannot establish a connection to AWS")
-	}
+	// it looks like "an AWS region is required" happens on the first call
+	wf.createClientWithDefaultRegion()
 
 	// The rest of these are easy because they're mandatory.
 	if ecsClusterFlag == "" {
-		return false, UsageErrorf("Must specify an ECS cluster to operate on.")
+		return awf_error(UsageErrorf("Must specify an ECS cluster to operate on."))
 	}
 	// TODO: look up cluster by name or ARN
 
 	// TODO: could we support adding to a task but not restarting a service?
 	if ecsServiceFlag == "" {
-		return false, UsageErrorf("Must specify an ECS service to modify.")
+		return awf_error(UsageErrorf("Must specify an ECS service to modify."))
 	}
 	// TODO: look up service by name or ARN
 
 	if ecsTaskFlag == "" {
-		return false, UsageErrorf("Must specify an ECS task to modify.")
+		return awf_error(UsageErrorf("Must specify an ECS task to modify."))
 	}
 	// TODO: look up task by name or ARN
 
-	return false, nil
+	return awf_done()
 }
