@@ -197,17 +197,21 @@ func (s *Summary) printHostHighlights(top *client_telemetry.PacketCountSummary) 
 		}
 	})
 
-	// Take the first N hosts capturing at least 97% of the data.  This avoids
-	// a long tail of hosts with very few TLS handshakes.
+	// Take up to the first N hosts capturing at least 80% of the data. Until
+	// that limit, show at least two hosts but stop when the traffic per host
+	// drops below 3%. This avoids a long tail of hosts with very few TLS
+	// handshakes.
 	printUpTo := 0
 	longestHostLength := 0
 	countSoFar := 0
 	for i, h := range hosts {
 		thisHost := top.TopByHost[h]
-		countSoFar += thisHost.HTTPRequests + thisHost.HTTPResponses + thisHost.TLSHello
+		thisCount := thisHost.HTTPRequests + thisHost.HTTPResponses + thisHost.TLSHello
+		pct := thisCount * 100 / totalCountForHosts
+		countSoFar += thisCount
 		pctSoFar := countSoFar * 100 / totalCountForHosts
 
-		if 97 < pctSoFar && i >= 2 {
+		if 80 < pctSoFar || (pct < 3 && i >= 2) {
 			break
 		}
 
