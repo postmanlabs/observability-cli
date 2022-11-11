@@ -134,8 +134,9 @@ var publicAWSRegions = []string{
 	"us-west-2",
 }
 
-// List all regions. On error fall back to the precanned list.
-func (wf *AddWorkflow) listAWSRegions() []string {
+// List all regions in alphabetical order. On error fall back to the precanned list.
+func (wf *AddWorkflow) listAWSRegions() (result []string) {
+	defer func() { sort.Strings(result) }()
 
 	// Need a region to list the regions, unfortunately.
 	if wf.awsConfig.Region == "" {
