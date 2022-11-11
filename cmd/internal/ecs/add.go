@@ -168,11 +168,11 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		return awf_next(getRegionState)
 	}
 
-	// Use the existing value as the default in case we repeat this step
 	err = survey.AskOne(
 		&survey.Input{
 			Message: "Which of your AWS profiles should Akita use to configure ECS?",
 			Help:    "Enter the name of the AWS profile you use for configuring ECS, or leave blank to try the default profile. Akita needs this information to identify which AWS credentials to use.",
+			// Use the existing value as the default in case we repeat this step
 			Default: wf.awsProfile,
 		},
 		&wf.awsProfile,
