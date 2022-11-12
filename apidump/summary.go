@@ -8,6 +8,7 @@ import (
 	"github.com/akitasoftware/go-utils/math"
 	"github.com/spf13/viper"
 
+	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/trace"
@@ -297,6 +298,9 @@ func (s *Summary) PrintWarnings() {
 		} else if s.NumUserFilters > 0 && s.PrefilterSummary.Total().HTTPRequests != 0 {
 			printer.Stderr.Infof("Captured %d HTTP requests before allow and exclude rules, but all were filtered.\n",
 				s.PrefilterSummary.Total().HTTPRequests)
+		}
+		if env.InDocker() && env.HasDockerInternalHostAddress() {
+			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Akita agent with `brew install akita-cli`.  See docs.akita.software/docs/macos-local for details.\n")
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No HTTP calls captured!"))
 		return
