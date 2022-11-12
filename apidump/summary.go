@@ -300,7 +300,7 @@ func (s *Summary) PrintWarnings() {
 				s.PrefilterSummary.Total().HTTPRequests)
 		}
 		if env.InDocker() && env.HasDockerInternalHostAddress() {
-			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Akita agent with `brew install akita-cli`.  See docs.akita.software/docs/macos-local for details.")
+			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Akita agent with `brew install akita-cli`.  See docs.akita.software/docs/macos-local for details.\n")
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No HTTP calls captured!"))
 		return
