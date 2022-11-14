@@ -178,9 +178,9 @@ func (a *apidump) SendInitialTelemetry() {
 		return
 	}
 
-	// The observed duration serves as a key for upsert, so
-	// it should be the same on the initial empty report indicating
-	// successful startup, and the one sixty seconds later.
+	// XXX(cns):  The observed duration serves as a key for upserting packet
+	//    telemetry, so it needs to be the same here as in the packet
+	//    telemetry sent sixty seconds after startup.
 	req := kgxapi.PostInitialClientTelemetryRequest{
 		ClientID:                  a.ClientID,
 		ObservedStartingAt:        a.startTime,
@@ -196,7 +196,7 @@ func (a *apidump) SendInitialTelemetry() {
 	err := a.learnClient.PostInitialClientTelemetry(ctx, a.backendSvc, a.Deployment, req)
 	if err != nil {
 		// Log an error and continue.
-		printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
+		printer.Stderr.Errorf("Failed to send initial telemetry statistics: %s\n", err)
 		telemetry.Error("telemetry", err)
 	}
 }
