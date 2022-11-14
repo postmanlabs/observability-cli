@@ -54,6 +54,7 @@ type LearnClient interface {
 
 	// Telemetry
 	PostClientPacketCaptureStats(context.Context, akid.ServiceID, string, kgxapi.PostClientPacketCaptureStatsRequest) error
+	PostInitialClientTelemetry(context.Context, akid.ServiceID, string, kgxapi.PostInitialClientTelemetry) error
 }
 
 type FrontClient interface {
