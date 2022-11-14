@@ -201,7 +201,7 @@ func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serv
 	return c.post(ctx, path, req, &resp)
 }
 
-func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostInitialClientTelemetry) error {
+func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostInitialClientTelemetryRequest) error {
 	if deployment == "" {
 		return errors.Errorf("missing deployment tag")
 	}

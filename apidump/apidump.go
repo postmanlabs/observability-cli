@@ -181,7 +181,7 @@ func (a *apidump) SendInitialTelemetry() {
 	// The observed duration serves as a key for upsert, so
 	// it should be the same on the initial empty report indicating
 	// successful startup, and the one sixty seconds later.
-	req := kgxapi.PostInitialClientTelemetry{
+	req := kgxapi.PostInitialClientTelemetryRequest{
 		ClientID:                  a.ClientID,
 		ObservedStartingAt:        a.startTime,
 		ObservedDurationInSeconds: a.StatsLogDelay,
