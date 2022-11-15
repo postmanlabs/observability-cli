@@ -374,5 +374,5 @@ func init() {
 		50343,
 		"Port to listen on for Docker extension health checks. This is an internal flag used by the Akita Docker extension.",
 	)
-	_ = Cmd.Flags().MarkHidden("docker-ext-health-check-port")
+	_ = Cmd.Flags().MarkHidden("health-check-port")
 }
