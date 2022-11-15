@@ -125,6 +125,11 @@ type Args struct {
 
 	// The maximum witness size to upload. Anything larger is dropped.
 	MaxWitnessSize_bytes int
+
+	// Whether to run the command with additional functionality to support the Docker Extension
+	DockerExtensionMode bool
+	// The port to be used by the Docker Extension for health checks
+	HealthCheckPort int
 }
 
 // TODO: either remove write-to-local-HAR-file completely,
@@ -404,10 +409,25 @@ type interfaceError struct {
 // Captures packets from the network and adds them to a trace. The trace is
 // created if it doesn't already exist.
 func Run(args Args) error {
-	args.lint()
+	errChan := make(chan error)
 
-	a := newSession(&args)
-	return a.Run()
+	// The Docker extension expects a health-check server to be running. Only
+	// start this server if it's needed.
+	if args.DockerExtensionMode {
+		go func() {
+			errChan <- startHealthCheckServer(args.HealthCheckPort)
+		}()
+	}
+
+	// Run the main packet-capture loop.
+	go func() {
+		args.lint()
+
+		a := newSession(&args)
+		errChan <- a.Run()
+	}()
+
+	return <-errChan
 }
 
 func (a *apidump) Run() error {
