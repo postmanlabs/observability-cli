@@ -125,6 +125,11 @@ type Args struct {
 
 	// The maximum witness size to upload. Anything larger is dropped.
 	MaxWitnessSize_bytes int
+
+	// Whether to run the command with additional functionality to support the Docker Extension
+	DockerExtensionMode bool
+	// The port to be used by the Docker Extension for health checks
+	HealthCheckPort int
 }
 
 // TODO: either remove write-to-local-HAR-file completely,
