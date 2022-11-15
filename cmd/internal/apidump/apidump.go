@@ -21,28 +21,30 @@ import (
 
 var (
 	// Optional flags
-	outFlag                 location.Location
-	serviceFlag             string
-	interfacesFlag          []string
-	filterFlag              string
-	sampleRateFlag          float64
-	rateLimitFlag           float64
-	tagsFlag                []string
-	appendByTagFlag         bool
-	pathExclusionsFlag      []string
-	hostExclusionsFlag      []string
-	pathAllowlistFlag       []string
-	hostAllowlistFlag       []string
-	execCommandFlag         string
-	execCommandUserFlag     string
-	pluginsFlag             []string
-	traceRotateFlag         string
-	deploymentFlag          string
-	statsLogDelay           int
-	telemetryInterval       int
-	collectTCPAndTLSReports bool
-	parseTLSHandshakes      bool
-	maxWitnessSize_bytes    int
+	outFlag                  location.Location
+	serviceFlag              string
+	interfacesFlag           []string
+	filterFlag               string
+	sampleRateFlag           float64
+	rateLimitFlag            float64
+	tagsFlag                 []string
+	appendByTagFlag          bool
+	pathExclusionsFlag       []string
+	hostExclusionsFlag       []string
+	pathAllowlistFlag        []string
+	hostAllowlistFlag        []string
+	execCommandFlag          string
+	execCommandUserFlag      string
+	pluginsFlag              []string
+	traceRotateFlag          string
+	deploymentFlag           string
+	statsLogDelay            int
+	telemetryInterval        int
+	collectTCPAndTLSReports  bool
+	parseTLSHandshakes       bool
+	maxWitnessSize_bytes     int
+	dockerExtMode            bool
+	dockerExtHealthCheckPort int
 )
 
 var Cmd = &cobra.Command{
@@ -355,4 +357,20 @@ func init() {
 		"Don't send witnesses larger than this.",
 	)
 	Cmd.Flags().MarkHidden("max-witness-size-bytes")
+
+	Cmd.Flags().BoolVar(
+		&dockerExtMode,
+		"docker-ext-mode",
+		false,
+		"Enables Docker extension mode. This is an internal flag used by the Akita Docker extension.",
+	)
+	_ = Cmd.Flags().MarkHidden("docker-ext-mode")
+
+	Cmd.Flags().IntVar(
+		&dockerExtHealthCheckPort,
+		"docker-ext-health-check-port",
+		50343,
+		"Port to listen on for Docker extension health checks. This is an internal flag used by the Akita Docker extension.",
+	)
+	_ = Cmd.Flags().MarkHidden("docker-ext-health-check-port")
 }
