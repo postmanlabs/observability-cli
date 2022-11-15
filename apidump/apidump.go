@@ -426,8 +426,6 @@ func run(args Args) error {
 // Starts a health check server and runs the main packet capture loop.
 // This is used by the Docker extension to ensure that the running CLI container is healthy
 func runWithHealthCheck(args Args) error {
-	args.lint()
-
 	errChan := make(chan error)
 
 	go func() {
