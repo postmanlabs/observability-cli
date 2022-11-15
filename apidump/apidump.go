@@ -409,10 +409,36 @@ type interfaceError struct {
 // Captures packets from the network and adds them to a trace. The trace is
 // created if it doesn't already exist.
 func Run(args Args) error {
+	if args.DockerExtensionMode {
+		return runWithHealthCheck(args)
+	}
+
+	return run(args)
+}
+
+func run(args Args) error {
 	args.lint()
 
 	a := newSession(&args)
 	return a.Run()
+}
+
+// Starts a health check server and runs the main packet capture loop.
+// This is used by the Docker extension to ensure that the running CLI container is healthy
+func runWithHealthCheck(args Args) error {
+	args.lint()
+
+	errChan := make(chan error)
+
+	go func() {
+		errChan <- startHealthCheckServer(args.HealthCheckPort)
+	}()
+
+	go func() {
+		errChan <- run(args)
+	}()
+
+	return <-errChan
 }
 
 func (a *apidump) Run() error {
