@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
@@ -14,6 +15,7 @@ import (
 	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/pkg/errors"
 	"golang.org/x/term"
 )
@@ -58,8 +60,12 @@ type AddWorkflow struct {
 	ecsCluster    string
 	ecsClusterARN arn
 
-	ecsService string
-	ecsTask    string
+	ecsTaskDefinitionFamily string
+	ecsTaskDefinitionARN    arn
+	ecsTaskDefinition       *types.TaskDefinition
+
+	ecsService    string
+	ecsServiceARN arn
 }
 
 // Run the "add to ECS" workflow until we complete or get an error.
@@ -98,7 +104,7 @@ func RunAddWorkflow() error {
 
 // State machine ASCII art:
 //
-//         init     ---> fillFromFlags --> modifyTask
+//         init     ---> fillFromFlags --> addSecret
 //           |
 //           V
 //    --> getProfile
@@ -108,15 +114,18 @@ func RunAddWorkflow() error {
 //    |      |                  |
 //    |      V                  |
 //    -- getCluster             |
-//         ^  |                 |
-//         |  V                 |
-//       getTask   <------------
-//         ^  |
-//         |  V
-//      getService
+//    |    ^  |                 |
+//    |    |  V                 |
+//    |- getTask   <------------
+//    |    ^  |
+//    |    |  V
+//    |-getService
 //           |
 //           V
 //        confirm
+//           |
+//           V
+//       addSecret
 //           |
 //           V
 //       modifyTask
@@ -285,13 +294,45 @@ func findClusterAndRegionState(wf *AddWorkflow) (nextState optionals.Optional[Ad
 		},
 		&clusterAnswer,
 	)
+	if err != nil {
+		return awf_error(err)
+	}
 
 	wf.ecsClusterARN = arn(clusterAnswer)
 	wf.ecsCluster = arnToName[wf.ecsClusterARN]
 	wf.awsRegion = arnToRegion[wf.ecsClusterARN]
 	wf.createClient(wf.awsRegion)
 
-	return awf_done()
+	return awf_next(getTaskState)
+}
+
+func (wf *AddWorkflow) loadClusterFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
+	if strings.HasPrefix(ecsClusterFlag, "arn:") {
+		clusterName, err := wf.getClusterName(arn(ecsClusterFlag))
+		if err != nil {
+			if errors.Is(err, NoSuchClusterError) {
+				return awf_error(fmt.Errorf("Could not find cluster with ARN %q in region %s", ecsClusterFlag, wf.awsRegion))
+			}
+			return awf_error(errors.Wrap(err, "Error accessing cluster"))
+		}
+		wf.ecsClusterARN = arn(ecsClusterFlag)
+		wf.ecsCluster = clusterName
+		return awf_next(getTaskState)
+	} else {
+		clusters, listErr := wf.listECSClusters()
+		if listErr != nil {
+			return awf_error(errors.Wrap(err, "Error listing clusters"))
+		}
+		for a, name := range clusters {
+			if name == ecsClusterFlag {
+				printer.Infof("Found cluster %q matching name %q.\n", a, name)
+				wf.ecsClusterARN = a
+				wf.ecsCluster = name
+				return awf_next(getTaskState)
+			}
+		}
+		return awf_error(fmt.Errorf("No cluster found with name %q", ecsClusterFlag))
+	}
 }
 
 // Find all ECS clusters in the selected region.
@@ -299,8 +340,7 @@ func getClusterState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	reportStep("Get ECS Cluster")
 
 	if ecsClusterFlag != "" {
-		// TODO: lookup arn
-		return awf_error(fmt.Errorf("Cluster flag is unimplemented"))
+		return wf.loadClusterFromFlag()
 	}
 
 	clusters, listErr := wf.listECSClusters()
@@ -335,7 +375,7 @@ func getClusterState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "In which cluster does your application run?",
-			Help:    "Select ECS cluster with the task you want to modify.",
+			Help:    "Select ECS cluster with the task definition you want to modify.",
 			Options: choices,
 			Description: func(value string, _ int) string {
 				return clusters[arn(value)]
@@ -346,14 +386,224 @@ func getClusterState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	if err != nil {
 		return awf_error(err)
 	}
-
 	if clusterAnswer == goBackOption {
 		return awf_next(getRegionState)
 	}
 	wf.ecsClusterARN = arn(clusterAnswer)
 	wf.ecsCluster = clusters[wf.ecsClusterARN]
 
-	return awf_done()
+	return awf_next(getTaskState)
+}
+
+func (wf *AddWorkflow) loadTaskFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
+	// This call will work even if the flag is an ARN or a family:revision string.
+	// TODO: should we check for those? Or just allow it?
+	output, describeErr := wf.getLatestECSTaskDefinition(ecsTaskDefinitionFlag)
+	if describeErr != nil {
+		var uoe UnauthorizedOperationError
+		if errors.As(describeErr, &uoe) {
+			printer.Errorf("The provided credentials do not have permission to perform %s on the task definition %q.\n",
+				uoe.OperationName, wf.ecsTaskDefinitionFamily)
+		}
+		return awf_error(errors.Wrap(describeErr, "Error loading task definition"))
+	}
+	wf.ecsTaskDefinition = output
+	wf.ecsTaskDefinitionFamily = aws.ToString(output.Family)
+	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinitionArn))
+	return awf_next(getServiceState)
+}
+
+// Find all task definitions. These are not technically tied to a cluster, but they are tied to a region.
+// We could move this to immediately after picking the region, but it has to be after the combined
+// region/cluster choice, so it's somewhat more consistent to do it here?
+func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	reportStep("Get ECS Task Definition")
+
+	if ecsTaskDefinitionFlag != "" {
+		return wf.loadTaskFromFlag()
+	}
+
+	tasks, listErr := wf.listECSTaskDefinitionFamilies()
+	if listErr != nil {
+		var uoe UnauthorizedOperationError
+		if errors.As(listErr, &uoe) {
+			// Permissions error, go all the way back to profile selection.
+			printer.Errorf("The provided credentials do not have permission to perform %s in the region %s.\n",
+				uoe.OperationName, wf.awsRegion)
+			printer.Infof("Please choose a different profile or region, or assign this permission in AWS IAM.\n")
+			return awf_next(getProfileState)
+		}
+		printer.Errorf("Could not list ECS task definitions: %v\n", listErr)
+		return awf_error(errors.New("Error while listing ECS task definitions; try using the --task flag instead."))
+	}
+
+	if len(tasks) == 0 {
+		printer.Errorf("Could not find any ECS tasks in this cluster. Please select a different one or hit Ctrl+C to exit.\n")
+		return awf_next(getClusterState)
+	}
+
+	printer.Infof("Found %d task definitions.\n", len(tasks))
+
+	sort.Strings(tasks)
+	tasks = append(tasks, goBackOption)
+
+	var taskAnswer string
+	err = survey.AskOne(
+		&survey.Select{
+			Message: "Which task should Akita monitor?",
+			Help:    "Select the ECS task definition to modify. We will add the Akita agent as a sidecar to the task.",
+			Options: tasks,
+		},
+		&taskAnswer,
+	)
+	if err != nil {
+		return awf_error(err)
+	}
+
+	if taskAnswer == goBackOption {
+		return awf_next(getRegionState)
+	}
+	wf.ecsTaskDefinitionFamily = taskAnswer
+
+	// Load the task definition (if we don't have permission, retry.)
+	output, describeErr := wf.getLatestECSTaskDefinition(wf.ecsTaskDefinitionFamily)
+	if describeErr != nil {
+		var uoe UnauthorizedOperationError
+		if errors.As(describeErr, &uoe) {
+			printer.Errorf("The provided credentials do not have permission to perform %s on the task definition %q.\n",
+				uoe.OperationName, wf.ecsTaskDefinitionFamily)
+			printer.Infof("Please choose a different task definition, or assign this permission in AWS IAM.\n")
+			return awf_next(getTaskState)
+		}
+		printer.Errorf("Could not load ECS task definition: %v\n", describeErr)
+		return awf_error(errors.New("Error while loading ECS task definition; please contact support@akitasoftware.com for assistance."))
+	}
+	wf.ecsTaskDefinition = output
+	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinitionArn))
+
+	return awf_next(getServiceState)
+}
+
+func (wf *AddWorkflow) loadServiceFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
+	if strings.HasPrefix(ecsServiceFlag, "arn:") {
+		service, err := wf.getService(arn(ecsServiceFlag))
+		if err != nil {
+			return awf_error(errors.Wrap(err, "Error accessing service"))
+		}
+		wf.ecsService = aws.ToString(service.ServiceName)
+		wf.ecsServiceARN = arn(ecsServiceFlag)
+		return awf_next(confirmState)
+	}
+
+	services, listErr := wf.listECSServices()
+	if listErr != nil {
+		return awf_error(errors.Wrap(err, "Error listing services"))
+	}
+	for a, name := range services {
+		if name == ecsServiceFlag {
+			printer.Infof("Found service %q matching name %q.\n", a, name)
+			wf.ecsServiceARN = a
+			wf.ecsService = name
+			return awf_next(confirmState)
+		}
+	}
+	return awf_error(fmt.Errorf("No service found with name %q that uses task definition %q", ecsServiceFlag, wf.ecsTaskDefinitionFamily))
+}
+
+// Find all services in the cluster that match the task definition.
+func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	reportStep("Get ECS Service")
+
+	if ecsServiceFlag != "" {
+		return wf.loadServiceFromFlag()
+	}
+
+	services, listErr := wf.listECSServices()
+	if listErr != nil {
+		var uoe UnauthorizedOperationError
+		if errors.As(listErr, &uoe) {
+			printer.Errorf("The provided credentials do not have permission to perform %s in the cluster %q.\n",
+				uoe.OperationName, wf.ecsCluster)
+			printer.Infof("Please choose a different cluster, or assign this permission in AWS IAM.\n")
+			return awf_next(getClusterState)
+		}
+		printer.Errorf("Could not list ECS services: %v\n", listErr)
+		return awf_error(errors.New("Error while listing ECS services; try using the --service flag instead."))
+	}
+
+	if len(services) == 0 {
+		printer.Errorf("Could not find any ECS tasks in cluster %q that use task %q. Please select a different task or hit Ctrl+C to exit.\n",
+			wf.ecsCluster, wf.ecsTaskDefinitionFamily)
+		return awf_next(getTaskState)
+	}
+
+	printer.Infof("Found %d services in cluster %q with task definition %q.\n", len(services), wf.ecsCluster, wf.ecsTaskDefinitionFamily)
+
+	choices := make([]string, 0, len(services))
+	for c, _ := range services {
+		choices = append(choices, string(c))
+	}
+	sort.Strings(choices)
+	choices = append(choices, goBackOption)
+	// TODO: allow skipping this step?
+
+	var serviceAnswer string
+	err = survey.AskOne(
+		&survey.Select{
+			Message: "Which service should be restarted to use the modified task?",
+			Help:    "Select ECS service that will be updated with the modified definition, so it can be monitored by Akita.",
+			Options: choices,
+			Description: func(value string, _ int) string {
+				return services[arn(value)]
+			},
+		},
+		&serviceAnswer,
+	)
+	if err != nil {
+		return awf_error(err)
+	}
+	if serviceAnswer == goBackOption {
+		return awf_next(getTaskState)
+	}
+	wf.ecsServiceARN = arn(serviceAnswer)
+	wf.ecsService = services[wf.ecsServiceARN]
+
+	return awf_next(confirmState)
+}
+
+func (wf *AddWorkflow) showPlannedChanges() {
+	printer.Infof("--- Planned changes ---\n")
+	printer.Infof("Create a secret %q in region %q to hold your Akita API key.\n",
+		"TODO", wf.awsRegion)
+	printer.Infof("Create a new version %d of task definition %q which includes the Akita agent as a sidecar.\n",
+		wf.ecsTaskDefinition.Revision+1, wf.ecsTaskDefinitionFamily)
+	printer.Infof("Update service %q in cluster %q to the new task definition.\n",
+		wf.ecsService, wf.ecsCluster)
+}
+
+func confirmState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	wf.showPlannedChanges()
+
+	if dryRunFlag {
+		printer.Infof("Not making any changes due to -dry-run flag.\n")
+		return awf_done()
+	}
+
+	proceed := false
+	prompt := &survey.Confirm{
+		Message: "Proceed with the changes?",
+	}
+	survey.AskOne(prompt, &proceed)
+
+	if !proceed {
+		// TODO: let the user back up instead?
+		// (I realized one problem with this is if the last step had a flag, they are just
+		// stucke anyway.)
+		printer.Infof("No changes applied; exiting.\n")
+		return awf_done()
+	}
+
+	return awf_next(addSecretState)
 }
 
 // Run non-interactively and attempt to fill in all information from
@@ -377,18 +627,38 @@ func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSta
 	if ecsClusterFlag == "" {
 		return awf_error(UsageErrorf("Must specify an ECS cluster to operate on."))
 	}
-	// TODO: look up cluster by name or ARN
+	_, err = wf.loadClusterFromFlag()
+	if err != nil {
+		return awf_error(err)
+	}
+
+	if ecsTaskDefinitionFlag == "" {
+		return awf_error(UsageErrorf("Must specify an ECS task definition to modify."))
+	}
+	_, err = wf.loadTaskFromFlag()
+	if err != nil {
+		return awf_error(err)
+	}
 
 	// TODO: could we support adding to a task but not restarting a service?
 	if ecsServiceFlag == "" {
 		return awf_error(UsageErrorf("Must specify an ECS service to modify."))
 	}
-	// TODO: look up service by name or ARN
-
-	if ecsTaskFlag == "" {
-		return awf_error(UsageErrorf("Must specify an ECS task to modify."))
+	_, err = wf.loadServiceFromFlag()
+	if err != nil {
+		return awf_error(err)
 	}
-	// TODO: look up task by name or ARN
 
-	return awf_done()
+	wf.showPlannedChanges()
+
+	if dryRunFlag {
+		printer.Infof("Not making any changes due to -dry-run flag.\n")
+		return awf_done()
+	}
+
+	return awf_next(addSecretState)
+}
+
+func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	return awf_error(errors.New("Unimplemented!"))
 }
