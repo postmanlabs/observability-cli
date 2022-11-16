@@ -43,6 +43,8 @@ var (
 	collectTCPAndTLSReports bool
 	parseTLSHandshakes      bool
 	maxWitnessSize_bytes    int
+	dockerExtensionMode     bool
+	healthCheckPort         int
 )
 
 var Cmd = &cobra.Command{
@@ -174,6 +176,8 @@ var Cmd = &cobra.Command{
 			CollectTCPAndTLSReports: collectTCPAndTLSReports,
 			ParseTLSHandshakes:      parseTLSHandshakes,
 			MaxWitnessSize_bytes:    maxWitnessSize_bytes,
+			DockerExtensionMode:     dockerExtensionMode,
+			HealthCheckPort:         healthCheckPort,
 		}
 		if err := apidump.Run(args); err != nil {
 			return cmderr.AkitaErr{Err: err}
@@ -355,4 +359,20 @@ func init() {
 		"Don't send witnesses larger than this.",
 	)
 	Cmd.Flags().MarkHidden("max-witness-size-bytes")
+
+	Cmd.Flags().BoolVar(
+		&dockerExtensionMode,
+		"docker-ext-mode",
+		false,
+		"Enables Docker extension mode. This is an internal flag used by the Akita Docker extension.",
+	)
+	_ = Cmd.Flags().MarkHidden("docker-ext-mode")
+
+	Cmd.Flags().IntVar(
+		&healthCheckPort,
+		"health-check-port",
+		50343,
+		"Port to listen on for Docker extension health checks. This is an internal flag used by the Akita Docker extension.",
+	)
+	_ = Cmd.Flags().MarkHidden("health-check-port")
 }
