@@ -582,6 +582,8 @@ func (wf *AddWorkflow) showPlannedChanges() {
 }
 
 func confirmState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	reportStep("Confirm Changes")
+
 	wf.showPlannedChanges()
 
 	if dryRunFlag {
@@ -600,6 +602,7 @@ func confirmState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 		// (I realized one problem with this is if the last step had a flag, they are just
 		// stucke anyway.)
 		printer.Infof("No changes applied; exiting.\n")
+		reportStep("Changes Rejected")
 		return awf_done()
 	}
 
