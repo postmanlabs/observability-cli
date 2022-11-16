@@ -291,6 +291,7 @@ func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDef
 
 	output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
 	if err != nil {
+		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
 		return nil, err
 	}
 	return output.TaskDefinition, nil
@@ -319,6 +320,7 @@ func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
 		}
 		output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
 		if err != nil {
+			telemetry.Error("AWS ECS DescribeTaskDefinition", err)
 			if uoe, unauth := isUnauthorized(err); unauth {
 				printer.Warningf("Skipping service %q, because the provided credentials are unauthorized for %s on %q.\n",
 					serviceARN, uoe.OperationName, taskARN)
@@ -382,6 +384,7 @@ func (wf *AddWorkflow) getService(serviceARN arn) (*types.Service, error) {
 
 	output, err := wf.ecsClient.DescribeServices(wf.ctx, input)
 	if err != nil {
+		telemetry.Error("AWS ECS DescribeServices", err)
 		return nil, wrapUnauthorizedFor(err, serviceARN)
 	}
 	if len(output.Services) == 0 {
@@ -395,6 +398,7 @@ func (wf *AddWorkflow) getService(serviceARN arn) (*types.Service, error) {
 	}
 	taskOutput, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, taskInput)
 	if err != nil {
+		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
 		return nil, wrapUnauthorizedFor(err, taskARN)
 	}
 
