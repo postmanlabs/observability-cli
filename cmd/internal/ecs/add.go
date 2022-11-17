@@ -532,7 +532,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	}
 
 	if len(services) == 0 {
-		printer.Errorf("Could not find any ECS tasks in cluster %q that use task %q. Please select a different task or hit Ctrl+C to exit.\n",
+		printer.Errorf("Could not find any ECS services in cluster %q that use task definition %q. Please select a different task definition or hit Ctrl+C to exit.\n",
 			wf.ecsCluster, wf.ecsTaskDefinitionFamily)
 		return awf_next(getTaskState)
 	}
