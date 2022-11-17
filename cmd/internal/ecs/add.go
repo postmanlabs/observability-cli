@@ -550,8 +550,8 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	var serviceAnswer string
 	err = survey.AskOne(
 		&survey.Select{
-			Message: "Which service should be restarted to use the modified task definition?",
-			Help:    "Select ECS service that will be updated with the modified definition, so it can be monitored by Akita.",
+			Message: "Which service should be updated to use the modified task definition?",
+			Help:    "Select the ECS service that will be updated with the modified task definition, so it can be monitored by Akita.",
 			Options: choices,
 			Description: func(value string, _ int) string {
 				return services[arn(value)]
@@ -588,6 +588,7 @@ func confirmState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 
 	if dryRunFlag {
 		printer.Infof("Not making any changes due to --dry-run flag.\n")
+		reportStep("Dry Run Completed")
 		return awf_done()
 	}
 

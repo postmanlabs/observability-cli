@@ -325,7 +325,7 @@ func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
 				printer.Warningf("Skipping service %q because the provided credentials are unauthorized for %s on %q.\n",
 					serviceARN, uoe.OperationName, taskARN)
 			} else {
-				printer.Warningf("Skipping service %q, because of an error checking its type definition: %v\n", err)
+				printer.Warningf("Skipping service %q because of an error checking its task definition: %v\n", serviceARN, err)
 			}
 			return false
 		}

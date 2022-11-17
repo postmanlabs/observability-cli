@@ -32,7 +32,7 @@ func ListAWSObjectsByName[
 	getArns func(ListOutput) []arn, // Convert list output to list of ARNs
 	inputFactory func([]arn) DescribeInput, // Convert list of ARNs to an input to the describe function
 	describe func(context.Context, DescribeInput) (DescribeOutput, error), // SDK function to call Describe<Object>
-	extract func(DescribeOutput) []NamedItem, // Extract a list of ARN/name pairs from the Describe output
+	extract func(DescribeOutput) []NamedItem, // Extract a list of objects containing ARN/name pairs from the Describe output
 	convert func(NamedItem) (arn, string), // Convert the ARN/name pair to a usable form, return "" if not present
 ) (map[arn]string, error) {
 
