@@ -587,7 +587,7 @@ func confirmState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	wf.showPlannedChanges()
 
 	if dryRunFlag {
-		printer.Infof("Not making any changes due to -dry-run flag.\n")
+		printer.Infof("Not making any changes due to --dry-run flag.\n")
 		return awf_done()
 	}
 
