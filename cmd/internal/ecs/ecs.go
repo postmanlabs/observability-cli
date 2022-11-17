@@ -9,11 +9,11 @@ import (
 var (
 	// Any of these will be interactively prompted if not given on the command line.
 	// On the other hand, to run non-interactively then all of them *must* be given.
-	awsProfileFlag string
-	awsRegionFlag  string
-	ecsClusterFlag string
-	ecsServiceFlag string
-	ecsTaskFlag    string
+	awsProfileFlag        string
+	awsRegionFlag         string
+	ecsClusterFlag        string
+	ecsServiceFlag        string
+	ecsTaskDefinitionFlag string
 
 	// Location of credentials file.
 	awsCredentialsFlag string
@@ -58,7 +58,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
 	Cmd.PersistentFlags().StringVar(&ecsServiceFlag, "service", "", "The name or ARN of your ECS service.")
-	Cmd.PersistentFlags().StringVar(&ecsTaskFlag, "task", "", "The name or ARN of your ECS task to modify.")
+	Cmd.PersistentFlags().StringVar(&ecsTaskDefinitionFlag, "task", "", "The name of your ECS task definition to modify.")
 	Cmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", false, "Perform a dry run: show what will be done, but do not modify ECS.")
 
 	// Support for credentials in a nonstandard location

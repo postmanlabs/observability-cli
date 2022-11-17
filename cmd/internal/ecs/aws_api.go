@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	smithy "github.com/aws/smithy-go"
 )
 
@@ -20,6 +22,7 @@ import (
 // Error indicating profile is absent.
 // TODO: stop mixing error.Is and error.As usage?
 var NoSuchProfileError = errors.New("No such profile")
+var NoSuchClusterError = errors.New("No such cluster")
 
 // Error indicating the user was unauthorized.
 type UnauthorizedOperationError struct {
@@ -67,6 +70,14 @@ func isUnauthorizedFor(err error, arn arn) (UnauthorizedOperationError, bool) {
 
 func wrapUnauthorized(err error) error {
 	uoe, ok := isUnauthorized(err)
+	if ok {
+		return uoe
+	}
+	return err
+}
+
+func wrapUnauthorizedFor(err error, arn arn) error {
+	uoe, ok := isUnauthorizedFor(err, arn)
 	if ok {
 		return uoe
 	}
@@ -181,45 +192,222 @@ func (wf *AddWorkflow) listAWSRegions() (result []string) {
 // List all clusters for the current region, by arn and user-assigned name
 func (wf *AddWorkflow) listECSClusters() (map[arn]string, error) {
 	input := &ecs.ListClustersInput{}
+	return ListAWSObjectsByName[
+		*ecs.ListClustersOutput,
+		*ecs.DescribeClustersInput,
+		*ecs.DescribeClustersOutput,
+		types.Cluster](
+		wf.ctx,
+		"Clusters",
+		ecs.NewListClustersPaginator(wf.ecsClient, input),
+		func(output *ecs.ListClustersOutput) []arn {
+			return stringsToArns(output.ClusterArns)
+		},
+		func(arns []arn) *ecs.DescribeClustersInput {
+			return &ecs.DescribeClustersInput{
+				Clusters: arnsToStrings(arns),
+			}
+		},
+		func(ctx context.Context, input *ecs.DescribeClustersInput) (*ecs.DescribeClustersOutput, error) {
+			return wf.ecsClient.DescribeClusters(ctx, input)
+		},
+		func(output *ecs.DescribeClustersOutput) []types.Cluster {
+			return output.Clusters
+		},
+		func(t types.Cluster) (arn, string) {
+			return arn(aws.ToString(t.ClusterArn)), aws.ToString(t.ClusterName)
+		},
+	)
+}
 
-	result, err := wf.ecsClient.ListClusters(wf.ctx, input)
+// Verify that a cluster exists with the given ARN.
+// Returns its name, or else NoSuchClusterError if search is empty.
+func (wf *AddWorkflow) getClusterName(cluster arn) (string, error) {
+	describeInput := &ecs.DescribeClustersInput{
+		Clusters: []string{string(cluster)},
+	}
+	describeResult, err := wf.ecsClient.DescribeClusters(wf.ctx, describeInput)
 	if err != nil {
-		telemetry.Error("AWS ECS ListClusters", err)
-		return nil, wrapUnauthorized(err)
+		telemetry.Error("AWS ECS DescribeClusters", err)
+		if uoe, ok := isUnauthorizedFor(err, cluster); ok {
+			return "", uoe
+		}
+		return "", err
 	}
 
-	if len(result.ClusterArns) == 0 {
-		return nil, nil
+	if len(describeResult.Clusters) == 0 {
+		return "", NoSuchClusterError
 	}
 
-	numArns := len(result.ClusterArns)
-	ret := make(map[arn]string, numArns)
+	for _, c := range describeResult.Clusters {
+		if c.ClusterName != nil {
+			return *c.ClusterName, nil
+		}
+	}
+	return "", nil
+}
 
-	// Have to handle these in batches of 100.
-	for start := 0; start < numArns; start += 100 {
-		end := start + 100
-		if end > numArns {
-			end = numArns
-		}
-		describeInput := &ecs.DescribeClustersInput{
-			Clusters: result.ClusterArns[start:end],
-		}
-		describeResult, err := wf.ecsClient.DescribeClusters(wf.ctx, describeInput)
+func arnsToStrings(arns []arn) []string {
+	ret := make([]string, len(arns))
+	for i, a := range arns {
+		ret[i] = string(a)
+	}
+	return ret
+}
+
+func stringsToArns(arns []string) []arn {
+	ret := make([]arn, len(arns))
+	for i, a := range arns {
+		ret[i] = arn(a)
+	}
+	return ret
+}
+
+// List all tasks definition families, by name
+func (wf *AddWorkflow) listECSTaskDefinitionFamilies() ([]string, error) {
+	// TODO: Lists only active tasks, should we permit inactive ones too?
+	input := &ecs.ListTaskDefinitionFamiliesInput{
+		Status: types.TaskDefinitionFamilyStatusActive,
+	}
+
+	families := make([]string, 0)
+	paginator := ecs.NewListTaskDefinitionFamiliesPaginator(wf.ecsClient, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(wf.ctx)
 		if err != nil {
-			telemetry.Error("AWS ECS DescribeClusters", err)
+			telemetry.Error("AWS ECS ListTaskDefinitionFamilies", err)
 			return nil, wrapUnauthorized(err)
 		}
+		families = append(families, output.Families...)
+	}
+	return families, nil
+}
 
-		// TODO: can we do anything about the Failures in the result?
-		for _, c := range describeResult.Clusters {
-			if c.ClusterArn != nil {
-				if c.ClusterName != nil {
-					ret[arn(*c.ClusterArn)] = *c.ClusterName
-				} else {
-					ret[arn(*c.ClusterArn)] = ""
-				}
+// Look up the most recent version of a task definition
+func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDefinition, error) {
+	input := &ecs.DescribeTaskDefinitionInput{
+		TaskDefinition: aws.String(family),
+	}
+
+	output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
+	if err != nil {
+		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
+		return nil, err
+	}
+	return output.TaskDefinition, nil
+}
+
+// List all services for the current cluster, by arn and user-assigned name
+// Filter to only those using the task family we identified!
+func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
+	// Lists both Fargate and ECS services
+	input := &ecs.ListServicesInput{
+		Cluster: aws.String(string(wf.ecsClusterARN)),
+	}
+
+	// Cache of ARN to family
+	arnToFamily := map[arn]string{
+		wf.ecsTaskDefinitionARN: wf.ecsTaskDefinitionFamily,
+	}
+
+	// Check whether the given Task ARN has Family equal to that of the chosen task definition.
+	taskInFamily := func(serviceARN arn, taskARN arn) bool {
+		if family, cached := arnToFamily[taskARN]; cached {
+			return family == wf.ecsTaskDefinitionFamily
+		}
+		input := &ecs.DescribeTaskDefinitionInput{
+			TaskDefinition: aws.String(string(taskARN)),
+		}
+		output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
+		if err != nil {
+			telemetry.Error("AWS ECS DescribeTaskDefinition", err)
+			if uoe, unauth := isUnauthorized(err); unauth {
+				printer.Warningf("Skipping service %q because the provided credentials are unauthorized for %s on %q.\n",
+					serviceARN, uoe.OperationName, taskARN)
+			} else {
+				printer.Warningf("Skipping service %q because of an error checking its task definition: %v\n", serviceARN, err)
+			}
+			return false
+		}
+		family := aws.ToString(output.TaskDefinition.Family)
+		arnToFamily[taskARN] = family
+		return family == wf.ecsTaskDefinitionFamily
+	}
+
+	// Include only those services sharing the correct family.
+	filterFunc := func(output *ecs.DescribeServicesOutput) []types.Service {
+		filtered := make([]types.Service, 0)
+		for _, s := range output.Services {
+			// s.TaskDefinition is an ARN, but we want to match by family.
+			// We could try parsing the ARN? But I think the correct route is
+			// to look up the task definition, if unknown.
+			if taskInFamily(arn(aws.ToString(s.ServiceArn)), arn(aws.ToString(s.TaskDefinition))) {
+				filtered = append(filtered, s)
 			}
 		}
+		return filtered
 	}
-	return ret, nil
+
+	return ListAWSObjectsByName[
+		*ecs.ListServicesOutput,
+		*ecs.DescribeServicesInput,
+		*ecs.DescribeServicesOutput,
+		types.Service](
+		wf.ctx,
+		"Services",
+		ecs.NewListServicesPaginator(wf.ecsClient, input),
+		func(output *ecs.ListServicesOutput) []arn {
+			return stringsToArns(output.ServiceArns)
+		},
+		func(arns []arn) *ecs.DescribeServicesInput {
+			return &ecs.DescribeServicesInput{
+				Cluster:  aws.String(string(wf.ecsClusterARN)),
+				Services: arnsToStrings(arns),
+			}
+		},
+		func(ctx context.Context, input *ecs.DescribeServicesInput) (*ecs.DescribeServicesOutput, error) {
+			return wf.ecsClient.DescribeServices(ctx, input)
+		},
+		filterFunc,
+		func(t types.Service) (arn, string) {
+			return arn(aws.ToString(t.ServiceArn)), aws.ToString(t.ServiceName)
+		},
+	)
+}
+
+// Look up a service and check that its task definition matches.
+func (wf *AddWorkflow) getService(serviceARN arn) (*types.Service, error) {
+	input := &ecs.DescribeServicesInput{
+		Services: []string{string(serviceARN)},
+		Cluster:  aws.String(string(wf.ecsClusterARN)),
+	}
+
+	output, err := wf.ecsClient.DescribeServices(wf.ctx, input)
+	if err != nil {
+		telemetry.Error("AWS ECS DescribeServices", err)
+		return nil, wrapUnauthorizedFor(err, serviceARN)
+	}
+	if len(output.Services) == 0 {
+		return nil, fmt.Errorf("No service with ARN %q", serviceARN)
+	}
+	svc := output.Services[0]
+
+	taskARN := arn(aws.ToString(svc.TaskDefinition))
+	taskInput := &ecs.DescribeTaskDefinitionInput{
+		TaskDefinition: aws.String(string(taskARN)),
+	}
+	taskOutput, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, taskInput)
+	if err != nil {
+		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
+		return nil, wrapUnauthorizedFor(err, taskARN)
+	}
+
+	family := aws.ToString(taskOutput.TaskDefinition.Family)
+	if family != wf.ecsTaskDefinitionFamily {
+		printer.Warningf("Service %q has task definition %q, which does not match family %q.",
+			serviceARN, taskARN, wf.ecsTaskDefinitionFamily)
+		return nil, fmt.Errorf("Mismatch between service and task definition; please choose a different task or service.")
+	}
+
+	return &svc, nil
 }
