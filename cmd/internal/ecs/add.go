@@ -550,7 +550,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	var serviceAnswer string
 	err = survey.AskOne(
 		&survey.Select{
-			Message: "Which service should be restarted to use the modified task?",
+			Message: "Which service should be restarted to use the modified task definition?",
 			Help:    "Select ECS service that will be updated with the modified definition, so it can be monitored by Akita.",
 			Options: choices,
 			Description: func(value string, _ int) string {
