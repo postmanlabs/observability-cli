@@ -89,8 +89,6 @@ const (
 // from the other command conventions, but there are relatively few
 // usage errors here.)
 func RunAddWorkflow() error {
-	// Verify that we have credentials to the Akita CLI
-
 	wf := &AddWorkflow{
 		currentState: initState,
 		ctx:          context.Background(),
