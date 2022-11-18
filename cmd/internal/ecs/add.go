@@ -516,7 +516,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 		case akitaCreationTagKey, akitaModificationTagKey:
 			printer.Errorf("The selected task definition already has the tag \"%s=%s\", indicating it was previously modified.\n",
 				aws.ToString(tag.Key), aws.ToString(tag.Value))
-			printer.Infof("Please select a different task definition, or remove this tag\n")
+			printer.Infof("Please select a different task definition, or remove this tag.\n")
 			return awf_next(getTaskState)
 		}
 	}
@@ -832,17 +832,18 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 
 	apiKey, apiSecret := cfg.GetAPIKeyAndSecret()
 	input.ContainerDefinitions = append(input.ContainerDefinitions, types.ContainerDefinition{
-		Name: aws.String("akita"),
+		Name: aws.String("akita-agent"),
 		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
 		// For now we can leave the defaults in place, but they might be a bit large for EC2.
 		EntryPoint: []string{"/akita", "apidump", "--project", projectFlag},
 		Environment: []types.KeyValuePair{
+			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
+			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
+			
 			// Setting these environment variables will cause the traces to be tagged.
 			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
 			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
 			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
-			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
-			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
 		},
 		Essential: aws.Bool(false),
 		Image:     aws.String(akitaECRImage),

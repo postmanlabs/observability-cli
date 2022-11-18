@@ -76,11 +76,9 @@ func GetDeploymentInfo() (Deployment, map[tags.Key]string) {
 	if AWS_ECS.getTagsFromEnvironment(tagset) {
 		printer.Infof("Found AWS ECS environment variables.\n")
 		deploymentType = AWS_ECS
-	} else {
-		if AWS.getTagsFromEnvironment(tagset) {
-			printer.Infof("Found AWS environment variables.\n")
-			deploymentType = AWS
-		}
+	} else if AWS.getTagsFromEnvironment(tagset) {
+		printer.Infof("Found AWS environment variables.\n")
+		deploymentType = AWS
 	}
 
 	if Kubernetes.getTagsFromEnvironment(tagset) {
