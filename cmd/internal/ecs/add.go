@@ -135,9 +135,9 @@ func RunAddWorkflow() error {
 //    |    ^  |
 //    |    |  V
 //    |-getService
-//           |
-//           V
-//     checkForSecret
+//    |      |
+//    |      V
+//    |- getSecret
 //           |
 //           V
 //        confirm
@@ -586,7 +586,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	wf.ecsServiceARN = arn(serviceAnswer)
 	wf.ecsService = services[wf.ecsServiceARN]
 
-	return awf_next(confirmState)
+	return awf_next(getSecretState)
 }
 
 func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
