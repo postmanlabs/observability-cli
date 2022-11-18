@@ -42,9 +42,6 @@ var Cmd = &cobra.Command{
 	// need to return AkitaErr to not show the usage.
 	SilenceUsage: true,
 	RunE:         addAgentToECS,
-
-	// Temporarily hide from users until complete
-	Hidden: true,
 }
 
 // 'akita ecs' should default to 'akita ecs add'
@@ -62,6 +59,9 @@ var RemoveFromECSCmd = &cobra.Command{
 	Long:         "Remove a previously installed Akita container from an ECS Task.",
 	SilenceUsage: true,
 	RunE:         removeAgentFromECS,
+
+	// Temporarily hide from users until complete
+	Hidden: true,
 }
 
 func init() {
