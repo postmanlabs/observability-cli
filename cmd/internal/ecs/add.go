@@ -839,7 +839,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Environment: []types.KeyValuePair{
 			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
 			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
-			
+
 			// Setting these environment variables will cause the traces to be tagged.
 			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
 			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
@@ -847,7 +847,6 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		},
 		Essential: aws.Bool(false),
 		Image:     aws.String(akitaECRImage),
-		Secrets:   []types.Secret{},
 	})
 
 	output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
