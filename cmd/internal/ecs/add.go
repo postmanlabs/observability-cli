@@ -62,25 +62,36 @@ type AddWorkflow struct {
 	ecsClusterARN arn
 
 	ecsTaskDefinitionFamily string
+	ecsTaskDefinitionTags   []types.Tag
 	ecsTaskDefinitionARN    arn
 	ecsTaskDefinition       *types.TaskDefinition
 
 	ecsService    string
 	ecsServiceARN arn
 
-	akitaSecrets secretState
+	// TODO: provide a flag that re-enables use of secrets
+	// The problem is that the container's assumed role needs permission to
+	// read the configured secrets, which seems difficult to set up here.
+	secretsEnabled bool
+	akitaSecrets   secretState
 }
 
 const (
 	// Tag to use for objects created by the Akita CLI
-	akitaCreationTagKey   = "akita.software:created_by"
-	akitaCreationTagValue = "Akita Software ECS integration"
+	akitaCreationTagKey       = "akita.software:created_by"
+	akitaCreationTagValue     = "Akita Software ECS integration"
+	akitaModificationTagKey   = "akita.software:modified_by"
+	akitaModificationTagValue = "Akita Software ECS integration"
 
 	// Separate AWS secrets for the key ID and key secret
 	// TODO: make these configurable
 	akitaSecretPrefix    = "akita.software/"
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
+
+	// Akita agent image locations
+	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
+	akitaDockerImage = "akitasoftware/cli"
 )
 
 // Run the "add to ECS" workflow until we complete or get an error.
@@ -119,7 +130,7 @@ func RunAddWorkflow() error {
 
 // State machine ASCII art:
 //
-//         init     ---> fillFromFlags --> addSecret
+//         init     ---> fillFromFlags --> modifyTask
 //           |
 //           V
 //    --> getProfile
@@ -135,24 +146,21 @@ func RunAddWorkflow() error {
 //    |    ^  |
 //    |    |  V
 //    |-getService
-//    |      |
-//    |      V
-//    |- getSecret
+//           |
+//           |         getSecret
+//           |         [disabled]
 //           |
 //           V
 //        confirm
 //           |
-//           V
-//       addSecret
 //           |
+//           |         addSecret
+//           |         [disabled]
 //           V
 //       modifyTask
 //           |
 //           V
-//   waitForModification
-//           |
-//           V
-//     restartService
+//      updateService
 //           |
 //           V
 //     waitForRestart
@@ -416,7 +424,7 @@ func getClusterState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 func (wf *AddWorkflow) loadTaskFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
 	// This call will work even if the flag is an ARN or a family:revision string.
 	// TODO: should we check for those? Or just allow it?
-	output, describeErr := wf.getLatestECSTaskDefinition(ecsTaskDefinitionFlag)
+	output, tags, describeErr := wf.getLatestECSTaskDefinition(ecsTaskDefinitionFlag)
 	if describeErr != nil {
 		var uoe UnauthorizedOperationError
 		if errors.As(describeErr, &uoe) {
@@ -428,6 +436,7 @@ func (wf *AddWorkflow) loadTaskFromFlag() (nextState optionals.Optional[AddWorkf
 	wf.ecsTaskDefinition = output
 	wf.ecsTaskDefinitionFamily = aws.ToString(output.Family)
 	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinitionArn))
+	wf.ecsTaskDefinitionTags = tags
 	return awf_next(getServiceState)
 }
 
@@ -484,7 +493,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	wf.ecsTaskDefinitionFamily = taskAnswer
 
 	// Load the task definition (if we don't have permission, retry.)
-	output, describeErr := wf.getLatestECSTaskDefinition(wf.ecsTaskDefinitionFamily)
+	output, tags, describeErr := wf.getLatestECSTaskDefinition(wf.ecsTaskDefinitionFamily)
 	if describeErr != nil {
 		var uoe UnauthorizedOperationError
 		if errors.As(describeErr, &uoe) {
@@ -496,10 +505,38 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 		printer.Errorf("Could not load ECS task definition: %v\n", describeErr)
 		return awf_error(errors.New("Error while loading ECS task definition; please contact support@akitasoftware.com for assistance."))
 	}
+
 	wf.ecsTaskDefinition = output
 	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinitionArn))
+	wf.ecsTaskDefinitionTags = tags
+
+	// Check that the task definition was not already modified.
+	for _, tag := range tags {
+		switch aws.ToString(tag.Key) {
+		case akitaCreationTagKey, akitaModificationTagKey:
+			printer.Errorf("The selected task definition already has the tag \"%s=%s\", indicating it was previously modified.\n",
+				aws.ToString(tag.Key), aws.ToString(tag.Value))
+			printer.Infof("Please select a different task definition, or remove this tag\n")
+			return awf_next(getTaskState)
+		}
+	}
+
+	// Check that the Akita CLI is not already present
+	for _, container := range output.ContainerDefinitions {
+		image := aws.ToString(container.Image)
+		if matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
+			printer.Errorf("The selected task definition already has the image %q; Akita is already installed.\n", image)
+			printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
+			return awf_next(getTaskState)
+		}
+	}
 
 	return awf_next(getServiceState)
+}
+
+func matchesImage(imageName, baseName string) bool {
+	imageTokens := strings.Split(imageName, ":")
+	return imageTokens[0] == baseName
 }
 
 func (wf *AddWorkflow) loadServiceFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
@@ -586,7 +623,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	wf.ecsServiceARN = arn(serviceAnswer)
 	wf.ecsService = services[wf.ecsServiceARN]
 
-	return awf_next(getSecretState)
+	return awf_next(confirmState)
 }
 
 func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
@@ -613,13 +650,15 @@ func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 
 func (wf *AddWorkflow) showPlannedChanges() {
 	printer.Infof("--- Planned changes ---\n")
-	if !wf.akitaSecrets.idExists {
-		printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key ID.\n",
-			defaultKeyIDName, wf.awsRegion)
-	}
-	if !wf.akitaSecrets.secretExists {
-		printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key secret.\n",
-			defaultKeySecretName, wf.awsRegion)
+	if wf.secretsEnabled {
+		if !wf.akitaSecrets.idExists {
+			printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key ID.\n",
+				defaultKeyIDName, wf.awsRegion)
+		}
+		if !wf.akitaSecrets.secretExists {
+			printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key secret.\n",
+				defaultKeySecretName, wf.awsRegion)
+		}
 	}
 	printer.Infof("Create a new version %d of task definition %q which includes the Akita agent as a sidecar.\n",
 		wf.ecsTaskDefinition.Revision+1, wf.ecsTaskDefinitionFamily)
@@ -653,7 +692,7 @@ func confirmState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 		return awf_done()
 	}
 
-	return awf_next(addSecretState)
+	return awf_next(modifyTaskState)
 }
 
 // Run non-interactively and attempt to fill in all information from
@@ -711,33 +750,39 @@ func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSta
 		return awf_done()
 	}
 
-	return awf_next(addSecretState)
+	return awf_next(modifyTaskState)
 }
 
+// Add the missing secrets.
+// (TODO: if one is absent but the other is present we really ought to update both, but that's
+// a separate AWS call so the logic is more complicated.)
 func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Add AWS Secret")
 
 	key, secret := cfg.GetAPIKeyAndSecret()
 	var secretErr error
+	var secretArn arn
 	if !wf.akitaSecrets.idExists {
-		secretErr = wf.createAkitaSecret(
+		secretArn, secretErr = wf.createAkitaSecret(
 			defaultKeyIDName,
 			key,
 			"Akita Software API key identifier, created for use in ECS.",
 		)
 		if secretErr == nil {
 			printer.Infof("Created AWS secret %q\n", defaultKeyIDName)
+			wf.akitaSecrets.idARN = secretArn
 		}
 	}
 
 	if secretErr == nil && !wf.akitaSecrets.secretExists {
-		secretErr = wf.createAkitaSecret(
+		secretArn, secretErr = wf.createAkitaSecret(
 			defaultKeySecretName,
 			secret,
 			"Akita Software API key secret, created for use in ECS.",
 		)
 		if secretErr == nil {
 			printer.Infof("Created AWS secret %q\n", defaultKeySecretName)
+			wf.akitaSecrets.secretARN = secretArn
 		}
 	}
 
@@ -752,5 +797,79 @@ func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 		return awf_error(errors.Wrapf(secretErr, "Failed to add an AWS secret"))
 	}
 
-	return awf_error(errors.New("Next step unimplemented!"))
+	return awf_next(modifyTaskState)
+}
+
+// Create a new revision of the task definition which includes the Akita container.
+func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	// Copy over all the state from the existing one.
+	// IDK why they didn't reuse the types.ContainerDefinition type.
+	prev := wf.ecsTaskDefinition
+	input := &ecs.RegisterTaskDefinitionInput{
+		ContainerDefinitions:    prev.ContainerDefinitions,
+		Family:                  prev.Family,
+		Cpu:                     prev.Cpu,
+		EphemeralStorage:        prev.EphemeralStorage,
+		ExecutionRoleArn:        prev.ExecutionRoleArn,
+		InferenceAccelerators:   prev.InferenceAccelerators,
+		IpcMode:                 prev.IpcMode,
+		Memory:                  prev.Memory,
+		NetworkMode:             prev.NetworkMode,
+		PidMode:                 prev.PidMode,
+		PlacementConstraints:    prev.PlacementConstraints,
+		ProxyConfiguration:      prev.ProxyConfiguration,
+		RequiresCompatibilities: prev.RequiresCompatibilities,
+		RuntimePlatform:         prev.RuntimePlatform,
+		Tags:                    wf.ecsTaskDefinitionTags,
+		TaskRoleArn:             prev.TaskRoleArn,
+		Volumes:                 prev.Volumes,
+	}
+
+	input.Tags = append(input.Tags, types.Tag{
+		Key:   aws.String(akitaCreationTagKey),
+		Value: aws.String(akitaCreationTagValue),
+	})
+
+	apiKey, apiSecret := cfg.GetAPIKeyAndSecret()
+	input.ContainerDefinitions = append(input.ContainerDefinitions, types.ContainerDefinition{
+		Name: aws.String("akita"),
+		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
+		// For now we can leave the defaults in place, but they might be a bit large for EC2.
+		EntryPoint: []string{"/akita", "apidump", "--project", projectFlag},
+		Environment: []types.KeyValuePair{
+			// Setting these environment variables will cause the traces to be tagged.
+			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
+			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
+			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
+			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
+			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
+		},
+		Essential: aws.Bool(false),
+		Image:     aws.String(akitaECRImage),
+		Secrets:   []types.Secret{},
+	})
+
+	output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
+	if err != nil {
+		if uoe, unauth := isUnauthorized(err); unauth {
+			printer.Errorf("The provided credentials do not have permission to register an ECS task definition (operation %s).\n",
+				uoe.OperationName)
+			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
+			return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
+		}
+	}
+	printer.Infof("Registered task definition %q revision %d.\n",
+		aws.ToString(output.TaskDefinition.Family),
+		output.TaskDefinition.Revision)
+
+	// Update the workflow state with the new task definition
+	wf.ecsTaskDefinition = output.TaskDefinition
+	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinition.TaskDefinitionArn))
+	wf.ecsTaskDefinitionTags = output.Tags
+
+	return awf_next(updateServiceState)
+}
+
+func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	return awf_error(errors.New("unimplemented!"))
 }

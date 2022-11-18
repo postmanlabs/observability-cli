@@ -18,6 +18,7 @@ const (
 	Any        Deployment = "any"
 	Unknown    Deployment = "unknown"
 	AWS        Deployment = "aws"
+	AWS_ECS    Deployment = "aws-ecs"
 	Kubernetes Deployment = "kubernetes"
 )
 
@@ -28,6 +29,11 @@ var environmentToTag map[Deployment]map[string]tags.Key = map[Deployment]map[str
 	},
 	AWS: {
 		"AKITA_AWS_REGION": tags.XAkitaAWSRegion,
+	},
+	AWS_ECS: {
+		"AKITA_AWS_REGION":  tags.XAkitaAWSRegion,
+		"AKITA_ECS_TASK":    tags.XAkitaECSTask,
+		"AKITA_ECS_SERVICE": tags.XAkitaECSService,
 	},
 	Kubernetes: {
 		"AKITA_K8S_NAMESPACE": tags.XAkitaKubernetesNamespace,
@@ -67,9 +73,14 @@ func GetDeploymentInfo() (Deployment, map[tags.Key]string) {
 		deploymentType = Unknown
 	}
 
-	if AWS.getTagsFromEnvironment(tagset) {
-		printer.Infof("Found AWS environment variables.\n")
-		deploymentType = AWS
+	if AWS_ECS.getTagsFromEnvironment(tagset) {
+		printer.Infof("Found AWS ECS environment variables.\n")
+		deploymentType = AWS_ECS
+	} else {
+		if AWS.getTagsFromEnvironment(tagset) {
+			printer.Infof("Found AWS environment variables.\n")
+			deploymentType = AWS
+		}
 	}
 
 	if Kubernetes.getTagsFromEnvironment(tagset) {

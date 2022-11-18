@@ -8,7 +8,9 @@ import (
 
 type secretState struct {
 	idExists     bool
+	idARN        arn
 	secretExists bool
+	secretARN    arn
 }
 
 // Return the state of the akita.software secrets in the AWS secret manager.
@@ -35,8 +37,10 @@ func (wf *AddWorkflow) checkAkitaSecrets() (secretState, error) {
 		switch name {
 		case defaultKeyIDName:
 			state.idExists = true
+			state.idARN = arn(aws.ToString(s.ARN))
 		case defaultKeySecretName:
 			state.secretExists = true
+			state.secretARN = arn(aws.ToString(s.ARN))
 		}
 	}
 	return state, nil
@@ -48,7 +52,7 @@ func (wf *AddWorkflow) createAkitaSecret(
 	secretName string,
 	secretText string,
 	description string,
-) error {
+) (arn, error) {
 	svc := secretsmanager.NewFromConfig(wf.awsConfig)
 	input := &secretsmanager.CreateSecretInput{
 		Name:         aws.String(secretName),
@@ -61,9 +65,10 @@ func (wf *AddWorkflow) createAkitaSecret(
 			},
 		},
 	}
-	_, err := svc.CreateSecret(wf.ctx, input)
+	output, err := svc.CreateSecret(wf.ctx, input)
 	if err != nil {
-		return wrapUnauthorized(err)
+		return "", wrapUnauthorized(err)
 	}
-	return nil
+
+	return arn(aws.ToString(output.ARN)), nil
 }

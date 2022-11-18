@@ -284,7 +284,7 @@ func (wf *AddWorkflow) listECSTaskDefinitionFamilies() ([]string, error) {
 }
 
 // Look up the most recent version of a task definition
-func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDefinition, error) {
+func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDefinition, []types.Tag, error) {
 	input := &ecs.DescribeTaskDefinitionInput{
 		TaskDefinition: aws.String(family),
 	}
@@ -292,9 +292,9 @@ func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDef
 	output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
 	if err != nil {
 		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
-		return nil, err
+		return nil, nil, err
 	}
-	return output.TaskDefinition, nil
+	return output.TaskDefinition, output.Tags, nil
 }
 
 // List all services for the current cluster, by arn and user-assigned name
