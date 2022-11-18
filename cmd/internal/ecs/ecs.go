@@ -2,11 +2,23 @@ package ecs
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/akitasoftware/akita-cli/cfg"
+	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/env"
+	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
+	"github.com/akitasoftware/akita-cli/telemetry"
+	"github.com/akitasoftware/akita-cli/util"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 var (
+	// Mandatory flag: Akita project name
+	projectFlag string
+
 	// Any of these will be interactively prompted if not given on the command line.
 	// On the other hand, to run non-interactively then all of them *must* be given.
 	awsProfileFlag        string
@@ -54,6 +66,7 @@ var RemoveFromECSCmd = &cobra.Command{
 
 func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
+	Cmd.PersistentFlags().StringVar(&projectFlag, "project", "", "Your Akita project.")
 	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
@@ -70,6 +83,33 @@ func init() {
 }
 
 func addAgentToECS(cmd *cobra.Command, args []string) error {
+	// Check for API key
+	key, secret := cfg.GetAPIKeyAndSecret()
+	if key == "" || secret == "" {
+		printer.Errorf("No Akita API key configured. The Akita agent must have an API key in order to capture traces.\n")
+		if env.InDocker() {
+			printer.Infof("Please set the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables on the Docker command line.")
+		} else {
+			printer.Infof("Use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables, or run 'akita login'.")
+		}
+		return cmderr.AkitaErr{Err: errors.New("Could not find an Akita API key to use.")}
+	}
+
+	// Check project's existence
+	if projectFlag == "" {
+		return errors.New("Must specify the name of your Akita project with the --project flag.")
+	}
+	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
+	_, err := util.GetServiceIDByName(frontClient, projectFlag)
+	if err != nil {
+		// TODO: we _could_ offer to create it, instead.
+		if strings.Contains(err.Error(), "cannot determine project ID") {
+			return cmderr.AkitaErr{Err: fmt.Errorf("Could not find the project %q in the Akita cloud. Please create it from the Akita web console before proceeding.", projectFlag)}
+		} else {
+			return cmderr.AkitaErr{Err: errors.Wrapf(err, "Could not look up the project %q in the Akita cloud", projectFlag)}
+		}
+	}
+
 	return RunAddWorkflow()
 }
 

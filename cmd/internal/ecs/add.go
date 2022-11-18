@@ -9,6 +9,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -66,7 +67,21 @@ type AddWorkflow struct {
 
 	ecsService    string
 	ecsServiceARN arn
+
+	akitaSecrets secretState
 }
+
+const (
+	// Tag to use for objects created by the Akita CLI
+	akitaCreationTagKey   = "akita.software:created_by"
+	akitaCreationTagValue = "Akita Software ECS integration"
+
+	// Separate AWS secrets for the key ID and key secret
+	// TODO: make these configurable
+	akitaSecretPrefix    = "akita.software/"
+	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
+	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
+)
 
 // Run the "add to ECS" workflow until we complete or get an error.
 // Errors that are UsageErrors should be returned as-is; other
@@ -120,6 +135,9 @@ func RunAddWorkflow() error {
 //    |    ^  |
 //    |    |  V
 //    |-getService
+//    |      |
+//    |      V
+//    |- getSecret
 //           |
 //           V
 //        confirm
@@ -568,13 +586,41 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	wf.ecsServiceARN = arn(serviceAnswer)
 	wf.ecsService = services[wf.ecsServiceARN]
 
+	return awf_next(getSecretState)
+}
+
+func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	reportStep("Get Akita Secrets")
+
+	state, err := wf.checkAkitaSecrets()
+	if err != nil {
+		var uoe UnauthorizedOperationError
+		if errors.As(err, &uoe) {
+			printer.Errorf("The provided credentials do not have permission to list AWS secrets (operation %s).\n",
+				uoe.OperationName)
+			printer.Infof("Please choose a different profile, or assign this permission in AWS IAM.\n")
+			return awf_next(getProfileState)
+		}
+		return awf_error(errors.Wrapf(err, "Error while checking for the Akita credentials secret in AWS"))
+	}
+
+	// TODO: later, we could allow the user to specify a name or ask whether they want to update
+	// the existing secret with new credentials.
+
+	wf.akitaSecrets = state
 	return awf_next(confirmState)
 }
 
 func (wf *AddWorkflow) showPlannedChanges() {
 	printer.Infof("--- Planned changes ---\n")
-	printer.Infof("Create a secret %q in region %q to hold your Akita API key.\n",
-		"TODO", wf.awsRegion)
+	if !wf.akitaSecrets.idExists {
+		printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key ID.\n",
+			defaultKeyIDName, wf.awsRegion)
+	}
+	if !wf.akitaSecrets.secretExists {
+		printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key secret.\n",
+			defaultKeySecretName, wf.awsRegion)
+	}
 	printer.Infof("Create a new version %d of task definition %q which includes the Akita agent as a sidecar.\n",
 		wf.ecsTaskDefinition.Revision+1, wf.ecsTaskDefinitionFamily)
 	printer.Infof("Update service %q in cluster %q to the new task definition.\n",
@@ -653,6 +699,11 @@ func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSta
 		return awf_error(err)
 	}
 
+	wf.akitaSecrets, err = wf.checkAkitaSecrets()
+	if err != nil {
+		return awf_error(err)
+	}
+
 	wf.showPlannedChanges()
 
 	if dryRunFlag {
@@ -664,5 +715,42 @@ func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSta
 }
 
 func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
-	return awf_error(errors.New("Unimplemented!"))
+	reportStep("Add AWS Secret")
+
+	key, secret := cfg.GetAPIKeyAndSecret()
+	var secretErr error
+	if !wf.akitaSecrets.idExists {
+		secretErr = wf.createAkitaSecret(
+			defaultKeyIDName,
+			key,
+			"Akita Software API key identifier, created for use in ECS.",
+		)
+		if secretErr == nil {
+			printer.Infof("Created AWS secret %q\n", defaultKeyIDName)
+		}
+	}
+
+	if secretErr == nil && !wf.akitaSecrets.secretExists {
+		secretErr = wf.createAkitaSecret(
+			defaultKeySecretName,
+			secret,
+			"Akita Software API key secret, created for use in ECS.",
+		)
+		if secretErr == nil {
+			printer.Infof("Created AWS secret %q\n", defaultKeySecretName)
+		}
+	}
+
+	if secretErr != nil {
+		var uoe UnauthorizedOperationError
+		if errors.As(secretErr, &uoe) {
+			printer.Errorf("The provided credentials do not have permission to create or tag an AWS secret (operation %s).\n",
+				uoe.OperationName)
+			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
+			return awf_error(errors.New("Failed to add an AWS secret due to insufficient permissions."))
+		}
+		return awf_error(errors.Wrapf(secretErr, "Failed to add an AWS secret"))
+	}
+
+	return awf_error(errors.New("Next step unimplemented!"))
 }
