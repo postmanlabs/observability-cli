@@ -901,6 +901,7 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 	}
 	_, err = wf.ecsClient.UpdateService(wf.ctx, input)
 	if err != nil {
+		telemetry.Error("AWS ECS UpdateService", err)
 		if uoe, unauth := isUnauthorized(err); unauth {
 			printer.Errorf("The provided credentials do not have permission to update the ECS service %q (operation %s).\n",
 				wf.ecsServiceARN, uoe.OperationName)
@@ -922,6 +923,7 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 	if tagErr == nil {
 		printer.Infof("Tagged service %q with %q.\n", wf.ecsService, akitaModificationTagKey)
 	} else {
+		telemetry.Error("AWS ECS TagResource", err)
 		if uoe, unauth := isUnauthorized(tagErr); unauth {
 			printer.Warningf("The provided credentials do not have permission to tag the ECS service %q (operation %s).\n",
 				wf.ecsServiceARN, uoe.OperationName)
@@ -965,6 +967,7 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 		select {
 		case t := <-ticker.C:
 			if t.After(endTime) {
+				reportStep("EC2 Service Deployment Timeout")
 				printer.Warningf("Giving up after five minutes.\n")
 				if deployment.RunningCount > 0 {
 					printer.Infof("Some tasks did start, indicating that the new task definition is OK.\n")
@@ -984,6 +987,7 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 		}
 	}
 	if deployment.RolloutState == types.DeploymentRolloutStateFailed {
+		telemetry.Error("EC2 Deployment", errors.New(aws.ToString(deployment.RolloutStateReason)))
 		printer.Errorf("Deployment of the new task definition failed. The reason given by AWS is: %q",
 			aws.ToString(deployment.RolloutStateReason))
 		// TODO: guide the user through this?
