@@ -981,16 +981,15 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 				duration/time.Minute, (duration%time.Minute)/time.Second,
 				deploymentID, deployment.FailedTasks, deployment.RunningCount, deployment.PendingCount,
 				aws.ToString(deployment.Status), deployment.RolloutState)
-
-			if deployment.RolloutState == types.DeploymentRolloutStateFailed {
-				printer.Errorf("Deployment of the new task definition failed. The reason given by AWS is: %q",
-					aws.ToString(deployment.RolloutStateReason))
-				// TODO: guide the user through this?
-				printer.Infof("You can use the AWS web console to delete the task definition \"%s:%s\". The previous task definition should still be in use.\n",
-					wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
-				return awf_error(errors.New("The modified task failed to deploy. Please contact support@akitasoftware.com for assistance."))
-			}
 		}
+	}
+	if deployment.RolloutState == types.DeploymentRolloutStateFailed {
+		printer.Errorf("Deployment of the new task definition failed. The reason given by AWS is: %q",
+			aws.ToString(deployment.RolloutStateReason))
+		// TODO: guide the user through this?
+		printer.Infof("You can use the AWS web console to delete the task definition \"%s:%s\". The previous task definition should still be in use.\n",
+			wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
+		return awf_error(errors.New("The modified task failed to deploy. Please contact support@akitasoftware.com for assistance."))
 	}
 
 	reportStep("ECS Service Updated")
