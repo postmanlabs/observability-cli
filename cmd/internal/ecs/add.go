@@ -495,7 +495,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	}
 
 	if taskAnswer == goBackOption {
-		return awf_next(getRegionState)
+		return awf_next(getClusterState)
 	}
 	wf.ecsTaskDefinitionFamily = taskAnswer
 
@@ -923,7 +923,7 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 	if tagErr == nil {
 		printer.Infof("Tagged service %q with %q.\n", wf.ecsService, akitaModificationTagKey)
 	} else {
-		telemetry.Error("AWS ECS TagResource", err)
+		telemetry.Error("AWS ECS TagResource", tagErr)
 		if uoe, unauth := isUnauthorized(tagErr); unauth {
 			printer.Warningf("The provided credentials do not have permission to tag the ECS service %q (operation %s).\n",
 				wf.ecsServiceARN, uoe.OperationName)

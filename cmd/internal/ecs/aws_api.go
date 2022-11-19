@@ -305,7 +305,7 @@ func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDef
 	output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
 	if err != nil {
 		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
-		return nil, nil, err
+		return nil, nil, wrapUnauthorized(err)
 	}
 	return output.TaskDefinition, output.Tags, nil
 }
