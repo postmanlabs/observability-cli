@@ -434,6 +434,9 @@ func (wf *AddWorkflow) getServiceWithMatchingTask(serviceARN arn) (*types.Servic
 
 var noDeploymentFound = errors.New("No deployment found")
 
+// Returns the deployment of the given service that matches the ECS task
+// definition configured in the workflow. For convenience, the deployment ID
+// is also returned as a string.
 func (wf *AddWorkflow) GetDeploymentMatchingTask(serviceARN arn) (string, types.Deployment, error) {
 	service, err := wf.getService(serviceARN)
 	if err != nil {
