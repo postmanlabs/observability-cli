@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
@@ -46,6 +47,12 @@ func awf_next(f AddWorkflowState) (optionals.Optional[AddWorkflowState], error) 
 
 // Type for Amazon Resource Names, to distinguish from human-readable names
 type arn string
+
+// Convert to the type needed for AWS APIs
+func (a arn) Use() *string {
+	s := string(a)
+	return &s
+}
 
 type AddWorkflow struct {
 	currentState AddWorkflowState
@@ -541,7 +548,7 @@ func matchesImage(imageName, baseName string) bool {
 
 func (wf *AddWorkflow) loadServiceFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
 	if strings.HasPrefix(ecsServiceFlag, "arn:") {
-		service, err := wf.getService(arn(ecsServiceFlag))
+		service, err := wf.getServiceWithMatchingTask(arn(ecsServiceFlag))
 		if err != nil {
 			return awf_error(errors.Wrap(err, "Error accessing service"))
 		}
@@ -802,6 +809,8 @@ func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 
 // Create a new revision of the task definition which includes the Akita container.
 func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	reportStep("Modify ECS Task Definition")
+
 	// Copy over all the state from the existing one.
 	// IDK why they didn't reuse the types.ContainerDefinition type.
 	prev := wf.ecsTaskDefinition
@@ -870,6 +879,124 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	return awf_next(updateServiceState)
 }
 
+// Update a service with the newly created task definition
 func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
-	return awf_error(errors.New("unimplemented!"))
+	reportStep("Update ECS Service")
+
+	defer func() {
+		if err != nil {
+			printer.Warningf("The ECS service %q was not successfully updated, but a new task definition has been registered.\n",
+				wf.ecsService)
+			printer.Infof("You should visit the AWS console and either update the service to the task definition \"%s:%s\", or delete that version of the task definition.\n",
+				wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
+		}
+	}()
+
+	// The API documentation says that none of the other fields are required, and
+	// that leaving them null will leave them unchanged.
+	input := &ecs.UpdateServiceInput{
+		Service:        wf.ecsServiceARN.Use(), // documentation says "name"?
+		Cluster:        wf.ecsClusterARN.Use(),
+		TaskDefinition: wf.ecsTaskDefinitionARN.Use(),
+	}
+	_, err = wf.ecsClient.UpdateService(wf.ctx, input)
+	if err != nil {
+		telemetry.Error("AWS ECS UpdateService", err)
+		if uoe, unauth := isUnauthorized(err); unauth {
+			printer.Errorf("The provided credentials do not have permission to update the ECS service %q (operation %s).\n",
+				wf.ecsServiceARN, uoe.OperationName)
+			return awf_error(errors.New("Failed to update the ECS service due to insufficient permissions."))
+		}
+	}
+	printer.Infof("Updated service %q with new version of task definition.\n", wf.ecsService)
+
+	// Try to tag the service; this can't be done in the UpdateService call
+	// but its failure is non-fatal.
+	tagInput := &ecs.TagResourceInput{
+		ResourceArn: wf.ecsServiceARN.Use(),
+		Tags: []types.Tag{{
+			Key:   aws.String(akitaModificationTagKey),
+			Value: aws.String(akitaModificationTagValue),
+		}},
+	}
+	_, tagErr := wf.ecsClient.TagResource(wf.ctx, tagInput)
+	if tagErr == nil {
+		printer.Infof("Tagged service %q with %q.\n", wf.ecsService, akitaModificationTagKey)
+	} else {
+		telemetry.Error("AWS ECS TagResource", err)
+		if uoe, unauth := isUnauthorized(tagErr); unauth {
+			printer.Warningf("The provided credentials do not have permission to tag the ECS service %q (operation %s).\n",
+				wf.ecsServiceARN, uoe.OperationName)
+		} else {
+			printer.Warningf("Failed to tag the ECS service: %v\n", tagErr)
+		}
+		printer.Infof("The service has been modified, but it will be harder to locate it to roll back changes.\n")
+	}
+
+	return awf_next(waitForRestartState)
+}
+
+func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
+	reportStep("Wait for ECS Service")
+	startTime := time.Now()
+	endTime := startTime.Add(5 * time.Minute)
+
+	failure := errors.New("Cannot determine whether service was successfully upgraded. Please check the AWS console.\n")
+
+	// Check that there's a new deployment in the service
+	deploymentID, deployment, err := wf.GetDeploymentMatchingTask(wf.ecsServiceARN)
+	if err != nil {
+		if errors.Is(err, noDeploymentFound) {
+			printer.Errorf("Could not locate a deployment for the new task definition \"%s:%s\" (%s).\n",
+				wf.ecsTaskDefinitionFamily,
+				wf.ecsTaskDefinition.Revision,
+				wf.ecsTaskDefinitionARN)
+		} else {
+			printer.Errorf("Error checking service state: %v\n", err)
+		}
+		return awf_error(failure)
+	}
+	printer.Infof("Found new deployment with ID %q; its state is %s.\n", deploymentID, deployment.RolloutState)
+
+	if deployment.RolloutState == types.DeploymentRolloutStateInProgress {
+		printer.Infof("Waiting for the deployment to reach COMPLETED.\n")
+	}
+
+	ticker := time.NewTicker(15 * time.Second)
+	for deployment.RolloutState == types.DeploymentRolloutStateInProgress {
+		select {
+		case t := <-ticker.C:
+			if t.After(endTime) {
+				reportStep("EC2 Service Deployment Timeout")
+				printer.Warningf("Giving up after five minutes.\n")
+				if deployment.RunningCount > 0 {
+					printer.Infof("Some tasks did start, indicating that the new task definition is OK.\n")
+				}
+				return awf_error(failure)
+			}
+			deployment, err = wf.GetDeploymentByID(wf.ecsServiceARN, deploymentID)
+			if err != nil {
+				printer.Warningf("Error checking service state: %v", err)
+				continue
+			}
+			duration := time.Now().Sub(startTime)
+			printer.Infof("%02d:%02d after starting deployment %q: %d failed tasks, %d running tasks, %d pending tasks, overall status %s/%s.\n",
+				duration/time.Minute, (duration%time.Minute)/time.Second,
+				deploymentID, deployment.FailedTasks, deployment.RunningCount, deployment.PendingCount,
+				aws.ToString(deployment.Status), deployment.RolloutState)
+		}
+	}
+	if deployment.RolloutState == types.DeploymentRolloutStateFailed {
+		telemetry.Error("EC2 Deployment", errors.New(aws.ToString(deployment.RolloutStateReason)))
+		printer.Errorf("Deployment of the new task definition failed. The reason given by AWS is: %q",
+			aws.ToString(deployment.RolloutStateReason))
+		// TODO: guide the user through this?
+		printer.Infof("You can use the AWS web console to delete the task definition \"%s:%s\". The previous task definition should still be in use.\n",
+			wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
+		return awf_error(errors.New("The modified task failed to deploy. Please contact support@akitasoftware.com for assistance."))
+	}
+
+	reportStep("ECS Service Updated")
+	printer.Infof("Deployment successful! Please return to the Akita web console.\n")
+	return awf_done()
 }

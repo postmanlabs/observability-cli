@@ -42,9 +42,6 @@ var Cmd = &cobra.Command{
 	// need to return AkitaErr to not show the usage.
 	SilenceUsage: true,
 	RunE:         addAgentToECS,
-
-	// Temporarily hide from users until complete
-	Hidden: true,
 }
 
 // 'akita ecs' should default to 'akita ecs add'
@@ -62,6 +59,9 @@ var RemoveFromECSCmd = &cobra.Command{
 	Long:         "Remove a previously installed Akita container from an ECS Task.",
 	SilenceUsage: true,
 	RunE:         removeAgentFromECS,
+
+	// Temporarily hide from users until complete
+	Hidden: true,
 }
 
 func init() {
@@ -88,9 +88,9 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 	if key == "" || secret == "" {
 		printer.Errorf("No Akita API key configured. The Akita agent must have an API key in order to capture traces.\n")
 		if env.InDocker() {
-			printer.Infof("Please set the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables on the Docker command line.")
+			printer.Infof("Please set the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables on the Docker command line.\n")
 		} else {
-			printer.Infof("Use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables, or run 'akita login'.")
+			printer.Infof("Use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables, or run 'akita login'.\n")
 		}
 		return cmderr.AkitaErr{Err: errors.New("Could not find an Akita API key to use.")}
 	}

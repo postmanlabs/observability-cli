@@ -87,8 +87,19 @@ func wrapUnauthorizedFor(err error, arn arn) error {
 // Check whether we can load the config object
 func (wf *AddWorkflow) createConfig() error {
 	// Try loading credentials for the profile.
-	// TODO: specify a location inside the Docker container, if running on Docker
-	sharedConfig, err := config.LoadSharedConfigProfile(wf.ctx, wf.awsProfile)
+	// Use the default if running standalone.  Add /aws for use inside a container.
+	configFiles := []string{config.DefaultSharedConfigFilename(), "/aws/config"}
+	credentialsFiles := []string{config.DefaultSharedCredentialsFilename(), "/aws/credentials"}
+	if awsCredentialsFlag != "" {
+		credentialsFiles = append(credentialsFiles, awsCredentialsFlag)
+	}
+
+	sharedConfig, err := config.LoadSharedConfigProfile(wf.ctx, wf.awsProfile,
+		func(options *config.LoadSharedConfigOptions) {
+			options.CredentialsFiles = credentialsFiles
+			options.ConfigFiles = configFiles
+		},
+	)
 	if err != nil {
 		telemetry.Error("Load Shared Config Profile", err)
 		if _, ok := err.(config.SharedConfigProfileNotExistError); ok {
@@ -101,6 +112,8 @@ func (wf *AddWorkflow) createConfig() error {
 	// TODO: is there some way we can make this *not* include IMDS as a credentials provider?
 	cfg, err := config.LoadDefaultConfig(wf.ctx,
 		config.WithSharedConfigProfile(wf.awsProfile),
+		config.WithSharedConfigFiles(configFiles),
+		config.WithSharedCredentialsFiles(credentialsFiles),
 	)
 	if err != nil {
 		return err
@@ -302,7 +315,7 @@ func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDef
 func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
 	// Lists both Fargate and ECS services
 	input := &ecs.ListServicesInput{
-		Cluster: aws.String(string(wf.ecsClusterARN)),
+		Cluster: wf.ecsClusterARN.Use(),
 	}
 
 	// Cache of ARN to family
@@ -316,7 +329,7 @@ func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
 			return family == wf.ecsTaskDefinitionFamily
 		}
 		input := &ecs.DescribeTaskDefinitionInput{
-			TaskDefinition: aws.String(string(taskARN)),
+			TaskDefinition: taskARN.Use(),
 		}
 		output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
 		if err != nil {
@@ -361,7 +374,7 @@ func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
 		},
 		func(arns []arn) *ecs.DescribeServicesInput {
 			return &ecs.DescribeServicesInput{
-				Cluster:  aws.String(string(wf.ecsClusterARN)),
+				Cluster:  wf.ecsClusterARN.Use(),
 				Services: arnsToStrings(arns),
 			}
 		},
@@ -379,7 +392,7 @@ func (wf *AddWorkflow) listECSServices() (map[arn]string, error) {
 func (wf *AddWorkflow) getService(serviceARN arn) (*types.Service, error) {
 	input := &ecs.DescribeServicesInput{
 		Services: []string{string(serviceARN)},
-		Cluster:  aws.String(string(wf.ecsClusterARN)),
+		Cluster:  wf.ecsClusterARN.Use(),
 	}
 
 	output, err := wf.ecsClient.DescribeServices(wf.ctx, input)
@@ -390,11 +403,18 @@ func (wf *AddWorkflow) getService(serviceARN arn) (*types.Service, error) {
 	if len(output.Services) == 0 {
 		return nil, fmt.Errorf("No service with ARN %q", serviceARN)
 	}
-	svc := output.Services[0]
+	return &output.Services[0], nil
+}
+
+func (wf *AddWorkflow) getServiceWithMatchingTask(serviceARN arn) (*types.Service, error) {
+	svc, err := wf.getService(serviceARN)
+	if err != nil {
+		return nil, err
+	}
 
 	taskARN := arn(aws.ToString(svc.TaskDefinition))
 	taskInput := &ecs.DescribeTaskDefinitionInput{
-		TaskDefinition: aws.String(string(taskARN)),
+		TaskDefinition: taskARN.Use(),
 	}
 	taskOutput, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, taskInput)
 	if err != nil {
@@ -409,5 +429,41 @@ func (wf *AddWorkflow) getService(serviceARN arn) (*types.Service, error) {
 		return nil, fmt.Errorf("Mismatch between service and task definition; please choose a different task or service.")
 	}
 
-	return &svc, nil
+	return svc, nil
+}
+
+var noDeploymentFound = errors.New("No deployment found")
+
+// Returns the deployment of the given service that matches the ECS task
+// definition configured in the workflow. For convenience, the deployment ID
+// is also returned as a string.
+func (wf *AddWorkflow) GetDeploymentMatchingTask(serviceARN arn) (string, types.Deployment, error) {
+	service, err := wf.getService(serviceARN)
+	if err != nil {
+		return "", types.Deployment{}, err
+	}
+
+	for _, d := range service.Deployments {
+		if aws.ToString(d.TaskDefinition) == string(wf.ecsTaskDefinitionARN) {
+			return aws.ToString(d.Id), d, nil
+
+		}
+	}
+
+	return "", types.Deployment{}, errors.New("No deployment found")
+}
+
+func (wf *AddWorkflow) GetDeploymentByID(serviceARN arn, deploymentID string) (types.Deployment, error) {
+	service, err := wf.getService(serviceARN)
+	if err != nil {
+		return types.Deployment{}, err
+	}
+
+	for _, d := range service.Deployments {
+		if aws.ToString(d.Id) == deploymentID {
+			return d, nil
+		}
+	}
+
+	return types.Deployment{}, errors.New("No deployment found")
 }
