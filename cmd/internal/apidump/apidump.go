@@ -7,6 +7,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/akitasoftware/akita-libs/akiuri"
+
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -15,8 +17,8 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
+	"github.com/akitasoftware/akita-cli/usage"
 	"github.com/akitasoftware/akita-cli/util"
-	"github.com/akitasoftware/akita-libs/akiuri"
 )
 
 var (
@@ -54,6 +56,10 @@ var Cmd = &cobra.Command{
 	SilenceUsage: true,
 	Args:         cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		// Initialize state for computing CPU usage.  Fails if /proc files are not
+		// available, in which case usage won't be included in telemetry stats.
+		_ = usage.Init()
+
 		traceTags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {
 			return err

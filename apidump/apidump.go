@@ -210,7 +210,7 @@ func (a *apidump) SendPacketTelemetry(observedDuration int) {
 		req.PacketCountSummary = a.dumpSummary.FilterSummary.Summary(topNForSummary)
 	}
 
-	// Get CPU and memory usage.  Failure is nonblocking.
+	// Get CPU and memory usage. Failure is not fatal.
 	if stats, err := usage.Get(); err == nil {
 		req.AgentUsage = stats
 	}

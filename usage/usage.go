@@ -33,27 +33,28 @@ func Init() error {
 // since the Akita agent started.  Also returns the peak virtual memory usage
 // of the Akita agent.
 //
-// Fails if proc files are not present or Init() has not yet been called.
+// Returns nil, nil if proc files are not available.  Fails if Init() has not
+// been called.
 func Get() (*api_schema.AgentUsage, error) {
 	status, err := linux.ReadProcessStatus(selfStatusFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load %s", selfStatusFile)
+		return nil, nil
 	}
 
 	stat, err := linux.ReadProcessStat("/proc/self/stat")
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load %s", selfStatFile)
+		return nil, nil
 	}
 
 	allStat, err := linux.ReadStat(allStatFile)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load %s", allStatFile)
+		return nil, nil
 	}
 
 	if allStatAtProcessStart == nil {
 		// If we get this far, it means proc files are available but Init()
 		// wasn't called.
-		return nil, errors.Wrap(err, "called GetUsage() without Init()")
+		return nil, errors.Errorf("called GetUsage() without Init()")
 	}
 
 	// Compute the processing time for this process vs. all processes since
