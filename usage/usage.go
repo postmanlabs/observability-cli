@@ -67,7 +67,8 @@ func Get() (*api_schema.AgentUsage, error) {
 	// the last time Get() or Init() was called.
 	selfCPU := float64(stat.Utime-lastStat.Utime) + float64(stat.Stime-lastStat.Stime)
 	allCPU := float64(allStat.CPUStatAll.User-lastAllStat.CPUStatAll.User) +
-		float64(allStat.CPUStatAll.System-lastAllStat.CPUStatAll.System)
+		float64(allStat.CPUStatAll.System-lastAllStat.CPUStatAll.System) +
+		float64(allStat.CPUStatAll.Idle-lastAllStat.CPUStatAll.Idle)
 
 	return &api_schema.AgentUsage{
 		RelativeCPU: selfCPU / allCPU,
