@@ -56,9 +56,8 @@ var Cmd = &cobra.Command{
 	SilenceUsage: true,
 	Args:         cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// Initialize state for computing CPU usage.  Fails if /proc files are not
-		// available, in which case usage won't be included in telemetry stats.
-		_ = usage.Init()
+		// Initialize state for computing CPU usage for telemetry.
+		usage.Init()
 
 		traceTags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {

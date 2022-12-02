@@ -17,22 +17,12 @@ var (
 	lastAllStat *linux.Stat
 )
 
-// Records CPU processing time statistics at the start of the Akita agent.
-// Fails if proc files are not present.
-func Init() error {
-	var err error
-
-	lastAllStat, err = linux.ReadStat(allStatFile)
-	if err != nil {
-		return errors.Wrapf(err, "usage init: failed to load %s", allStatFile)
-	}
-
-	lastStat, err = linux.ReadProcessStat(selfStatFile)
-	if err != nil {
-		return errors.Wrapf(err, "usage init: failed to load %s", selfStatFile)
-	}
-
-	return nil
+// Initialize state for computing CPU/memory usage for telemetry.
+func Init() {
+	// No need to check errors here. If /proc files aren't available,
+	// subsequent calls to Get() will return nil.
+	lastAllStat, _ = linux.ReadStat(allStatFile)
+	lastStat, _ = linux.ReadProcessStat(selfStatFile)
 }
 
 // Computes the CPU usage of this process relative to all processes scheduled
