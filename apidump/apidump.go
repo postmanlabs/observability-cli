@@ -35,6 +35,7 @@ import (
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/tls_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
+	"github.com/akitasoftware/akita-cli/usage"
 	"github.com/akitasoftware/akita-cli/util"
 )
 
@@ -208,6 +209,12 @@ func (a *apidump) SendPacketTelemetry(observedDuration int) {
 	if a.dumpSummary != nil {
 		req.PacketCountSummary = a.dumpSummary.FilterSummary.Summary(topNForSummary)
 	}
+
+	// Get CPU and memory usage.  Failure is nonblocking.
+	if stats, err := usage.Get(); err == nil {
+		req.AgentUsage = stats
+	}
+
 	a.SendTelemetry(req)
 }
 

@@ -57,6 +57,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.25 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.1 // indirect
+	github.com/c9s/goprocinfo v0.0.0-20210130143923-c95fcf8c64a8 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dukex/mixpanel v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
@@ -95,6 +96,7 @@ require (
 )
 
 replace (
+    github.com/akitasoftware/akita-libs => ../akita-libs
 	// Merging google/gopacket into akitasoftware/gopacket does not
 	// bring along any tags, such as the v1.1.19 release.
 	github.com/google/gopacket v1.1.19 => github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b
