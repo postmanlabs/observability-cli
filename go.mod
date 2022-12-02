@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20220630210013-8926783978fe
-	github.com/akitasoftware/akita-libs v0.0.0-20221118194953-250f9c828eac
+	github.com/akitasoftware/akita-libs v0.0.0-20221202002331-5e4ef518e1d7
 	github.com/akitasoftware/go-utils v0.0.0-20220606224752-aad0f81bb9e7
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
@@ -96,7 +96,6 @@ require (
 )
 
 replace (
-    github.com/akitasoftware/akita-libs => ../akita-libs
 	// Merging google/gopacket into akitasoftware/gopacket does not
 	// bring along any tags, such as the v1.1.19 release.
 	github.com/google/gopacket v1.1.19 => github.com/akitasoftware/gopacket v1.1.18-0.20210730205736-879e93dac35b
