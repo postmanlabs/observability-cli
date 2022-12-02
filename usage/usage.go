@@ -13,7 +13,8 @@ const (
 )
 
 var (
-	allStatAtProcessStart *linux.Stat
+	lastStat    *linux.ProcessStat
+	lastAllStat *linux.Stat
 )
 
 // Records CPU processing time statistics at the start of the Akita agent.
@@ -21,17 +22,22 @@ var (
 func Init() error {
 	var err error
 
-	allStatAtProcessStart, err = linux.ReadStat(allStatFile)
+	lastAllStat, err = linux.ReadStat(allStatFile)
 	if err != nil {
 		return errors.Wrapf(err, "usage init: failed to load %s", allStatFile)
+	}
+
+	lastStat, err = linux.ReadProcessStat(selfStatFile)
+	if err != nil {
+		return errors.Wrapf(err, "usage init: failed to load %s", selfStatFile)
 	}
 
 	return nil
 }
 
 // Computes the CPU usage of this process relative to all processes scheduled
-// since the Akita agent started.  Also returns the peak virtual memory usage
-// of the Akita agent.
+// since Get() or Init() was last called.  Also returns the peak virtual memory
+// usage of the Akita agent.
 //
 // Returns nil, nil if proc files are not available.  Fails if Init() has not
 // been called.
@@ -41,7 +47,7 @@ func Get() (*api_schema.AgentUsage, error) {
 		return nil, nil
 	}
 
-	stat, err := linux.ReadProcessStat("/proc/self/stat")
+	stat, err := linux.ReadProcessStat(selfStatFile)
 	if err != nil {
 		return nil, nil
 	}
@@ -51,20 +57,20 @@ func Get() (*api_schema.AgentUsage, error) {
 		return nil, nil
 	}
 
-	if allStatAtProcessStart == nil {
+	if lastAllStat == nil || lastStat == nil {
 		// If we get this far, it means proc files are available but Init()
 		// wasn't called.
-		return nil, errors.Errorf("called GetUsage() without Init()")
+		return nil, errors.Errorf("called usage.Get() without usage.Init()")
 	}
 
 	// Compute the processing time for this process vs. all processes since
-	// the last time GetUsage or Init was called.
-	selfCPU := float64(stat.Utime) + float64(stat.Stime)
-	allCPUSinceProcessStart := float64(allStat.CPUStatAll.User-allStatAtProcessStart.CPUStatAll.User) +
-		float64(allStat.CPUStatAll.System-allStatAtProcessStart.CPUStatAll.System)
+	// the last time Get() or Init() was called.
+	selfCPU := float64(stat.Utime-lastStat.Utime) + float64(stat.Stime-lastStat.Stime)
+	allCPU := float64(allStat.CPUStatAll.User-lastAllStat.CPUStatAll.User) +
+		float64(allStat.CPUStatAll.System-lastAllStat.CPUStatAll.System)
 
 	return &api_schema.AgentUsage{
-		RelativeCPU: selfCPU / allCPUSinceProcessStart,
+		RelativeCPU: selfCPU / allCPU,
 		VMPeak:      status.VmPeak,
 	}, nil
 }
