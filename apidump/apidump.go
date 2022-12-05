@@ -117,6 +117,9 @@ type Args struct {
 	// Periodically report telemetry every N seconds thereafter
 	TelemetryInterval int
 
+	// Periodically poll /proc fs for agent resource usage every N seconds.
+	ProcFSPollingInterval int
+
 	// Whether to report TCP connections and TLS handshakes.
 	CollectTCPAndTLSReports bool
 
@@ -204,15 +207,11 @@ func isBpfFilterError(e error) bool {
 // Update the backend with new current capture stats.
 func (a *apidump) SendPacketTelemetry(observedDuration int) {
 	req := &kgxapi.PostClientPacketCaptureStatsRequest{
+		AgentResourceUsage:        usage.Get(),
 		ObservedDurationInSeconds: observedDuration,
 	}
 	if a.dumpSummary != nil {
 		req.PacketCountSummary = a.dumpSummary.FilterSummary.Summary(topNForSummary)
-	}
-
-	// Get CPU and memory usage. Failure is not fatal.
-	if stats, err := usage.Get(); err == nil {
-		req.AgentUsage = stats
 	}
 
 	a.SendTelemetry(req)
@@ -588,6 +587,7 @@ func (a *apidump) Run() error {
 	// If we're sending traffic to the cloud, then start telemetry and stop
 	// when the main collection process does.
 	if a.TargetIsRemote() {
+		go usage.Poll(stop, time.Duration(a.ProcFSPollingInterval)*time.Second)
 		go a.TelemetryWorker(stop)
 	}
 

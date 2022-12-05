@@ -17,7 +17,6 @@ import (
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
-	"github.com/akitasoftware/akita-cli/usage"
 	"github.com/akitasoftware/akita-cli/util"
 )
 
@@ -42,6 +41,7 @@ var (
 	deploymentFlag          string
 	statsLogDelay           int
 	telemetryInterval       int
+	procFSPollingInterval   int
 	collectTCPAndTLSReports bool
 	parseTLSHandshakes      bool
 	maxWitnessSize_bytes    int
@@ -56,9 +56,6 @@ var Cmd = &cobra.Command{
 	SilenceUsage: true,
 	Args:         cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// Initialize state for computing CPU usage for telemetry.
-		usage.Init()
-
 		traceTags, err := util.ParseTagsAndWarn(tagsFlag)
 		if err != nil {
 			return err
@@ -178,6 +175,7 @@ var Cmd = &cobra.Command{
 			Deployment:              deploymentFlag,
 			StatsLogDelay:           statsLogDelay,
 			TelemetryInterval:       telemetryInterval,
+			ProcFSPollingInterval:   procFSPollingInterval,
 			CollectTCPAndTLSReports: collectTCPAndTLSReports,
 			ParseTLSHandshakes:      parseTLSHandshakes,
 			MaxWitnessSize_bytes:    maxWitnessSize_bytes,
@@ -340,6 +338,14 @@ func init() {
 		"Upload client telemetry every N seconds.",
 	)
 	Cmd.Flags().MarkHidden("telemetry-interval")
+
+	Cmd.Flags().IntVar(
+		&procFSPollingInterval,
+		"proc-polling-interval",
+		apispec.DefaultProcFSPollingInterval_seconds,
+		"Collect agent resource usage from the /proc filesystem (if available) every N seconds.",
+	)
+	Cmd.Flags().MarkHidden("proc-polling-interval")
 
 	Cmd.Flags().BoolVar(
 		&collectTCPAndTLSReports,
