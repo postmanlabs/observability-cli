@@ -16,6 +16,7 @@ import (
 	"github.com/akitasoftware/akita-libs/api_schema"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/buffer_pool"
+	"github.com/akitasoftware/go-utils/math"
 	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -587,7 +588,18 @@ func (a *apidump) Run() error {
 	// If we're sending traffic to the cloud, then start telemetry and stop
 	// when the main collection process does.
 	if a.TargetIsRemote() {
-		go usage.Poll(stop, time.Duration(a.ProcFSPollingInterval)*time.Second)
+		{
+			// Record the first resource usage data slightly before the
+			// stats log delay to ensure we include usage data in the first
+			// telemetry upload.
+			var delay time.Duration
+			if 0 < a.StatsLogDelay {
+				delay = time.Duration(math.Max(a.StatsLogDelay-5, 1)) * time.Second
+			}
+
+			go usage.Poll(stop, delay, time.Duration(a.ProcFSPollingInterval)*time.Second)
+		}
+
 		go a.TelemetryWorker(stop)
 	}
 

@@ -60,9 +60,9 @@ func Get() *api_schema.AgentResourceUsage {
 	return agentResourceUsage
 }
 
-// Starts polling resource usage every N seconds.  Use Get() to get the latest
+// Waits delay seconds, then starts polling resource usage every N seconds.  Use Get() to get the latest
 // usage data.
-func Poll(done <-chan struct{}, pollingInterval time.Duration) {
+func Poll(done <-chan struct{}, delay time.Duration, pollingInterval time.Duration) {
 	// Check if polling is disabled.
 	if pollingInterval <= 0 {
 		return
@@ -77,6 +77,7 @@ func Poll(done <-chan struct{}, pollingInterval time.Duration) {
 
 	history = queues.NewLinkedListQueue[statHistory]()
 
+	// Immediately record /proc state to compare against later.
 	stat, status, allStat, err := readProcFS()
 	if err != nil {
 		printer.Infof("Unable to poll for agent resource usage: %s\n", err)
@@ -89,8 +90,19 @@ func Poll(done <-chan struct{}, pollingInterval time.Duration) {
 		allStat: allStat,
 	})
 
-	ticker := time.NewTicker(pollingInterval)
+	// Record usage after delay, then transition into recording every
+	// pollingInterval.
+	if delay >= 0 {
+		time.Sleep(delay)
 
+		if err := poll(pollingInterval); err != nil {
+			printer.Infof("Unable to poll for agent resource usage: %s\n", err)
+			return
+		}
+	}
+
+	// Record usage every pollingInterval.
+	ticker := time.NewTicker(pollingInterval)
 	for {
 		select {
 		case <-done:
