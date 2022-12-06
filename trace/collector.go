@@ -7,6 +7,7 @@ import (
 
 	"github.com/OneOfOne/xxhash"
 	"github.com/akitasoftware/akita-libs/client_telemetry"
+	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
@@ -102,6 +103,15 @@ type PacketCountCollector struct {
 	Collector    Collector
 }
 
+// Don't record self-generated traffic in the breakdown by hostname,
+// unless the --dogfood flag has been set.
+func (pc *PacketCountCollector) IncludeHostName(tlsName string) bool {
+	if tlsName == "api.akita.software" {
+		return viper.GetBool("dogfood")
+	}
+	return true
+}
+
 func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 	switch c := t.Content.(type) {
 	case akinet.HTTPRequest:
@@ -128,13 +138,15 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			dstHost = *c.Hostname
 		}
 
-		pc.PacketCounts.Update(client_telemetry.PacketCounts{
-			Interface: t.Interface,
-			DstHost:   dstHost,
-			SrcPort:   t.SrcPort,
-			DstPort:   t.DstPort,
-			TLSHello:  1,
-		})
+		if pc.IncludeHostName(dstHost) {
+			pc.PacketCounts.Update(client_telemetry.PacketCounts{
+				Interface: t.Interface,
+				DstHost:   dstHost,
+				SrcPort:   t.SrcPort,
+				DstPort:   t.DstPort,
+				TLSHello:  1,
+			})
+		}
 	case akinet.TLSServerHello:
 		// Ideally, we would pick the DNS name the client used in the
 		// Client Hello, but we don't pair those messages.  Barring that, any
@@ -146,13 +158,15 @@ func (pc *PacketCountCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			dstHost = c.DNSNames[len(c.DNSNames)-1]
 		}
 
-		pc.PacketCounts.Update(client_telemetry.PacketCounts{
-			Interface: t.Interface,
-			DstHost:   dstHost,
-			SrcPort:   t.SrcPort,
-			DstPort:   t.DstPort,
-			TLSHello:  1,
-		})
+		if pc.IncludeHostName(dstHost) {
+			pc.PacketCounts.Update(client_telemetry.PacketCounts{
+				Interface: t.Interface,
+				DstHost:   dstHost,
+				SrcPort:   t.SrcPort,
+				DstPort:   t.DstPort,
+				TLSHello:  1,
+			})
+		}
 	case akinet.TCPPacketMetadata, akinet.TCPConnectionMetadata:
 		// Don't count TCP metadata.
 	case akinet.TLSHandshakeMetadata:
