@@ -43,6 +43,11 @@ var (
 	// N = slidingWindowSize/pollingInterval.
 	history queues.Queue[statHistory]
 
+	// Peak usage over the lifetime of the agent.
+	peakCoresUsed   float64
+	peakRelativeCPU float64
+	peakVM          uint64
+
 	// Only report errors during the first polling operation.
 	finishedFirstPoll bool
 
@@ -151,14 +156,20 @@ func poll(pollingInterval time.Duration) error {
 	allCPU := float64(allStat.CPUStatAll.User-lastAllStat.CPUStatAll.User) +
 		float64(allStat.CPUStatAll.System-lastAllStat.CPUStatAll.System) +
 		float64(allStat.CPUStatAll.Idle-lastAllStat.CPUStatAll.Idle)
+
 	relativeCPU := selfCPU / allCPU
+	peakRelativeCPU = math.Max(peakRelativeCPU, relativeCPU)
+
 	coresUsed := relativeCPU * float64(len(allStat.CPUStats))
+	peakCoresUsed = math.Max(peakCoresUsed, coresUsed)
 
 	// Get highest recorded VM high water mark.
 	vmHWM := status.VmHWM
 	history.ForEach(func(h statHistory) {
 		vmHWM = math.Max(vmHWM, h.status.VmHWM)
 	})
+
+	peakVM = math.Max(peakVM, vmHWM)
 
 	// Update history.
 	history.Enqueue(statHistory{
@@ -191,9 +202,16 @@ func poll(pollingInterval time.Duration) error {
 	defer agentResourceUsageMutex.Unlock()
 
 	agentResourceUsage = &api_schema.AgentResourceUsage{
-		CoresUsed:                 coresUsed,
-		RelativeCPU:               relativeCPU,
-		VmHWM:                     vmHWM,
+		Recent: api_schema.AgentResourceUsageData{
+			CoresUsed:   coresUsed,
+			RelativeCPU: relativeCPU,
+			VmHWM:       vmHWM,
+		},
+		Peak: api_schema.AgentResourceUsageData{
+			CoresUsed:   peakCoresUsed,
+			RelativeCPU: peakRelativeCPU,
+			VmHWM:       peakVM,
+		},
 		ObservedStartingAt:        observedStartingAt,
 		ObservedDurationInSeconds: int(observedDuration.Seconds()),
 	}
