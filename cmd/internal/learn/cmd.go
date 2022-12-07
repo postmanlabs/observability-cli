@@ -184,6 +184,7 @@ func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key
 		Deployment:              apispec.DefaultDeployment,
 		StatsLogDelay:           statsLogDelay,
 		TelemetryInterval:       apispec.DefaultTelemetryInterval_seconds,
+		ProcFSPollingInterval:   apispec.DefaultProcFSPollingInterval_seconds,
 		CollectTCPAndTLSReports: apispec.DefaultCollectTCPAndTLSReports,
 		ParseTLSHandshakes:      apispec.DefaultParseTLSHandshakes,
 		MaxWitnessSize_bytes:    apispec.DefaultMaxWitnessSize_bytes,
