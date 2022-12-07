@@ -19,8 +19,9 @@ const (
 	selfStatFile   = "/proc/self/stat"
 	allStatFile    = "/proc/stat"
 
-	clearRefsFile = "/proc/self/clear_refs"
+	// Writing clearRefsCode to clearRefsFile resets the VM high-water mark.
 	clearRefsCode = "5"
+	clearRefsFile = "/proc/self/clear_refs"
 )
 
 type statHistory struct {
@@ -39,7 +40,7 @@ var (
 	agentResourceUsageMutex sync.Mutex
 
 	// Contains up to N samples, one per polling interval, where
-	// N * pollingInterval = slidingWindowSize.
+	// N = slidingWindowSize/pollingInterval.
 	history queues.Queue[statHistory]
 
 	// Only report errors during the first polling operation.
@@ -51,8 +52,13 @@ var (
 )
 
 // Returns a 1-hour sliding window reflecting this Akita agent's CPU and
-// memory usage, updated every 5 minutes, or nil if resource usage is
-// unavailable.
+// memory usage, updated every pollingInterval minutes, or nil if resource
+// usage is unavailable.
+//
+// The polling interval is set by the first call to Poll().  If the interval
+// doesn't evenly divide a 1-hour sliding window, the sliding window becomes
+// the largest multiple of the polling interval less than 1 hour, or simply
+// the polling interval if longer than 1 hour.
 func Get() *api_schema.AgentResourceUsage {
 	agentResourceUsageMutex.Lock()
 	defer agentResourceUsageMutex.Unlock()
@@ -60,20 +66,20 @@ func Get() *api_schema.AgentResourceUsage {
 	return agentResourceUsage
 }
 
-// Waits delay seconds, then starts polling resource usage every N seconds.  Use Get() to get the latest
-// usage data.
+// Waits delay seconds, then starts polling resource usage every N seconds.
+// If another process has already started polling, this call has no effect.
+// Use Get() to get the latest usage data.
 func Poll(done <-chan struct{}, delay time.Duration, pollingInterval time.Duration) {
 	// Check if polling is disabled.
 	if pollingInterval <= 0 {
 		return
 	}
 
-	// Ensure only one thread is polling.
-	if !shouldStartPolling() {
+	// Return if isPolling is already true to ensure only one thread is polling.
+	if testAndSetPolling(true) {
 		return
 	}
-	setIsPolling(true)
-	defer setIsPolling(false)
+	defer testAndSetPolling(false)
 
 	history = queues.NewLinkedListQueue[statHistory]()
 
@@ -155,13 +161,16 @@ func poll(pollingInterval time.Duration) error {
 	})
 
 	// Update history.
-	if history.Size() >= int(slidingWindowSize/pollingInterval) {
+	history.Enqueue(statHistory{
+		stat:    stat,
+		status:  status,
+		allStat: allStat,
+	})
+
+	// If the history has filled the sliding window, evict the oldest.  There
+	// will always be at least one element in the history.
+	if history.Size() > math.Max(int(slidingWindowSize/pollingInterval), 1) {
 		history.Dequeue()
-		history.Enqueue(statHistory{
-			stat:    stat,
-			status:  status,
-			allStat: allStat,
-		})
 	}
 
 	// Clear VM high-water mark.
@@ -212,18 +221,13 @@ func readProcFS() (stat *linux.ProcessStat, status *linux.ProcessStatus, allStat
 	return stat, status, allStat, nil
 }
 
-// Returns true if polling has not already started.
-func shouldStartPolling() bool {
+// Sets isPolling and returns its old value.
+func testAndSetPolling(v bool) bool {
 	isPollingMutex.Lock()
 	defer isPollingMutex.Unlock()
 
-	return !isPolling
-}
-
-// Sets the isPolling variable, guarded by isPollingMutex.
-func setIsPolling(v bool) {
-	isPollingMutex.Lock()
-	defer isPollingMutex.Unlock()
-
+	old := isPolling
 	isPolling = v
+
+	return old
 }
