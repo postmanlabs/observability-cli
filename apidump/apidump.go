@@ -16,6 +16,7 @@ import (
 	"github.com/akitasoftware/akita-libs/api_schema"
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/buffer_pool"
+	"github.com/akitasoftware/go-utils/math"
 	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -37,6 +38,7 @@ import (
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/tls_conn_tracker"
 	"github.com/akitasoftware/akita-cli/trace"
+	"github.com/akitasoftware/akita-cli/usage"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-cli/version"
 )
@@ -118,6 +120,9 @@ type Args struct {
 
 	// Periodically report telemetry every N seconds thereafter
 	TelemetryInterval int
+
+	// Periodically poll /proc fs for agent resource usage every N seconds.
+	ProcFSPollingInterval int
 
 	// Whether to report TCP connections and TLS handshakes.
 	CollectTCPAndTLSReports bool
@@ -225,11 +230,13 @@ func isBpfFilterError(e error) bool {
 // Update the backend with new current capture stats.
 func (a *apidump) SendPacketTelemetry(observedDuration int) {
 	req := &kgxapi.PostClientPacketCaptureStatsRequest{
+		AgentResourceUsage:        usage.Get(),
 		ObservedDurationInSeconds: observedDuration,
 	}
 	if a.dumpSummary != nil {
 		req.PacketCountSummary = a.dumpSummary.FilterSummary.Summary(topNForSummary)
 	}
+
 	a.SendTelemetry(req)
 }
 
@@ -603,6 +610,18 @@ func (a *apidump) Run() error {
 	// If we're sending traffic to the cloud, then start telemetry and stop
 	// when the main collection process does.
 	if a.TargetIsRemote() {
+		{
+			// Record the first resource usage data slightly before the
+			// stats log delay to ensure we include usage data in the first
+			// telemetry upload.
+			var delay time.Duration
+			if 0 < a.StatsLogDelay {
+				delay = time.Duration(math.Max(a.StatsLogDelay-5, 1)) * time.Second
+			}
+
+			go usage.Poll(stop, delay, time.Duration(a.ProcFSPollingInterval)*time.Second)
+		}
+
 		go a.TelemetryWorker(stop)
 	}
 
