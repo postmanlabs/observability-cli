@@ -25,9 +25,10 @@ const (
 )
 
 type statHistory struct {
-	stat    *linux.ProcessStat
-	status  *linux.ProcessStatus
-	allStat *linux.Stat
+	observedAt time.Time
+	stat       *linux.ProcessStat
+	status     *linux.ProcessStatus
+	allStat    *linux.Stat
 }
 
 // Compute a 1-hour sliding window.
@@ -96,9 +97,10 @@ func Poll(done <-chan struct{}, delay time.Duration, pollingInterval time.Durati
 	}
 
 	history.Enqueue(statHistory{
-		stat:    stat,
-		status:  status,
-		allStat: allStat,
+		observedAt: time.Now(),
+		stat:       stat,
+		status:     status,
+		allStat:    allStat,
 	})
 
 	// Record usage after delay, then transition into recording every
@@ -135,7 +137,6 @@ func poll(pollingInterval time.Duration) error {
 		printer.Infof(msg, args...)
 	}
 
-	observedAt := time.Now()
 	stat, status, allStat, err := readProcFS()
 	if err != nil {
 		return err
@@ -172,10 +173,12 @@ func poll(pollingInterval time.Duration) error {
 	peakVM = math.Max(peakVM, vmHWM)
 
 	// Update history.
+	observedAt := time.Now()
 	history.Enqueue(statHistory{
-		stat:    stat,
-		status:  status,
-		allStat: allStat,
+		observedAt: observedAt,
+		stat:       stat,
+		status:     status,
+		allStat:    allStat,
 	})
 
 	// If the history has filled the sliding window, evict the oldest.  There
@@ -194,8 +197,8 @@ func poll(pollingInterval time.Duration) error {
 		}
 	}
 
-	observedDuration := time.Duration(history.Size()) * pollingInterval
-	observedStartingAt := observedAt.Add(-observedDuration)
+	observedDuration := observedAt.Sub(oldestStats.observedAt)
+	observedStartingAt := oldestStats.observedAt
 
 	// Update the usage data.
 	agentResourceUsageMutex.Lock()
