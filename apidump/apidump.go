@@ -25,8 +25,10 @@ import (
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/tags"
 
+	"github.com/akitasoftware/akita-cli/architecture"
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
+	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/location"
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/plugin"
@@ -38,6 +40,7 @@ import (
 	"github.com/akitasoftware/akita-cli/trace"
 	"github.com/akitasoftware/akita-cli/usage"
 	"github.com/akitasoftware/akita-cli/util"
+	"github.com/akitasoftware/akita-cli/version"
 )
 
 // TODO(kku): make pcap timings more robust (e.g. inject a sentinel packet to
@@ -180,13 +183,32 @@ func (a *apidump) LookupService() error {
 
 // Send the initial mesage to the backend indicating successful start
 func (a *apidump) SendInitialTelemetry() {
-	// The observed duration serves as a key for upsert, so
-	// it should be the same on the initial empty report indicating
-	// succesful startup, and the one sixty seconds later.
-	req := &kgxapi.PostClientPacketCaptureStatsRequest{
-		ObservedDurationInSeconds: a.StatsLogDelay,
+	// Do not send packet capture telemetry for local captures.
+	if !a.TargetIsRemote() {
+		return
 	}
-	a.SendTelemetry(req)
+
+	// XXX(cns):  The observed duration serves as a key for upserting packet
+	//    telemetry, so it needs to be the same here as in the packet
+	//    telemetry sent sixty seconds after startup.
+	req := kgxapi.PostInitialClientTelemetryRequest{
+		ClientID:                  a.ClientID,
+		ObservedStartingAt:        a.startTime,
+		ObservedDurationInSeconds: a.StatsLogDelay,
+		CLIVersion:                version.ReleaseVersion().String(),
+		CLITargetArch:             architecture.GetCanonicalArch(),
+		AkitaDockerRelease:        env.InDocker(),
+		DockerDesktop:             env.HasDockerInternalHostAddress(),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
+	defer cancel()
+	err := a.learnClient.PostInitialClientTelemetry(ctx, a.backendSvc, a.Deployment, req)
+	if err != nil {
+		// Log an error and continue.
+		printer.Stderr.Errorf("Failed to send initial telemetry statistics: %s\n", err)
+		telemetry.Error("telemetry", err)
+	}
 }
 
 // Send a message to the backend indicating failure to start and a cause

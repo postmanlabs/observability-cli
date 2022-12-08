@@ -201,6 +201,16 @@ func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serv
 	return c.post(ctx, path, req, &resp)
 }
 
+func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostInitialClientTelemetryRequest) error {
+	if deployment == "" {
+		return errors.Errorf("missing deployment tag")
+	}
+
+	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s/start", serviceID, deployment)
+	var resp struct{}
+	return c.post(ctx, path, req, &resp)
+}
+
 func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpecID, versionName string) error {
 	resp := struct {
 	}{}
