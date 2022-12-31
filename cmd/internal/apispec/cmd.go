@@ -33,7 +33,7 @@ func parseTime(s string) (time.Time, error) {
 }
 
 var Cmd = &cobra.Command{
-	Deprecated:   "API models are created automatically in the Akita app.",
+	Deprecated:   "use apidump instead. API models are now created automatically in the Akita app.",
 	Use:          "apispec",
 	Short:        "Convert traces into an OpenAPI3 specification.",
 	SilenceUsage: true,
