@@ -3,6 +3,7 @@ package cloud_client
 import (
 	"fmt"
 
+	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/plugin"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -159,7 +160,7 @@ func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnC
 		loggingOptions.TraceID,
 		learnClient,
 		// TODO Make this configurable.
-		optionals.Some(apispec.DefaultMaxWitnessSize_bytes),
+		optionals.Some(apidump.DefaultMaxWitnessSize_bytes),
 		packetCountSummary,
 		plugins,
 	)

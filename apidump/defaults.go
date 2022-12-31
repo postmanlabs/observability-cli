@@ -1,4 +1,4 @@
-package apispec
+package apidump
 
 import "time"
 
@@ -23,7 +23,8 @@ const (
 	// How many requests to capture per minute.
 	DefaultRateLimit = 1000.0
 
-	// How long to wait after starting up before printing packet-capture statistics.
+	// How long to wait after starting up before printing packet-capture
+	// statistics.
 	DefaultStatsLogDelay_seconds = 60
 
 	// How often to upload client telemetry.

@@ -14,34 +14,6 @@ import (
 	"github.com/akitasoftware/akita-libs/sampled_err"
 )
 
-// Extract witnesses from a local HAR file and send them to the collector.
-// Returns the number of entries extracted.
-func ProcessHAR(col trace.Collector, p string) (int, error) {
-	harContent, err := hl.LoadCustomHARFromFile(p)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to load HAR file %s", p)
-	}
-
-	if harContent.AkitaExt.Outbound {
-		// HAR content was filtered by the user. Ignore it.
-		return 0, nil
-	}
-
-	successCount, errs := ParseFromHAR(col, harContent.Log)
-	if errs.TotalCount > 0 {
-		entriesCount := len(harContent.Log.Entries)
-		printer.Stderr.Warningf("Encountered errors with %d HAR file entries.\n", entriesCount-successCount)
-		printer.Stderr.Warningf("Akita will ignore entries with errors and generate a spec from the %d entries successfully processed.\n", successCount)
-
-		printer.Stderr.Warningf("Sample errors:\n")
-		for _, e := range errs.Samples {
-			printer.Stderr.Warningf("\t- %s\n", e)
-		}
-	}
-
-	return successCount, nil
-}
-
 // ReconstructedTimestamps holds times we can use to fill in
 // a ParsedNetworkTraffic, in such a way that the reported
 // latencies in the Witness will end up the same as in the HAR

@@ -15,7 +15,6 @@ import (
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidiff"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
-	"github.com/akitasoftware/akita-cli/cmd/internal/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ascii"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -26,7 +25,6 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
 	"github.com/akitasoftware/akita-cli/cmd/internal/login"
 	"github.com/akitasoftware/akita-cli/cmd/internal/setversion"
-	"github.com/akitasoftware/akita-cli/cmd/internal/upload"
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -258,12 +256,10 @@ func init() {
 	// be guarded by ci_guard.
 	rootCmd.AddCommand(ci_guard.GuardCommand(apidiff.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(apidump.Cmd))
-	rootCmd.AddCommand(ci_guard.GuardCommand(apispec.Cmd))
 	rootCmd.AddCommand(daemon.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(learn.Cmd))
 	rootCmd.AddCommand(login.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(setversion.Cmd))
-	rootCmd.AddCommand(ci_guard.GuardCommand(upload.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(get.Cmd))
 	rootCmd.AddCommand(ecs.Cmd)
 

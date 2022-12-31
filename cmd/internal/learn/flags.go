@@ -1,7 +1,7 @@
 package learn
 
 import (
-	"github.com/akitasoftware/akita-cli/apispec"
+	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/akiflag"
 	"github.com/akitasoftware/akita-cli/location"
 )
@@ -126,7 +126,7 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 	Cmd.Flags().Float64Var(
 		&rateLimitFlag,
 		"rate-limit",
-		apispec.DefaultRateLimit,
+		apidump.DefaultRateLimit,
 		"Number of requests per minute to capture.",
 	)
 
@@ -167,7 +167,7 @@ You may specify multiple interfaces by using a comma-separated list (e.g.
 	Cmd.Flags().IntVar(
 		&statsLogDelay,
 		"stats-log-delay",
-		apispec.DefaultStatsLogDelay_seconds,
+		apidump.DefaultStatsLogDelay_seconds,
 		"Print packet capture statistics after N seconds.",
 	)
 	// GitHub integration flags.
