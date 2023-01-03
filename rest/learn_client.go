@@ -101,7 +101,6 @@ func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []ak
 	req := map[string]interface{}{
 		"name":              name,
 		"learn_session_ids": lrns,
-		"path_patterns":     opts.PathPatterns,
 		"path_exclusions":   pathExclusions,
 		"tags":              opts.Tags,
 		"versions":          opts.Versions,
