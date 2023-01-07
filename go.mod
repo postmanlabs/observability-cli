@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20220630210013-8926783978fe
-	github.com/akitasoftware/akita-libs v0.0.0-20221207213550-831712c54d01
+	github.com/akitasoftware/akita-libs v0.0.0-20230103125718-fa356d4b7c3c
 	github.com/akitasoftware/go-utils v0.0.0-20221207014235-6f4c9079488d
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
@@ -15,9 +15,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.17.10
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.69.0
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.18.26
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.16.7
 	github.com/aws/smithy-go v1.13.4
+	github.com/c9s/goprocinfo v0.0.0-20210130143923-c95fcf8c64a8
 	github.com/gdamore/tcell/v2 v2.1.0
-	github.com/ghodss/yaml v1.0.0
 	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f
 	github.com/golang/mock v1.3.1
 	github.com/golang/protobuf v1.5.2
@@ -53,11 +54,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.26 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.19 // indirect
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.16.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.25 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.17.1 // indirect
-	github.com/c9s/goprocinfo v0.0.0-20210130143923-c95fcf8c64a8 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dukex/mixpanel v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
