@@ -1,8 +1,12 @@
-package apidump
+package apispec
 
 import "time"
 
 // Specifies default values for command-line parameters.
+//
+// These really ought to live in apidump, but that package depends on libpcap.
+// So we put these constants here to pulling in libpcap when importing these
+// constants.
 const (
 	// Whether to send TCP and TLS reports to the back end.
 	//
@@ -23,8 +27,7 @@ const (
 	// How many requests to capture per minute.
 	DefaultRateLimit = 1000.0
 
-	// How long to wait after starting up before printing packet-capture
-	// statistics.
+	// How long to wait after starting up before printing packet-capture statistics.
 	DefaultStatsLogDelay_seconds = 60
 
 	// How often to upload client telemetry.

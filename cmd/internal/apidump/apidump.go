@@ -10,6 +10,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akiuri"
 
 	"github.com/akitasoftware/akita-cli/apidump"
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -118,13 +119,13 @@ var Cmd = &cobra.Command{
 				}
 			} else {
 				if outFlag.AkitaURI.ObjectName == "" {
-					traceRotateInterval = apidump.DefaultTraceRotateInterval
+					traceRotateInterval = apispec.DefaultTraceRotateInterval
 				}
 			}
 		}
 
 		if deploymentFlag == "" {
-			deploymentFlag = apidump.DefaultDeployment
+			deploymentFlag = apispec.DefaultDeployment
 			if os.Getenv("AKITA_DEPLOYMENT") != "" {
 				deploymentFlag = os.Getenv("AKITA_DEPLOYMENT")
 			}
@@ -237,7 +238,7 @@ func init() {
 	Cmd.Flags().Float64Var(
 		&rateLimitFlag,
 		"rate-limit",
-		apidump.DefaultRateLimit,
+		apispec.DefaultRateLimit,
 		"Number of requests per minute to capture.",
 	)
 
@@ -326,14 +327,14 @@ func init() {
 	Cmd.Flags().IntVar(
 		&statsLogDelay,
 		"stats-log-delay",
-		apidump.DefaultStatsLogDelay_seconds,
+		apispec.DefaultStatsLogDelay_seconds,
 		"Print packet capture statistics after N seconds.",
 	)
 
 	Cmd.Flags().IntVar(
 		&telemetryInterval,
 		"telemetry-interval",
-		apidump.DefaultTelemetryInterval_seconds,
+		apispec.DefaultTelemetryInterval_seconds,
 		"Upload client telemetry every N seconds.",
 	)
 	Cmd.Flags().MarkHidden("telemetry-interval")
@@ -341,7 +342,7 @@ func init() {
 	Cmd.Flags().IntVar(
 		&procFSPollingInterval,
 		"proc-polling-interval",
-		apidump.DefaultProcFSPollingInterval_seconds,
+		apispec.DefaultProcFSPollingInterval_seconds,
 		"Collect agent resource usage from the /proc filesystem (if available) every N seconds.",
 	)
 	Cmd.Flags().MarkHidden("proc-polling-interval")
@@ -349,7 +350,7 @@ func init() {
 	Cmd.Flags().BoolVar(
 		&collectTCPAndTLSReports,
 		"report-tcp-and-tls",
-		apidump.DefaultCollectTCPAndTLSReports,
+		apispec.DefaultCollectTCPAndTLSReports,
 		"Collect TCP and TLS reports.",
 	)
 	Cmd.Flags().MarkHidden("report-tcp-and-tls")
@@ -357,7 +358,7 @@ func init() {
 	Cmd.Flags().BoolVar(
 		&parseTLSHandshakes,
 		"parse-tls-handshakes",
-		apidump.DefaultParseTLSHandshakes,
+		apispec.DefaultParseTLSHandshakes,
 		"Parse TLS handshake packets.",
 	)
 	Cmd.Flags().MarkHidden("parse-tls-handshakes")
@@ -365,7 +366,7 @@ func init() {
 	Cmd.Flags().IntVar(
 		&maxWitnessSize_bytes,
 		"max-witness-size-bytes",
-		apidump.DefaultMaxWitnessSize_bytes,
+		apispec.DefaultMaxWitnessSize_bytes,
 		"Don't send witnesses larger than this.",
 	)
 	Cmd.Flags().MarkHidden("max-witness-size-bytes")

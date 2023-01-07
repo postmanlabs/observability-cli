@@ -260,6 +260,12 @@ func init() {
 	rootCmd.AddCommand(ci_guard.GuardCommand(learn.Cmd))
 	rootCmd.AddCommand(login.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(setversion.Cmd))
+
+	// The upload command is disabled until the back end can support it properly.
+	// Keeping its code around until we can resurrect this feature.
+	//
+	// rootCmd.AddCommand(ci_guard.GuardCommand(upload.Cmd))
+
 	rootCmd.AddCommand(ci_guard.GuardCommand(get.Cmd))
 	rootCmd.AddCommand(ecs.Cmd)
 
