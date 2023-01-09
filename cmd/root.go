@@ -25,6 +25,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/learn"
 	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
 	"github.com/akitasoftware/akita-cli/cmd/internal/login"
+	"github.com/akitasoftware/akita-cli/cmd/internal/nginx"
 	"github.com/akitasoftware/akita-cli/cmd/internal/setversion"
 	"github.com/akitasoftware/akita-cli/cmd/internal/upload"
 	"github.com/akitasoftware/akita-cli/pcap"
@@ -266,6 +267,7 @@ func init() {
 	rootCmd.AddCommand(ci_guard.GuardCommand(upload.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(get.Cmd))
 	rootCmd.AddCommand(ecs.Cmd)
+	rootCmd.AddCommand(nginx.Cmd)
 
 	// Legacy commands, included for backward compatibility but are hidden.
 	legacy.SessionsCmd.Hidden = true
