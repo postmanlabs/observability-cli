@@ -3,6 +3,10 @@ package apispec
 import "time"
 
 // Specifies default values for command-line parameters.
+//
+// These really ought to live in apidump, but that package depends on libpcap.
+// So we put these constants here to avoid pulling in libpcap when importing
+// these constants.
 const (
 	// Whether to send TCP and TLS reports to the back end.
 	//

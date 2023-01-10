@@ -9,7 +9,6 @@ import (
 	"github.com/akitasoftware/akita-libs/daemon"
 	"github.com/akitasoftware/akita-libs/github"
 	"github.com/akitasoftware/akita-libs/gitlab"
-	pp "github.com/akitasoftware/akita-libs/path_pattern"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
 	"github.com/akitasoftware/akita-libs/time_span"
@@ -22,7 +21,6 @@ type GetSpecOptions struct {
 type CreateSpecOptions struct {
 	Tags           map[tags.Key]string
 	Versions       []string
-	PathPatterns   []pp.Pattern
 	PathExclusions []*regexp.Regexp
 	GitHubPR       *github.PRInfo
 	GitLabMR       *gitlab.MRInfo
