@@ -14,6 +14,6 @@ var Cmd = &cobra.Command{
 	DisableFlagParsing: true,
 	Hidden:             true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		return cmderr.AkitaErr{Err: errors.New("the apispec command has been removed. Please use apidump instead")}
+		return cmderr.AkitaErr{Err: errors.New("the apispec command has been removed. Please use apidump instead. Run 'akita apidump -h' for more information")}
 	},
 }
