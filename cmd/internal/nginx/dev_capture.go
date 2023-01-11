@@ -12,7 +12,6 @@ import (
 type dumpToConsole struct{}
 
 func (_ dumpToConsole) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	// httputil.DumpRequest(req, true)
 	req.Write(os.Stdout)
 	fmt.Println("\n-----------------------------------------------")
 
