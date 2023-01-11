@@ -3,6 +3,7 @@ package nginx
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"os"
 
 	"github.com/akitasoftware/akita-cli/printer"
@@ -12,7 +13,12 @@ import (
 type dumpToConsole struct{}
 
 func (_ dumpToConsole) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	req.Write(os.Stdout)
+	b, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		fmt.Println("Error: ", err)
+	} else {
+		os.Stdout.Write(b)
+	}
 	fmt.Println("\n-----------------------------------------------")
 
 	rw.WriteHeader(200)
