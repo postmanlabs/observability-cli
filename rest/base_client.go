@@ -22,6 +22,17 @@ import (
 // was buried in the "internal" package where we couldn't use it.
 var Domain string
 
+// Use a proxy, "" is none. (This is because the flags package doesn't support Optional)
+// May be a URL, a domain name, or an IP address.  HTTP is assumed as the protocol if
+// none is provided.
+var ProxyAddress string
+
+// Connect even if the certificate does not validate.
+var PermitInvalidCertificate bool
+
+// Accept a server name other than the expected one in the TLS handshake
+var ExpectedServerName string
+
 // Error handling (to call into the telemetry library without
 // creating a circular dependency.)
 type APIErrorHandler = func(method string, path string, e error)
