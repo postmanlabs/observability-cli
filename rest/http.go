@@ -73,11 +73,11 @@ func initHTTPClient() {
 		MaxIdleConns:    3,
 		IdleConnTimeout: 60 * time.Second,
 	}
-	if UseProxy != "" {
-		proxyURL, err := url.Parse(UseProxy)
+	if ProxyAddress != "" {
+		proxyURL, err := url.Parse(ProxyAddress)
 		if err != nil {
 			proxyURL = &url.URL{
-				Host: UseProxy,
+				Host: ProxyAddress,
 			}
 		}
 		if proxyURL.Scheme == "" {

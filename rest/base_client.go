@@ -23,7 +23,9 @@ import (
 var Domain string
 
 // Use a proxy, "" is none. (This is because the flags package doesn't support Optional)
-var UseProxy string
+// May be a URL, a domain name, or an IP address.  HTTP is assumed as the protocol if
+// none is provided.
+var ProxyAddress string
 
 // Connect even if the certificate does not validate.
 var PermitInvalidCertificate bool
