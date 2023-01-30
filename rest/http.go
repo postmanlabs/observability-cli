@@ -2,9 +2,12 @@ package rest
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -61,13 +64,38 @@ func (printerLogger) Warn(f string, args ...interface{}) {
 	printer.Warningln(f, args)
 }
 
-func init() {
+var initHTTPClientOnce sync.Once
+
+func initHTTPClient() {
 	HTTPClient = retryablehttp.NewClient()
 
 	transport := &http.Transport{
 		MaxIdleConns:    3,
 		IdleConnTimeout: 60 * time.Second,
 	}
+	if UseProxy != "" {
+		proxyURL, err := url.Parse(UseProxy)
+		if err != nil {
+			proxyURL = &url.URL{
+				Host: UseProxy,
+			}
+		}
+		if proxyURL.Scheme == "" {
+			proxyURL.Scheme = "http"
+		}
+		printer.Debugf("Using proxy %v\n", proxyURL)
+		transport.Proxy = func(*http.Request) (*url.URL, error) {
+			return proxyURL, nil
+		}
+	}
+	transport.TLSClientConfig = &tls.Config{}
+	if PermitInvalidCertificate {
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
+	if ExpectedServerName != "" {
+		transport.TLSClientConfig.ServerName = ExpectedServerName
+	}
+
 	HTTPClient.HTTPClient = &http.Client{
 		Transport: transport,
 	}
@@ -80,6 +108,8 @@ func init() {
 }
 
 func sendRequest(ctx context.Context, req *http.Request) ([]byte, error) {
+	initHTTPClientOnce.Do(initHTTPClient)
+
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
 		c, cancel := context.WithTimeout(ctx, defaultClientTimeout)
 		defer cancel()

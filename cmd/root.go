@@ -178,6 +178,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", defaultDomain, "Your assigned Akita domain (e.g. company.akita.software)")
 	rootCmd.PersistentFlags().MarkHidden("domain")
 
+	// Use a proxy or permit an unknown certificate.
+	rootCmd.PersistentFlags().StringVar(&rest.UseProxy, "proxy", "", "The domain name or IP address of an HTTP proxy server to use")
+	rootCmd.PersistentFlags().BoolVar(&rest.PermitInvalidCertificate, "skip-validate", false, "Skip TLS validation on the connection to api.akita.software")
+	rootCmd.PersistentFlags().MarkHidden("skip-validate")
+	rootCmd.PersistentFlags().StringVar(&rest.ExpectedServerName, "server-tls-name", "", "Provide an alternate TLS server name to accept instead of api.akita.software")
+	rootCmd.PersistentFlags().MarkHidden("server-tls-name")
+
 	// Semi-secret somewhat-safe flags
 	rootCmd.PersistentFlags().Int64Var(&http.MaximumHTTPLength, "max-http-length", 10*1024*1024, "Maximum size of HTTP body to capture")
 	rootCmd.PersistentFlags().MarkHidden("max-http-length")
