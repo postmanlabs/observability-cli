@@ -3,6 +3,7 @@ package nginx
 import (
 	"fmt"
 
+	"github.com/akitasoftware/akita-cli/integrations/nginx"
 	"github.com/spf13/cobra"
 )
 
@@ -55,10 +56,10 @@ func init() {
 
 func captureNginxTraffic(cmd *cobra.Command, args []string) error {
 	if developmentFlag {
-		return runDevelopmentServer(cmd, args)
+		return nginx.RunDevelopmentServer(listenPortFlag)
+	} else {
+		return nginx.RunServer(listenPortFlag)
 	}
-
-	return fmt.Errorf("This command is not yet implemented.")
 }
 
 func installNginxModule(cmd *cobra.Command, args []string) error {
