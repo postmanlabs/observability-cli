@@ -1,13 +1,12 @@
 package nginx
 
 import (
-	"fmt"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/integrations/nginx"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
 )
@@ -19,16 +18,21 @@ var (
 	// Port number that the module will send traffic to
 	listenPortFlag uint16
 
-	// Dedvelopment mode -- dump out traffic locally
+	// Development mode -- dump out traffic locally
 	developmentFlag bool
+
+	// Dry run for install -- find version but do not install
+	dryRunFlag bool
+
+	// Module destination
+	moduleDestFlag string
 )
 
 var Cmd = &cobra.Command{
 	Use:          "nginx",
 	Short:        "Install or use Akita's NGINX module to collect API traffic.",
 	SilenceUsage: true,
-	// TODO: un-hide when ready for use
-	Hidden: true,
+	Hidden:       false,
 }
 
 var CaptureCmd = &cobra.Command{
@@ -40,8 +44,7 @@ var CaptureCmd = &cobra.Command{
 }
 
 var InstallCmd = &cobra.Command{
-	// TODO: substitute in the real name
-	Use:          "xinstall",
+	Use:          "install",
 	Short:        "Download a precompiled NGINX module.",
 	Long:         "Download a precompiled version of akita-nginx-module that matches the currently installed version of NGINX.",
 	SilenceUsage: true,
@@ -49,12 +52,15 @@ var InstallCmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.PersistentFlags().StringVar(&projectFlag, "project", "", "Your Akita project.")
-	Cmd.PersistentFlags().Uint16Var(&listenPortFlag, "port", 50080, "The port number on which to listen for connections.")
-	Cmd.PersistentFlags().BoolVar(&developmentFlag, "dev", false, "Enable development mode; only dumps traffic.")
-	Cmd.PersistentFlags().MarkHidden("dev")
+	CaptureCmd.PersistentFlags().StringVar(&projectFlag, "project", "", "Your Akita project.")
+	CaptureCmd.PersistentFlags().Uint16Var(&listenPortFlag, "port", 50080, "The port number on which to listen for connections.")
+	CaptureCmd.PersistentFlags().BoolVar(&developmentFlag, "dev", false, "Enable development mode; only dumps traffic.")
+	CaptureCmd.PersistentFlags().MarkHidden("dev")
 
 	Cmd.AddCommand(CaptureCmd)
+
+	InstallCmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", false, "Determine NGINX version but do not download or install the module.")
+	InstallCmd.PersistentFlags().StringVar(&moduleDestFlag, "dest", "", "Specify the directory into which to install the module.")
 	Cmd.AddCommand(InstallCmd)
 }
 
@@ -90,5 +96,24 @@ func captureNginxTraffic(cmd *cobra.Command, args []string) error {
 }
 
 func installNginxModule(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("This command is not yet implemented.")
+	err := nginx.InstallModule(&nginx.InstallArgs{
+		DryRun: dryRunFlag,
+	})
+	if err != nil {
+		var installError *nginx.InstallationError
+		switch {
+		case errors.As(err, &installError):
+			// Log the error, then what the user should do next
+			printer.Errorf("%v\n", err)
+			printer.Infof("%v\n", installError.Remedy)
+		default:
+			printer.Errorf("Could not determine which NGINX platform and version to support: %v\n", err)
+			printer.Infof("Please contact support@akitasoftware.com for assistance, or follow the instructions at https://github.com/akitasoftware/akita-nginx-module to install the module by hand.\n")
+		}
+
+		// Report the error here because we don't report it to the root command
+		telemetry.Error("command execution", err)
+
+	}
+	return nil
 }
