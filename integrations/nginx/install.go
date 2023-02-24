@@ -90,6 +90,7 @@ func InstallModule(args *InstallArgs) error {
 	// all has to be crammed into the name.
 	expectedFilename := fmt.Sprintf("ngx_http_akita_module_%s_%s_%s.so",
 		arch, platform, version)
+	printer.Debugf("Looking for release artifact %q\n", expectedFilename)
 
 	// Connect to Github and grab the latest release.
 	assets, err := GetLatestReleaseAssets()
@@ -110,7 +111,7 @@ func InstallModule(args *InstallArgs) error {
 		return unsupportedError
 	}
 
-	printer.Infof("Selected prebuilt module %s", asset.Name)
+	printer.Infof("Selected prebuilt module %s\n", asset.Name)
 
 	// Find the Nginx directory
 	destDir := args.DestDir
@@ -118,14 +119,14 @@ func InstallModule(args *InstallArgs) error {
 		destDir = FindNginxModuleDir()
 	}
 	if destDir.IsNone() {
-		printer.Warningf("Can't identify directory for module to be installed.")
+		printer.Warningf("Can't identify directory for module to be installed.\n")
 	} else {
 		printer.Infof("Module will be installed in %v\n", destDir.GetOrDefault(""))
 	}
 
 	// Bail out if the user didn't actually ask for the download
 	if args.DryRun {
-		printer.Infof("Ready to download; skipping due to --dry-run flag.")
+		printer.Infof("Ready to download; skipping due to --dry-run flag.\n")
 		return nil
 	}
 
@@ -163,10 +164,19 @@ func InstallModule(args *InstallArgs) error {
 			return NewCopyError(downloadFile)
 		}
 
+		// Delete any existing symlink; expect failure if it doesn't exist.
+		err = os.Remove(filepath.Join(dir, "ngx_http_akita_module.so"))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			// Probably a permissions problem? Log but keep going.
+			printer.Infof("Can't remove old symbolic link: %v\n", err)
+			telemetry.Error("NGINX install module", err)
+		}
+
 		// Create a symlink with no version number, as recommended
 		err = os.Symlink(shortName,
 			filepath.Join(dir, "ngx_http_akita_module.so"))
 		if err != nil {
+			printer.Debugf("Error creating symlink: %v\n", err)
 			telemetry.Error("NGINX install module", err)
 			return symlinkError
 		}
@@ -177,10 +187,10 @@ func InstallModule(args *InstallArgs) error {
 
 	printer.Infof("Module ngx_http_akita_module.so successfully installed!\n")
 	printer.Infof("To start using the NGINX module,\n" +
-		"1. Add 'load_module ngx_http_akita_module.so' to the top of your configuration file.\n" +
-		"2. Add 'akita_enable on;` to the locations handling the HTTP traffic you want to monitor`\n" +
-		"3. Run `akita nginx capture --project <project name>` with the project name you have created in the Akita App.\n" +
-		"See https://docs.akita.software/docs/nginx for a step-by-step guide and an example configuration file\n")
+		" 1. Add 'load_module ngx_http_akita_module.so' to the top of your configuration file.\n" +
+		" 2. Add 'akita_enable on;` to the locations handling the HTTP traffic you want to monitor.\n" +
+		" 3. Run `akita nginx capture --project <project name>` with the project name you have created in the Akita App.\n" +
+		"See https://docs.akita.software/docs/nginx for a step-by-step guide and an example configuration file.\n")
 	return nil
 }
 
