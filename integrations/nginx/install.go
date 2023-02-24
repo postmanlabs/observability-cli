@@ -234,8 +234,9 @@ func FindNginxModuleDir() optionals.Optional[string] {
 var lsbReleaseRe = regexp.MustCompile(`Distributor ID:\s+(.*)\s+Release:\s+([^\n]*)`)
 
 // Execute the lsb_release tool and return an OS string corresponding to the output.
-// This is the lowercased version of the distributor ID and release,
-// for example "ubuntu_20.04"
+// This is the lowercased version of the distributor ID and release, but with
+// periods removed.  (This is an ugly workaround for a CircleCI limitation.)
+// for example "ubuntu_2004"
 func osIDFromLsbRelease() (string, error) {
 	cmd := exec.Command("lsb_release", "-ir")
 	output, err := cmd.CombinedOutput()
@@ -248,11 +249,16 @@ func osIDFromLsbRelease() (string, error) {
 
 	if matches := lsbReleaseRe.FindSubmatch(output); matches != nil {
 		return fmt.Sprintf("%s_%s",
-			strings.ToLower(string(matches[1])),
-			strings.ToLower(string(matches[2]))), nil
+			lcAndStripPeriods(matches[1]),
+			lcAndStripPeriods(matches[2])), nil
 	}
 
 	return "", errors.Wrap(err, "Can't parse lsb_release output")
+}
+
+// Convert the bytes to a lower case string, and remove any periods.
+func lcAndStripPeriods(b []byte) string {
+	return strings.ReplaceAll(strings.ToLower(string(b)), ".", "")
 }
 
 // For example:
@@ -264,8 +270,9 @@ var osReleaseIDRe = regexp.MustCompile(`ID="[^\n]*"`)
 var osReleaseVersionRe = regexp.MustCompile(`VERSION="[^\n]*"`)
 
 // Get the os release ID from an /etc/os-release-format file.
-// This is the lowercased version of the ID and VERSION_ID values,
-// for example amzn_2
+// This is the lowercased version of the ID and VERSION_ID values, but with
+// periods removed.
+// for example "amzn_2"
 func osIDFromReleaseFile(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -285,8 +292,8 @@ func osIDFromReleaseFile(filename string) (string, error) {
 	versionMatch := osReleaseVersionRe.FindSubmatch(buf)
 	if idMatch != nil && versionMatch != nil {
 		return fmt.Sprintf("%s_%s",
-			strings.ToLower(string(idMatch[1])),
-			strings.ToLower(string(versionMatch[2]))), nil
+			lcAndStripPeriods(idMatch[1]),
+			lcAndStripPeriods(versionMatch[2])), nil
 	}
 	return "", errors.Wrapf(err, "Can't parse %q", filename)
 }
