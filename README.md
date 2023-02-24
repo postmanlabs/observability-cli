@@ -10,7 +10,7 @@ Built for busy developer teams who don't have time to become experts in monitori
 
 Simply drop Akita into your system to understand your system behavior, without having to instrument code or build your own dashboards.
 
-We're in beta and would love to have you try us out! [Create an account in the Akita App](https://www.akitasoftware.com/login?sign_up) to get started.
+We're in beta and would love to have you try us out! [Create an account in the Akita App](https://app.akita.software/login?sign_up) to get started.
 
   [About this repo](#about-this-repo)
 | [Running this repo](#running-this-repo)
