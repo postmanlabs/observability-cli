@@ -167,7 +167,9 @@ func NewNginxBackend(args *Args) (*NginxBackend, error) {
 	b.backendSvc = backendSvc
 	b.learnClient = rest.NewLearnClient(args.Domain, args.ClientID, backendSvc)
 
-	traceTags := map[tags.Key]string{}
+	traceTags := map[tags.Key]string{
+		tags.XAkitaSource: "nginx",
+	}
 	traceName := util.RandomLearnSessionName()
 	backendLrn, err := util.NewLearnSession(args.Domain, args.ClientID, b.backendSvc, traceName, traceTags, nil)
 	if err != nil {
