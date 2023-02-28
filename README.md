@@ -57,4 +57,4 @@ Note: if you're planning to use the Akita CLI with the Akita Console, we recomme
 ## Related links
 * [Akita blog](https://www.akitasoftware.com/blog)
 * [Akita docs](https://docs.akita.software/)
-* [Sign up for our private beta](https://www.akitasoftware.com/beta-signup)
+* [Join open beta](https://app.akita.software/login?sign_up)
