@@ -1,16 +1,15 @@
 # Welcome! 👋
 
-Drop-in API monitoring, no code changes necessary.
+The fastest and easiest way to understand your APIs.
 
-Built for busy developer teams who don't have time to become experts in monitoring and observability, Akita makes it possible to quickly track API endpoints and their usage in real time.
+Built for busy developer teams who don't have time to become experts in monitoring and observability, Akita makes it possible to quickly discover all your API endpoints, see which are slowest, and learn which have errors. No SDKs or code changes necessary.
 
+  * **Get plug-and-play API monitoring.** Explore and share per-endpoint volume, latency, and errors. Set per-endpoint alerts.
   * **See API endpoints.** Automatically get a searchable map of your API endpoints in use. Explore by latency, errors, and usage. Export as OpenAPI specs.
-  * **Get drop-in API monitoring.** Get a drop-in view of volume, latency, and errors, updated in near real-time. Set per-endpoint alerts.
-  * **Quickly understand the impact of changes.** Keep track of the endpoints you care about and identify how new deployments impact your endpoints.
 
-Simply drop Akita into your system to understand your system behavior, without having to instrument code or build your own dashboards.
+Drop Akita into your system to understand your application’s behavior, without having to instrument code or build your own dashboards.
 
-We're in beta and would love to have you try us out! [Create an account in the Akita App](https://app.akita.software/login?sign_up) to get started.
+We're in open beta and would love to have you try us out! [Create an account in the Akita App](https://app.akita.software/login?sign_up) to get started.
 
   [About this repo](#about-this-repo)
 | [Running this repo](#running-this-repo)
