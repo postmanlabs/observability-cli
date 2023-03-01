@@ -54,6 +54,7 @@ func DownloadReleaseAsset(id int, filename string) error {
 		printer.Errorf("Can't create destination file: %v\n", err)
 		return err
 	}
+	defer download.Close()
 
 	// Need to set a header to get the binary rather than JSON
 	client := &http.Client{}

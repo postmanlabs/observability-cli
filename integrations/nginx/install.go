@@ -38,7 +38,7 @@ var (
 	}
 
 	uninstalledError = &InstallationError{
-		Wrapped: errors.New("NGINX is not installed, or 'nginx' is not in the current path"),
+		Wrapped: errors.New("NGINX is not installed, or 'nginx' is not in the current path."),
 		Remedy:  "Please run this command on the machine where NGINX is installed.",
 	}
 
@@ -104,6 +104,7 @@ func InstallModule(args *InstallArgs) error {
 	for _, a := range assets {
 		if a.Name == expectedFilename {
 			assetOpt = optionals.Some(a)
+			break
 		}
 	}
 	asset, present := assetOpt.Get()
@@ -118,10 +119,10 @@ func InstallModule(args *InstallArgs) error {
 	if destDir.IsNone() {
 		destDir = FindNginxModuleDir()
 	}
-	if destDir.IsNone() {
-		printer.Warningf("Can't identify directory for module to be installed.\n")
+	if dest, exists := destDir.Get(); exists {
+		printer.Infof("Module will be installed in %v\n", dest)
 	} else {
-		printer.Infof("Module will be installed in %v\n", destDir.GetOrDefault(""))
+		printer.Warningf("Can't identify directory for module to be installed.\n")
 	}
 
 	// Bail out if the user didn't actually ask for the download
@@ -187,8 +188,8 @@ func InstallModule(args *InstallArgs) error {
 
 	printer.Infof("Module ngx_http_akita_module.so successfully installed!\n")
 	printer.Infof("To start using the NGINX module,\n" +
-		" 1. Add 'load_module ngx_http_akita_module.so' to the top of your configuration file.\n" +
-		" 2. Add 'akita_enable on;` to the locations handling the HTTP traffic you want to monitor.\n" +
+		" 1. Add 'load_module ngx_http_akita_module.so' to the top of your NGINX configuration file.\n" +
+		" 2. Add 'akita_enable on;' to the NGINX locations that handle the HTTP traffic you want to monitor.\n" +
 		" 3. Run `akita nginx capture --project <project name>` with the project name you have created in the Akita App.\n" +
 		"See https://docs.akita.software/docs/nginx for a step-by-step guide and an example configuration file.\n")
 	return nil
@@ -276,8 +277,8 @@ func lcAndStripPeriods(b []byte) string {
 // VERSION="2"
 // ID="amzn"
 // ID_LIKE="centos rhel fedora"
-var osReleaseIDRe = regexp.MustCompile(`ID="[^\n]*"`)
-var osReleaseVersionRe = regexp.MustCompile(`VERSION="[^\n]*"`)
+var osReleaseIDRe = regexp.MustCompile(`ID="([^\n]*)"`)
+var osReleaseVersionRe = regexp.MustCompile(`VERSION="([^\n]*)"`)
 
 // Get the os release ID from an /etc/os-release-format file.
 // This is the lowercased version of the ID and VERSION_ID values, but with
@@ -303,7 +304,7 @@ func osIDFromReleaseFile(filename string) (string, error) {
 	if idMatch != nil && versionMatch != nil {
 		return fmt.Sprintf("%s_%s",
 			lcAndStripPeriods(idMatch[1]),
-			lcAndStripPeriods(versionMatch[2])), nil
+			lcAndStripPeriods(versionMatch[1])), nil
 	}
 	return "", errors.Wrapf(err, "Can't parse %q", filename)
 }
