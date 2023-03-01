@@ -26,7 +26,7 @@ func (e *InstallationError) Unwrap() error {
 }
 
 func (e *InstallationError) Error() string {
-	return fmt.Sprintf("Couldn't automatically install the Akita NGX module: %v", e.Wrapped)
+	return fmt.Sprintf("Couldn't automatically install the Akita NGINX module: %v", e.Wrapped)
 }
 
 var _ error = (*InstallationError)(nil)
@@ -230,8 +230,8 @@ func FindNginxVersion() (string, error) {
 var nginxModuleLocations = []string{
 	"/usr/local/nginx/modules", // preferred location
 	"/usr/lib/nginx/modules",   // an Ubuntu-ism
-	"/usr/nginx/modules",       //
-	"/etc/nginx/modules",       // an Amazon Linux-ism?
+	"/usr/lib64/nginx/modules", // an Amazon Linux-ism?
+	"/usr/nginx/modules",
 }
 
 func FindNginxModuleDir() optionals.Optional[string] {
