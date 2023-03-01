@@ -46,17 +46,20 @@ var (
 		Wrapped: errors.New("The precompiled module could not be downloaded from Akita."),
 		Remedy:  "Please download the module from https://github.com/akitasoftware/akita-nginx-module/releases/latest and complete the installation by copying it into the NGINX module directory.",
 	}
-
-	symlinkError = &InstallationError{
-		Wrapped: errors.New("The precompiled module was installed, but a symbolic link to it could not be created."),
-		Remedy:  "Please create a symbolic link in the module directory from ngx_http_akita_module.so to the installed module.",
-	}
 )
 
-func NewCopyError(path string) error {
+func newCopyError(path string) error {
 	return &InstallationError{
 		Wrapped: errors.New("The precompiled module could not be installed into the NGINX directory."),
 		Remedy:  fmt.Sprintf("Please complete the installation by copying %s into the NGINX module directory.\n", path),
+	}
+}
+
+func newSymlinkError(moduleDir, downloadFile string) error {
+	return &InstallationError{
+		Wrapped: errors.New("The precompiled module was installed, but a symbolic link to it could not be created."),
+		Remedy: fmt.Sprintf("Please create a symbolic link in the module directory %s from ngx_http_akita_module.so' to %s.",
+			moduleDir, downloadFile),
 	}
 }
 
@@ -162,7 +165,7 @@ func InstallModule(args *InstallArgs) error {
 			printer.Errorf("Error moving module to the NGINX module directory: %v\n", err)
 			telemetry.Error("NGINX install module", err)
 			saveDir = true
-			return NewCopyError(downloadFile)
+			return newCopyError(downloadFile)
 		}
 
 		// Delete any existing symlink; expect failure if it doesn't exist.
@@ -179,18 +182,19 @@ func InstallModule(args *InstallArgs) error {
 		if err != nil {
 			printer.Debugf("Error creating symlink: %v\n", err)
 			telemetry.Error("NGINX install module", err)
-			return symlinkError
+			return newSymlinkError(dir, shortName)
 		}
 	} else {
 		saveDir = true
-		return NewCopyError(downloadFile)
+		return newCopyError(downloadFile)
 	}
 
 	printer.Infof("Module ngx_http_akita_module.so successfully installed!\n")
 	printer.Infof("To start using the NGINX module,\n" +
 		" 1. Add 'load_module ngx_http_akita_module.so' to the top of your NGINX configuration file.\n" +
 		" 2. Add 'akita_enable on;' to the NGINX locations that handle the HTTP traffic you want to monitor.\n" +
-		" 3. Run `akita nginx capture --project <project name>` with the project name you have created in the Akita App.\n" +
+		" 3. Run 'akita nginx capture --project <project name>' with the project name you have created in the Akita App.\n" +
+		" 4. Start NGINX, or reload the configuration file if it's already running.\n" +
 		"See https://docs.akita.software/docs/nginx for a step-by-step guide and an example configuration file.\n")
 	return nil
 }
