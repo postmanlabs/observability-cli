@@ -286,6 +286,18 @@ func CommandLine(command string, commandLine []string) {
 	)
 }
 
+// Report the platform and version of an attempted integration
+func InstallIntegrationVersion(integration, arch, platform, version string) {
+	analyticsClient.Track(distinctID(),
+		fmt.Sprintf("Install %s", integration),
+		map[string]any{
+			"architecture": arch,
+			"version":      version,
+			"platform":     platform,
+		},
+	)
+}
+
 // Flush the telemetry to its endpoint
 // (even buffer size of 1 is not enough if the CLi exits right away.)
 func Shutdown() {
