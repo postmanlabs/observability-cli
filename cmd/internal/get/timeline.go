@@ -179,9 +179,9 @@ func getTimeline(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s %9.3fms %6s %s %s %s\n",
 			event.Time.Format(time.RFC3339),
 			float32Value(event.Values.P99Latency),
-			formatStringAttr(timeline.GroupAttributes.Method),
-			formatStringAttr(timeline.GroupAttributes.Host),
-			formatStringAttr(timeline.GroupAttributes.PathTemplate),
+			formatStringAttr(timeline.GroupAttributes.Method.String()),
+			formatStringAttr(timeline.GroupAttributes.Host.String()),
+			formatStringAttr(timeline.GroupAttributes.PathTemplate.String()),
 			formatIntAttr(timeline.GroupAttributes.ResponseCode))
 		timeline.Events = timeline.Events[1:]
 		if len(timeline.Events) == 0 {

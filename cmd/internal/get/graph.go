@@ -273,16 +273,16 @@ func printGraphBySource(graph *api_schema.GraphResponse) {
 	for i, e := range graph.HTTPEdges {
 		// TODO: this assumes service is the only supported source vertex, which is true right now.
 		if i > 0 && e.SourceAttributes != graph.HTTPEdges[i-1].SourceAttributes {
-			fmt.Printf("\n%-30s -> ", hostOrUnknown(e.SourceAttributes.Host))
+			fmt.Printf("\n%-30s -> ", hostOrUnknown(e.SourceAttributes.Host.String()))
 		} else if i == 0 {
-			fmt.Printf("%-30s -> ", hostOrUnknown(e.SourceAttributes.Host))
+			fmt.Printf("%-30s -> ", hostOrUnknown(e.SourceAttributes.Host.String()))
 		} else {
 			// Don't repeat source information
 			fmt.Printf("%-30s -> ", "")
 		}
 
 		if e.TargetAttributes.PathTemplate == "" {
-			fmt.Printf("%-30s\n", hostOrUnknown(e.TargetAttributes.Host))
+			fmt.Printf("%-30s\n", hostOrUnknown(e.TargetAttributes.Host.String()))
 		} else {
 			fmt.Printf("%-30s %7s %s\n", e.TargetAttributes.Host, e.TargetAttributes.Method, e.TargetAttributes.PathTemplate)
 		}
@@ -375,11 +375,11 @@ func printGraphByTarget(graph *api_schema.GraphResponse) {
 		}
 
 		// TODO: this assumes service is the only supported source vertex, which is true right now.
-		fmt.Printf("%-30s -> ", hostOrUnknown(e.SourceAttributes.Host))
+		fmt.Printf("%-30s -> ", hostOrUnknown(e.SourceAttributes.Host.String()))
 
 		if (i > 0 && e.TargetAttributes != graph.HTTPEdges[i-1].TargetAttributes) || i == 0 {
 			if e.TargetAttributes.PathTemplate == "" {
-				fmt.Printf("%-30s\n", hostOrUnknown(e.TargetAttributes.Host))
+				fmt.Printf("%-30s\n", hostOrUnknown(e.TargetAttributes.Host.String()))
 			} else {
 				fmt.Printf("%-30s %7s %s\n", e.TargetAttributes.Host, e.TargetAttributes.Method, e.TargetAttributes.PathTemplate)
 			}
@@ -433,12 +433,12 @@ func printDot(graph *api_schema.GraphResponse) {
 	for _, e := range graph.HTTPEdges {
 		if e.TargetAttributes.PathTemplate == "" {
 			fmt.Printf("  %q -> %q [label=\"%v\"]\n",
-				hostOrUnknown(e.SourceAttributes.Host),
+				hostOrUnknown(e.SourceAttributes.Host.String()),
 				e.TargetAttributes.Host,
 				e.Values[api_schema.Event_Count])
 		} else {
 			fmt.Printf("  %q -> \"%s\\n%s %s\" [label=\"%v\"]\n",
-				hostOrUnknown(e.SourceAttributes.Host),
+				hostOrUnknown(e.SourceAttributes.Host.String()),
 				e.TargetAttributes.Host,
 				e.TargetAttributes.Method,
 				e.TargetAttributes.PathTemplate,
