@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -84,7 +83,10 @@ func init() {
 
 func addAgentToECS(cmd *cobra.Command, args []string) error {
 	// Check for API key
-	key, secret := cfg.GetAPIKeyAndSecret()
+	key, secret, err := cmderr.RequireAPICredentials("The Akita agent must have an API key in order to capture traces.")
+	if err != nil {
+		return err
+	}
 	if key == "" || secret == "" {
 		printer.Errorf("No Akita API key configured. The Akita agent must have an API key in order to capture traces.\n")
 		if env.InDocker() {
@@ -100,7 +102,7 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 		return errors.New("Must specify the name of your Akita project with the --project flag.")
 	}
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
-	_, err := util.GetServiceIDByName(frontClient, projectFlag)
+	_, err = util.GetServiceIDByName(frontClient, projectFlag)
 	if err != nil {
 		// TODO: we _could_ offer to create it, instead.
 		if strings.Contains(err.Error(), "cannot determine project ID") {
