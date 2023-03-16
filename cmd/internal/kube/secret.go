@@ -14,32 +14,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 var (
-	output                string
-	namespace             string
+	output    string
+	namespace string
 	// Store a parsed representation of /template/akita-secret.tmpl
-	secretTemplate        *template.Template
+	secretTemplate *template.Template
 )
 
 var secretCmd = &cobra.Command{
-	Use: "secret",
+	Use:   "secret",
 	Short: "Generate a Kubernetes secret config for Akita",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if namespace == "" {
-			return cmderr.AkitaErr{Err: errors.New("namespace flag not set")}
-		}
-
 		key, secret, err := cmderr.RequireAPICredentials("Akita API key is required for Kubernetes Secret generation")
 		if err != nil {
 			return err
 		}
 
-		err = handleSecretGeneration(namespace, key, secret, output)	
+		err = handleSecretGeneration(namespace, key, secret, output)
 		if err != nil {
 			return err
 		}
-
 
 		printer.Infoln("Generated Kubernetes secret config to ", output)
 		return nil
@@ -125,6 +119,7 @@ func init() {
 		"",
 		"The Kuberenetes namespace the secret should be applied to",
 	)
+	_ = secretCmd.MarkFlagRequired("namespace")
 
 	secretCmd.Flags().StringVarP(&output, "output", "o", "akita-secret.yml", "File to output the generated secret.")
 
