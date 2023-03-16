@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"log"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	"github.com/akitasoftware/akita-cli/printer"
@@ -40,14 +41,13 @@ var secretCmd = &cobra.Command{
 		}
 
 
-		printer.Infof("Generated Kubernetes secret config to %s", output)
+		printer.Infoln("Generated Kubernetes secret config to ", output)
 		return nil
 	},
 }
 
 // Represents the input used by secretTemplate
 type secretTemplateInput struct {
-	//
 	Namespace string
 	APIKey    string
 	APISecret string
@@ -61,19 +61,52 @@ func handleSecretGeneration(namespace, key, secret, output string) error {
 		APISecret: base64.StdEncoding.EncodeToString([]byte(secret)),
 	}
 
-	file, err := os.Create(output)
+	secretFile, err := createSecretFile(output)
 	if err != nil {
 		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to create output file")}
 	}
 
-	defer file.Close()
+	defer secretFile.Close()
 
-	err = secretTemplate.Execute(file, input)
+	err = secretTemplate.Execute(secretFile, input)
 	if err != nil {
 		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
 	}
 
 	return nil
+}
+
+// Creates a file at the give path to be used for storing of the generated Secret config
+// If any child dicrectories do not exist, it will be created.
+func createSecretFile(path string) (*os.File, error) {
+	// Split the outut flag value into directory and filename
+	outputDir, outputName := filepath.Split(path)
+
+	// Get the absolute path of the output directory
+	absOutputDir, err := filepath.Abs(outputDir)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to resolve the absolute path of the output directory")
+	}
+
+	// Check if the output file already exists
+	outputFilePath := filepath.Join(absOutputDir, outputName)
+	if _, statErr := os.Stat(outputFilePath); statErr == nil {
+		return nil, errors.Errorf("output file %s already exists", outputFilePath)
+	}
+
+	// Create the output directory if it doesn't exist
+	err = os.MkdirAll(absOutputDir, 0755)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create the output directory")
+	}
+
+	// Create the output file in the output directory
+	outputFile, err := os.Create(outputFilePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create the output file")
+	}
+
+	return outputFile, nil
 }
 
 func init() {
