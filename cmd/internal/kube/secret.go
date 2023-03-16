@@ -2,12 +2,15 @@ package kube
 
 import (
 	"encoding/base64"
-	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 	"log"
 	"os"
 	"text/template"
+
+	"github.com/akitasoftware/akita-cli/printer"
+
+	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 
@@ -31,7 +34,14 @@ var secretCmd = &cobra.Command{
 			return err
 		}
 
-		return handleSecretGeneration(namespace, key, secret, output)
+		err = handleSecretGeneration(namespace, key, secret, output)	
+		if err != nil {
+			return err
+		}
+
+
+		printer.Infof("Generated Kubernetes secret config to %s", output)
+		return nil
 	},
 }
 
