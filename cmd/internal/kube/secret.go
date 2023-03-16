@@ -47,6 +47,7 @@ type secretTemplateInput struct {
 	APISecret string
 }
 
+// Generates a Kubernetes secret config file for Akita
 func handleSecretGeneration(namespace, key, secret, output string) error {
 
 	input := secretTemplateInput{
@@ -111,7 +112,6 @@ func init() {
 		log.Fatalf("unable to parse kube secret template: %v", err)
 	}
 
-	// Create a flag on the root subcommand to avoid
 	secretCmd.Flags().StringVarP(
 		&namespace,
 		"namespace",
