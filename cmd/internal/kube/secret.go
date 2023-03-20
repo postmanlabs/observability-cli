@@ -105,21 +105,13 @@ func createSecretFile(path string) (*os.File, error) {
 }
 
 func init() {
-	var err error
-
-	secretTemplate, err = template.ParseFS(templateFS, "template/akita-secret.tmpl")
-	if err != nil {
-		log.Fatalf("unable to parse kube secret template: %v", err)
-	}
-
 	secretCmd.Flags().StringVarP(
 		&namespace,
 		"namespace",
 		"n",
-		"",
+		"default",
 		"The Kubernetes namespace the secret should be applied to",
 	)
-	_ = secretCmd.MarkFlagRequired("namespace")
 
 	secretCmd.Flags().StringVarP(&output, "output", "o", "akita-secret.yml", "File to output the generated secret.")
 
