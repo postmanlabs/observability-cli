@@ -74,6 +74,8 @@ var (
 )
 
 func preRun(cmd *cobra.Command, args []string) {
+	telemetry.Init(true)
+
 	switch logFormatFlag {
 	case "json":
 		printer.SwitchToJSON()

@@ -50,7 +50,9 @@ func (_ nullClient) Close() error {
 	return nil
 }
 
-func init() {
+// Initialize the telemetry client.
+// This should be called once at startup either from the root command or from a subcommand that overrides the default PersistentPreRun.
+func Init(isLoggingEnabled bool) {
 	// Opt-out mechanism
 	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
@@ -70,31 +72,37 @@ func init() {
 		segmentKey = defaultSegmentKey
 	}
 	if segmentKey == "" {
-		printer.Infof("Telemetry unavailable; no Segment key configured.\n")
-		printer.Infof("This is caused by building from source rather than using an official build.\n")
+		if isLoggingEnabled {
+			printer.Infof("Telemetry unavailable; no Segment key configured.\n")
+			printer.Infof("This is caused by building from source rather than using an official build.\n")
+		}
 		analyticsClient = nullClient{}
 		return
 	}
 
 	var err error
-	analyticsClient, err = analytics.NewClient(analytics.Config{
-		WriteKey:        segmentKey,
-		SegmentEndpoint: segmentEndpoint,
-		App: analytics.AppInfo{
-			Name:      "akita-cli",
-			Version:   version.ReleaseVersion().String(),
-			Build:     version.GitVersion(),
-			Namespace: "",
+	analyticsClient, err = analytics.NewClient(
+		analytics.Config{
+			WriteKey:        segmentKey,
+			SegmentEndpoint: segmentEndpoint,
+			App: analytics.AppInfo{
+				Name:      "akita-cli",
+				Version:   version.ReleaseVersion().String(),
+				Build:     version.GitVersion(),
+				Namespace: "",
+			},
+			// No output from the Segment library
+			IsLoggingEnabled: false,
+			// IsMixpanelEnabled: false,  -- irrelevant for us, leaving at default value
+			BatchSize: 1, // disable batching
 		},
-		// No output from the Segment library
-		IsLoggingEnabled: false,
-		// IsMixpanelEnabled: false,  -- irrelevant for us, leaving at default value
-		BatchSize: 1, // disable batching
-	})
+	)
 	if err != nil {
-		printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
-		printer.Infof("Akita support will not be able to see any errors you encounter.\n")
-		printer.Infof("Please send this log message to support@akitasoftware.com.\n")
+		if isLoggingEnabled {
+			printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
+			printer.Infof("Akita support will not be able to see any errors you encounter.\n")
+			printer.Infof("Please send this log message to support@akitasoftware.com.\n")
+		}
 		analyticsClient = nullClient{}
 	} else {
 		analyticsEnabled = true
