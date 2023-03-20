@@ -15,8 +15,8 @@ import (
 )
 
 var (
-	output    string
-	namespace string
+	outputFlag    string
+	namespaceFlag string
 	// Store a parsed representation of /template/akita-secret.tmpl
 	secretTemplate *template.Template
 )
@@ -30,12 +30,12 @@ var secretCmd = &cobra.Command{
 			return err
 		}
 
-		err = handleSecretGeneration(namespace, key, secret, output)
+		err = handleSecretGeneration(namespaceFlag, key, secret, outputFlag)
 		if err != nil {
 			return err
 		}
 
-		printer.Infoln("Generated Kubernetes secret config to ", output)
+		printer.Infoln("Generated Kubernetes secret config to ", outputFlag)
 		return nil
 	},
 }
@@ -106,14 +106,14 @@ func createSecretFile(path string) (*os.File, error) {
 
 func init() {
 	secretCmd.Flags().StringVarP(
-		&namespace,
+		&namespaceFlag,
 		"namespace",
 		"n",
 		"default",
 		"The Kubernetes namespace the secret should be applied to",
 	)
 
-	secretCmd.Flags().StringVarP(&output, "output", "o", "akita-secret.yml", "File to output the generated secret.")
+	secretCmd.Flags().StringVarP(&outputFlag, "output", "o", "akita-secret.yml", "File to output the generated secret.")
 
 	Cmd.AddCommand(secretCmd)
 }
