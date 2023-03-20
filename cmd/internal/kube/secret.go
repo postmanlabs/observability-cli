@@ -1,15 +1,16 @@
 package kube
 
 import (
+	"bytes"
 	"encoding/base64"
-	"log"
 	"os"
 	"path/filepath"
 	"text/template"
 
-	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/telemetry"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -30,13 +31,21 @@ var secretCmd = &cobra.Command{
 			return err
 		}
 
-		err = handleSecretGeneration(namespaceFlag, key, secret, outputFlag)
+		output, err := handleSecretGeneration(namespaceFlag, key, secret, outputFlag)
 		if err != nil {
 			return err
 		}
 
-		printer.Infoln("Generated Kubernetes secret config to ", outputFlag)
+		// Output the generated secret to the console
+		printer.RawOutput(output)
+
 		return nil
+	},
+	// Override the parent command's PersistentPreRun to prevent any logs from being printed.
+	// This is necessary because the secret command is intended to be used in a pipeline
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Initialize the telemetry client, but do not allow any logs to be printed
+		telemetry.Init(false)
 	},
 }
 
@@ -47,8 +56,23 @@ type secretTemplateInput struct {
 	APISecret string
 }
 
+func initSecretTemplate() error {
+	var err error
+
+	secretTemplate, err = template.ParseFS(templateFS, "template/akita-secret.tmpl")
+	if err != nil {
+		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to parse secret template")}
+	}
+
+	return nil
+}
+
 // Generates a Kubernetes secret config file for Akita
-func handleSecretGeneration(namespace, key, secret, output string) error {
+// On success, the generated output is returned as a string.
+func handleSecretGeneration(namespace, key, secret, output string) (string, error) {
+	if err := initSecretTemplate(); err != nil {
+		return "", err
+	}
 
 	input := secretTemplateInput{
 		Namespace: namespace,
@@ -58,17 +82,24 @@ func handleSecretGeneration(namespace, key, secret, output string) error {
 
 	secretFile, err := createSecretFile(output)
 	if err != nil {
-		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to create output file")}
+		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to create output file")}
 	}
 
 	defer secretFile.Close()
 
-	err = secretTemplate.Execute(secretFile, input)
+	buf := new(bytes.Buffer)
+
+	err = secretTemplate.Execute(buf, input)
 	if err != nil {
-		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
+		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
 	}
 
-	return nil
+	_, err = secretFile.Write(buf.Bytes())
+	if err != nil {
+		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to read generated secret file")}
+	}
+
+	return buf.String(), nil
 }
 
 // Creates a file at the give path to be used for storing of the generated Secret config

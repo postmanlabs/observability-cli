@@ -23,7 +23,7 @@ func Test_secretGeneration(t *testing.T) {
 	actualOutput := filepath.Join(dir, "configurations", "akita-secret.yml")
 
 	// WHEN
-	err := handleSecretGeneration(namespace, key, secret, actualOutput)
+	actualContent, err := handleSecretGeneration(namespace, key, secret, actualOutput)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -35,4 +35,5 @@ func Test_secretGeneration(t *testing.T) {
 	}
 
 	assert.Equal(t, string(testAkitaSecretYAML), string(actualFile))
+	assert.Equal(t, string(testAkitaSecretYAML), actualContent)
 }
