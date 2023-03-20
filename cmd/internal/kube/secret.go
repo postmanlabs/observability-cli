@@ -23,7 +23,7 @@ var (
 
 var secretCmd = &cobra.Command{
 	Use:   "secret",
-	Short: "Generate a Kubernetes secret config for Akita",
+	Short: "Generate a Kubernetes secret containing the Akita credentials",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key, secret, err := cmderr.RequireAPICredentials("Akita API key is required for Kubernetes Secret generation")
 		if err != nil {
@@ -117,7 +117,7 @@ func init() {
 		"namespace",
 		"n",
 		"",
-		"The Kuberenetes namespace the secret should be applied to",
+		"The Kubernetes namespace the secret should be applied to",
 	)
 	_ = secretCmd.MarkFlagRequired("namespace")
 

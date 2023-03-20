@@ -8,7 +8,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "kube",
-	Short: "Gateway to Kubernetes related utilities",
+	Short: "Install Akita in your Kubernetes cluster",
 	RunE: func(_ *cobra.Command, _ []string) error {
 		return cmderr.AkitaErr{Err: errors.New("no subcommand specified")}
 	},
