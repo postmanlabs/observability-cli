@@ -125,7 +125,8 @@ func writeSecretFile(data []byte, filePath string) error {
 	return nil
 }
 
-// Creates a file at the give path to be used for storing of the generated Secret configuration
+// Creates a file at the given path to be used for storing of the generated Secret configuration
+// If the directory provided does not exist, an error will be returned and the file will not be created
 func createSecretFile(path string) (*os.File, error) {
 	// Split the output flag value into directory and filename
 	outputDir, outputName := filepath.Split(path)
