@@ -84,10 +84,9 @@ func handleSecretGeneration(namespace, key, secret, output string) (string, erro
 	if err != nil {
 		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to create output file")}
 	}
-
 	defer secretFile.Close()
 
-	buf := new(bytes.Buffer)
+	buf := bytes.NewBuffer([]byte{})
 
 	err = secretTemplate.Execute(buf, input)
 	if err != nil {
