@@ -23,17 +23,17 @@ func Test_secretGeneration(t *testing.T) {
 	actualOutput := filepath.Join(dir, "akita-secret.yml")
 
 	// WHEN
-	actualContent, err := handleSecretGeneration(namespace, key, secret, actualOutput)
+	output, err := handleSecretGeneration(namespace, key, secret, actualOutput)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
 
-	// THEN
-	actualFile, err := os.ReadFile(actualOutput)
+	generatedFile, err := os.ReadFile(actualOutput)
 	if err != nil {
-		t.Errorf("Failed to read generated file: %v", err)
+		t.Errorf("Failed to read generated generatedFile: %v", err)
 	}
 
-	assert.Equal(t, string(testAkitaSecretYAML), string(actualFile))
-	assert.Equal(t, string(testAkitaSecretYAML), actualContent)
+	// THEN
+	assert.Equal(t, string(testAkitaSecretYAML), string(generatedFile))
+	assert.Equal(t, string(testAkitaSecretYAML), output)
 }
