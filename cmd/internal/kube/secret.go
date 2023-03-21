@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	outputFlag    string
-	namespaceFlag string
+	secretFilePathFlag string
+	namespaceFlag      string
 	// Store a parsed representation of /template/akita-secret.tmpl
 	secretTemplate *template.Template
 )
@@ -31,14 +31,24 @@ var secretCmd = &cobra.Command{
 			return err
 		}
 
-		output, err := handleSecretGeneration(namespaceFlag, key, secret, outputFlag)
+		output, err := handleSecretGeneration(namespaceFlag, key, secret)
 		if err != nil {
 			return err
 		}
 
-		// Output the generated secret to the console
-		printer.RawOutput(output)
+		// If the secret file path flag hasn't been set, print the generated secret to stdout
+		if secretFilePathFlag == "" {
+			printer.RawOutput(string(output))
+			return nil
+		}
 
+		// Otherwise, write the generated secret to the given file path
+		err = writeSecretFile(output, secretFilePathFlag)
+		if err != nil {
+			return cmderr.AkitaErr{Err: errors.Wrapf(err, "Failed to write generated secret to %s", output)}
+		}
+
+		printer.Infof("Generated Kubernetes secret file to %s", secretFilePathFlag)
 		return nil
 	},
 	// Override the parent command's PersistentPreRun to prevent any logs from being printed.
@@ -69,9 +79,10 @@ func initSecretTemplate() error {
 
 // Generates a Kubernetes secret config file for Akita
 // On success, the generated output is returned as a string.
-func handleSecretGeneration(namespace, key, secret, output string) (string, error) {
-	if err := initSecretTemplate(); err != nil {
-		return "", err
+func handleSecretGeneration(namespace, key, secret string) ([]byte, error) {
+	err := initSecretTemplate()
+	if err != nil {
+		return nil, cmderr.AkitaErr{Err: errors.Wrap(err, "failed to initialize secret template")}
 	}
 
 	input := secretTemplateInput{
@@ -80,31 +91,43 @@ func handleSecretGeneration(namespace, key, secret, output string) (string, erro
 		APISecret: base64.StdEncoding.EncodeToString([]byte(secret)),
 	}
 
-	secretFile, err := createSecretFile(output)
-	if err != nil {
-		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to create output file")}
-	}
-	defer secretFile.Close()
-
 	buf := bytes.NewBuffer([]byte{})
 
 	err = secretTemplate.Execute(buf, input)
 	if err != nil {
-		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
+		return nil, cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
 	}
 
-	_, err = secretFile.Write(buf.Bytes())
-	if err != nil {
-		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to read generated secret file")}
-	}
-
-	return buf.String(), nil
+	return buf.Bytes(), nil
 }
 
-// Creates a file at the give path to be used for storing of the generated Secret config
-// If any child dicrectories do not exist, it will be created.
+// Writes the generated secret to the given file path
+func writeSecretFile(data []byte, filePath string) error {
+	secretFile, err := createSecretFile(filePath)
+	if err != nil {
+		return cmderr.AkitaErr{
+			Err: cmderr.AkitaErr{
+				Err: errors.Wrapf(
+					err,
+					"failed to create secret file %s",
+					filePath,
+				),
+			},
+		}
+	}
+	defer secretFile.Close()
+
+	_, err = secretFile.Write(data)
+	if err != nil {
+		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to write generated secret file")}
+	}
+
+	return nil
+}
+
+// Creates a file at the give path to be used for storing of the generated Secret configuration
 func createSecretFile(path string) (*os.File, error) {
-	// Split the outut flag value into directory and filename
+	// Split the output flag value into directory and filename
 	outputDir, outputName := filepath.Split(path)
 
 	// Get the absolute path of the output directory
@@ -142,7 +165,13 @@ func init() {
 		"The Kubernetes namespace the secret should be applied to",
 	)
 
-	secretCmd.Flags().StringVarP(&outputFlag, "output", "o", "akita-secret.yml", "File to output the generated secret.")
+	secretCmd.Flags().StringVarP(
+		&secretFilePathFlag,
+		"file",
+		"f",
+		"",
+		"File to output the generated secret. If not set, the secret will be printed to stdout.",
+	)
 
 	Cmd.AddCommand(secretCmd)
 }
