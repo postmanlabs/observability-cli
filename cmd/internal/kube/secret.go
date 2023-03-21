@@ -48,7 +48,8 @@ var secretCmd = &cobra.Command{
 			return cmderr.AkitaErr{Err: errors.Wrapf(err, "Failed to write generated secret to %s", output)}
 		}
 
-		printer.Infof("Generated Kubernetes secret file to %s", secretFilePathFlag)
+		printer.Infof("Successfully generated a Kubernetes Secret file for Akita at %s\n", secretFilePathFlag)
+		printer.Infof("To apply, run: kubectl apply -f %s\n", secretFilePathFlag)
 		return nil
 	},
 	// Override the parent command's PersistentPreRun to prevent any logs from being printed.
