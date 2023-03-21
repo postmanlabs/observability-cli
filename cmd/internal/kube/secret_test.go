@@ -20,7 +20,7 @@ func Test_secretGeneration(t *testing.T) {
 	)
 
 	dir := t.TempDir()
-	actualOutput := filepath.Join(dir, "configurations", "akita-secret.yml")
+	actualOutput := filepath.Join(dir, "akita-secret.yml")
 
 	// WHEN
 	actualContent, err := handleSecretGeneration(namespace, key, secret, actualOutput)

@@ -114,16 +114,15 @@ func createSecretFile(path string) (*os.File, error) {
 		return nil, errors.Wrapf(err, "failed to resolve the absolute path of the output directory")
 	}
 
+	// Check that the output directory exists
+	if _, statErr := os.Stat(absOutputDir); os.IsNotExist(statErr) {
+		return nil, errors.Errorf("output directory %s does not exist", absOutputDir)
+	}
+
 	// Check if the output file already exists
 	outputFilePath := filepath.Join(absOutputDir, outputName)
 	if _, statErr := os.Stat(outputFilePath); statErr == nil {
 		return nil, errors.Errorf("output file %s already exists", outputFilePath)
-	}
-
-	// Create the output directory if it doesn't exist
-	err = os.MkdirAll(absOutputDir, 0755)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create the output directory")
 	}
 
 	// Create the output file in the output directory
