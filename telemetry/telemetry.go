@@ -18,7 +18,7 @@ import (
 
 var (
 	// Shared client object
-	analyticsClient analytics.Client
+	analyticsClient analytics.Client = nullClient{}
 
 	// Is analytics enabled?
 	analyticsEnabled bool
