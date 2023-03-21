@@ -2,6 +2,7 @@ package pcap
 
 import (
 	"fmt"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"net"
 	"testing"
 	"time"
@@ -127,6 +128,7 @@ func runTCPFlowTestCase(c tcpFlowTestCase) error {
 }
 
 func TestTCPFlow(t *testing.T) {
+	telemetry.Init(false)
 	testCases := []tcpFlowTestCase{
 		{
 			name:   "unparsable single byte",
