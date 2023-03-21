@@ -2,9 +2,13 @@ package kube
 
 import (
 	_ "embed"
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"path/filepath"
+	"sigs.k8s.io/yaml"
 	"testing"
 )
 
@@ -23,17 +27,50 @@ func Test_secretGeneration(t *testing.T) {
 	actualOutput := filepath.Join(dir, "akita-secret.yml")
 
 	// WHEN
-	output, err := handleSecretGeneration(namespace, key, secret, actualOutput)
+	result, err := handleSecretGeneration(namespace, key, secret, actualOutput)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
 
-	generatedFile, err := os.ReadFile(actualOutput)
+	// THEN
+	data, err := os.ReadFile(actualOutput)
 	if err != nil {
-		t.Errorf("Failed to read generated generatedFile: %v", err)
+		t.Errorf("Failed to read generated data: %v", err)
 	}
 
-	// THEN
-	assert.Equal(t, string(testAkitaSecretYAML), string(generatedFile))
-	assert.Equal(t, string(testAkitaSecretYAML), output)
+	convert := func(yamlBytes []byte) (v1.Secret, error) {
+		var result v1.Secret
+
+		jsonData, err := yaml.YAMLToJSONStrict(yamlBytes)
+		if err != nil {
+			return result, err
+		}
+
+		var parsedSecret v1.Secret
+		err = json.Unmarshal(jsonData, &parsedSecret)
+
+		return parsedSecret, err
+	}
+
+	file, err := convert(data)
+	output, err := convert([]byte(result))
+
+	expected := v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "akita-secrets",
+			Namespace: namespace,
+		},
+		Type: v1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"akita-api-key":    []byte(key),
+			"akita-api-secret": []byte(secret),
+		},
+	}
+
+	assert.Equal(t, expected, file)
+	assert.Equal(t, expected, output)
 }

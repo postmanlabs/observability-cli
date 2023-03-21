@@ -2,15 +2,19 @@ package kube
 
 import (
 	"bytes"
-	"encoding/base64"
+	"encoding/json"
+	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/telemetry"
+	"github.com/ghodss/yaml"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	k8_json "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"os"
 	"path/filepath"
-	"text/template"
-
-	"github.com/akitasoftware/akita-cli/telemetry"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -18,8 +22,6 @@ import (
 var (
 	outputFlag    string
 	namespaceFlag string
-	// Store a parsed representation of /template/akita-secret.tmpl
-	secretTemplate *template.Template
 )
 
 var secretCmd = &cobra.Command{
@@ -49,56 +51,92 @@ var secretCmd = &cobra.Command{
 	},
 }
 
-// Represents the input used by secretTemplate
-type secretTemplateInput struct {
-	Namespace string
-	APIKey    string
-	APISecret string
-}
+/*
+XXX: Kuberenetes Go API package currently has issues with valid serialization.
+The ObjectMeta field's CreationTimestamp field is improperly serialized as null when it should be omitted entirely if it is a zero value.
+This shouldn't cause any issues applying the secret, but it does cause issues for any tools that depend on valid yaml objects (such as linting tools)
+See: https://github.com/kubernetes/kubernetes/issues/109427
 
-func initSecretTemplate() error {
-	var err error
-
-	secretTemplate, err = template.ParseFS(templateFS, "template/akita-secret.tmpl")
-	if err != nil {
-		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to parse secret template")}
+Here, I've manually filtered out the CreationTimestamp field from the serialized object to work around this issue.
+*/
+func buildSecretConfiguration(namespace, apiKey, apiSecret string) ([]byte, error) {
+	secret := &v1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "akita-secrets",
+			Namespace: namespace,
+		},
+		Type: v1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			"akita-api-key":    []byte(apiKey),
+			"akita-api-secret": []byte(apiSecret),
+		},
 	}
 
-	return nil
+	unstructuredSecret, err := runtime.DefaultUnstructuredConverter.ToUnstructured(secret)
+	if err != nil {
+		return nil, err
+	}
+
+	unstructuredObj := &unstructured.Unstructured{Object: unstructuredSecret}
+	serializer := k8_json.NewSerializerWithOptions(
+		k8_json.DefaultMetaFactory,
+		nil,
+		nil,
+		k8_json.SerializerOptions{Yaml: false, Pretty: false, Strict: true},
+	)
+
+	buf := bytes.NewBuffer([]byte{})
+	err = serializer.Encode(unstructuredObj, buf)
+	if err != nil {
+		return nil, err
+	}
+
+	// HACK: Manually filter out the CreationTimestamp field from the serialized object
+	objMap := make(map[string]interface{})
+	err = json.Unmarshal(buf.Bytes(), &objMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := objMap["metadata"]; ok {
+		metadataMap := objMap["metadata"].(map[string]interface{})
+		delete(metadataMap, "creationTimestamp")
+	}
+
+	// Re-serialize the object
+	fixedJSON, err := json.Marshal(objMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return yaml.JSONToYAML(fixedJSON)
 }
 
 // Generates a Kubernetes secret config file for Akita
-// On success, the generated output is returned as a string.
-func handleSecretGeneration(namespace, key, secret, output string) (string, error) {
-	if err := initSecretTemplate(); err != nil {
-		return "", err
+func handleSecretGeneration(namespace, apiKey, apiSecret, output string) (string, error) {
+
+	secret, err := buildSecretConfiguration(namespace, apiKey, apiSecret)
+	if err != nil {
+		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate Kubernetes secret")}
 	}
 
-	input := secretTemplateInput{
-		Namespace: namespace,
-		APIKey:    base64.StdEncoding.EncodeToString([]byte(key)),
-		APISecret: base64.StdEncoding.EncodeToString([]byte(secret)),
-	}
-
+	// Serialize the secret to YAML
 	secretFile, err := createSecretFile(output)
 	if err != nil {
 		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to create output file")}
 	}
 	defer secretFile.Close()
 
-	buf := bytes.NewBuffer([]byte{})
-
-	err = secretTemplate.Execute(buf, input)
+	_, err = secretFile.Write(secret)
 	if err != nil {
 		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
 	}
 
-	_, err = secretFile.Write(buf.Bytes())
-	if err != nil {
-		return "", cmderr.AkitaErr{Err: errors.Wrap(err, "failed to read generated secret file")}
-	}
-
-	return buf.String(), nil
+	return string(secret), nil
 }
 
 // Creates a file at the give path to be used for storing of the generated Secret config
