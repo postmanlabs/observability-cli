@@ -136,7 +136,8 @@ func isInjectable(kind schema.GroupVersionKind) bool {
 	return kind.Group == "apps" && kind.Version == "v1" && kind.Kind == "Deployment"
 }
 
-// fromRawObject converts the given raw Kubernetes object into a Kubernetes object.
+// fromRawObject converts raw bytes into an unstructure.Unstrucutred object.
+// unstructured.Unstructured is used to represent a Kubernetes object that is not known ahead of time.
 func fromRawObject(raw []byte) (*unstructured.Unstructured, error) {
 	jConfigMap, err := kyamlutil.ToJSON(raw)
 	if err != nil {
