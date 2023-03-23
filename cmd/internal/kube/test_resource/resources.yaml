@@ -21,6 +21,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: patch-demo
+  namespace: ns1
 spec:
   replicas: 2
   selector:
@@ -38,4 +39,3 @@ spec:
         - effect: NoSchedule
           key: dedicated
           value: test-team
-
