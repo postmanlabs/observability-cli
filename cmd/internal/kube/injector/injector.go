@@ -21,6 +21,7 @@ type (
 		// Injects the given sidecar into all valid Deployment Objects and returns the result as a list of unstructured objects.
 		Inject(sidecar v1.Container) ([]*unstructured.Unstructured, error)
 		// Returns a list of namespaces that contain injectable objects.
+		// This can be used to generate other Kuberenetes objects that need to be created in the same namespace.
 		InjectableNamespaces() ([]string, error)
 	}
 	injectorImpl struct {
