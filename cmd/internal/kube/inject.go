@@ -79,7 +79,7 @@ var injectCmd = &cobra.Command{
 				return err
 			}
 
-			printer.Infof("Kubernetes Secret generated to %s", secretFilePath)
+			printer.Infof("Kubernetes Secret generated to %s\n", secretFilePath)
 		} else {
 			// Append the secret to the output
 			out.Write(secretBuf.Bytes())
@@ -103,7 +103,7 @@ var injectCmd = &cobra.Command{
 		if err := writeFile(out.Bytes(), injectOutputFlag); err != nil {
 			return err
 		}
-		printer.Infof("Injected YAML written to %s", injectOutputFlag)
+		printer.Infof("Injected YAML written to %s\n", injectOutputFlag)
 
 		return nil
 	},
