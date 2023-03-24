@@ -60,12 +60,7 @@ func FromYAML(filePath string) (Injector, error) {
 			return nil, errors.Wrap(err, "failed to convert raw yaml resource to an unstructured object")
 		}
 
-		result, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		if err != nil {
-			return nil, err
-		}
-
-		objList = append(objList, &unstructured.Unstructured{Object: result})
+		objList = append(objList, obj)
 	}
 
 	return &injectorImpl{objects: objList}, nil
@@ -141,7 +136,7 @@ func toDeployment(obj *unstructured.Unstructured) (*appsv1.Deployment, error) {
 	return deployment, nil
 }
 
-// fromRawObject converts raw bytes into an unstructure.Unstrucutred object.
+// fromRawObject converts raw bytes into an unstructured.Unstrucutred object.
 // unstructured.Unstructured is used to represent a Kubernetes object that is not known ahead of time.
 func fromRawObject(raw []byte) (*unstructured.Unstructured, error) {
 	jConfigMap, err := kyamlutil.ToJSON(raw)
