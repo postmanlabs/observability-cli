@@ -92,11 +92,10 @@ func (i *injectorImpl) InjectableNamespaces() ([]string, error) {
 
 func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructured, error) {
 	onMap := func(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-		out := obj.DeepCopy()
-		gvk := out.GetObjectKind().GroupVersionKind()
+		gvk := obj.GetObjectKind().GroupVersionKind()
 
 		if !isInjectable(gvk) {
-			return out, nil
+			return obj, nil
 		}
 
 		deployment, err := toDeployment(obj)
@@ -104,17 +103,15 @@ func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructure
 			return nil, errors.Wrap(err, "failed to convert object to deployment during injection")
 		}
 
-		injectedDeployment := deployment.DeepCopy()
+		containers := deployment.Spec.Template.Spec.Containers
+		deployment.Spec.Template.Spec.Containers = append(containers, sidecar)
 
-		containers := injectedDeployment.Spec.Template.Spec.Containers
-		injectedDeployment.Spec.Template.Spec.Containers = append(containers, sidecar)
-
-		out.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(injectedDeployment)
+		obj.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(deployment)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert injected deployment to unstructured object")
 		}
 
-		return out, nil
+		return obj, nil
 	}
 
 	return mapUnstructured(i.objects, onMap)
