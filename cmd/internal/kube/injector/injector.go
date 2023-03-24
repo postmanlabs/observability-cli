@@ -34,9 +34,10 @@ type (
 
 // Constructs a new Injector with Kubernetes objects derived from the given file path.
 func FromYAML(filePath string) (Injector, error) {
+	var err error
 	yamlContent, err := getFile(filePath)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to retrieve raw yaml file content")
 	}
 
 	// Read the YAML file into a list of unstructured objects.
@@ -51,12 +52,12 @@ func FromYAML(filePath string) (Injector, error) {
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, err
+			return nil, errors.Wrap(err, "failed to read raw yaml file")
 		}
 
 		obj, err := fromRawObject(raw)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to convert raw yaml resource to an unstructured object")
 		}
 
 		result, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
@@ -105,26 +106,20 @@ func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructure
 		}
 
 		var deployment *appsv1.Deployment
+
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(out.Object, &deployment)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to convert object to deployment during injection")
 		}
 
 		injectedDeployment := deployment.DeepCopy()
-		if err != nil {
-			return nil, err
-		}
 
 		containers := injectedDeployment.Spec.Template.Spec.Containers
 		injectedDeployment.Spec.Template.Spec.Containers = append(containers, sidecar)
 
-		if err != nil {
-			return nil, err
-		}
-
 		out.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(injectedDeployment)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to convert injected deployment to unstructured object")
 		}
 
 		return out, nil
