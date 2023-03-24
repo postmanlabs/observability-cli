@@ -119,7 +119,13 @@ func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructure
 }
 
 func isInjectable(kind schema.GroupVersionKind) bool {
-	return kind.Group == "apps" && kind.Version == "v1" && kind.Kind == "Deployment"
+	acceptedKind := schema.GroupVersionKind{
+		Group:   "apps",
+		Version: "v1",
+		Kind:    "Deployment",
+	}
+
+	return kind == acceptedKind
 }
 
 // Converts a generic Kubernetes object into a Deployment Object.
