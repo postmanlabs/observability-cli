@@ -3,17 +3,19 @@ package injector
 import (
 	"bufio"
 	"bytes"
-	"github.com/akitasoftware/go-utils/sets"
-	"github.com/pkg/errors"
 	"io"
+	"os"
+	"path/filepath"
+
+	"github.com/akitasoftware/go-utils/sets"
+	"github.com/akitasoftware/go-utils/slices"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kyamlutil "k8s.io/apimachinery/pkg/util/yaml"
-	"os"
-	"path/filepath"
 )
 
 type (
@@ -115,7 +117,7 @@ func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructure
 		return obj, nil
 	}
 
-	return mapUnstructured(i.objects, onMap)
+	return slices.MapWithErr(i.objects, onMap)
 }
 
 func isInjectable(kind schema.GroupVersionKind) bool {
@@ -182,26 +184,4 @@ func getFile(filePath string) ([]byte, error) {
 	}
 
 	return os.ReadFile(absPath)
-}
-
-// mapUnstructured applies the given transformer function to each unstructured Kubernetes item in the given list.
-// If the transformer function returns an error, the error is returned immediately.
-func mapUnstructured(
-	objList []*unstructured.Unstructured,
-	transformer func(*unstructured.Unstructured) (*unstructured.Unstructured, error),
-) ([]*unstructured.Unstructured, error) {
-	if objList == nil {
-		return nil, nil
-	}
-
-	results := make([]*unstructured.Unstructured, 0, len(objList))
-	for _, item := range objList {
-		result, err := transformer(item)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, result)
-	}
-
-	return results, nil
 }
