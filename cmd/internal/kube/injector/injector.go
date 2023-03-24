@@ -80,10 +80,9 @@ func (i *injectorImpl) InjectableNamespaces() ([]string, error) {
 			continue
 		}
 
-		var deployment *appsv1.Deployment
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &deployment)
+		deployment, err := toDeployment(obj)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to convert object to deployment during namespace discovery")
 		}
 
 		if deployment.Namespace == "" {
@@ -105,9 +104,7 @@ func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructure
 			return out, nil
 		}
 
-		var deployment *appsv1.Deployment
-
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(out.Object, &deployment)
+		deployment, err := toDeployment(obj)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert object to deployment during injection")
 		}
@@ -130,6 +127,18 @@ func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructure
 
 func isInjectable(kind schema.GroupVersionKind) bool {
 	return kind.Group == "apps" && kind.Version == "v1" && kind.Kind == "Deployment"
+}
+
+// Converts a generic Kubernetes object into a Deployment Object.
+func toDeployment(obj *unstructured.Unstructured) (*appsv1.Deployment, error) {
+	var deployment *appsv1.Deployment
+
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &deployment)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert object to deployment during injection")
+	}
+
+	return deployment, nil
 }
 
 // fromRawObject converts raw bytes into an unstructure.Unstrucutred object.
