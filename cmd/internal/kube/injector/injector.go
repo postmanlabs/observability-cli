@@ -3,6 +3,7 @@ package injector
 import (
 	"bufio"
 	"bytes"
+	"github.com/akitasoftware/go-utils/sets"
 	"github.com/pkg/errors"
 	"io"
 	appsv1 "k8s.io/api/apps/v1"
@@ -11,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kyamlutil "k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/kube-openapi/pkg/util/sets"
 	"os"
 	"path/filepath"
 )
@@ -67,7 +67,8 @@ func FromYAML(filePath string) (Injector, error) {
 }
 
 func (i *injectorImpl) InjectableNamespaces() ([]string, error) {
-	set := make(map[string]struct{})
+	set := sets.NewSet[string]()
+
 	for _, obj := range i.objects {
 		gvk := obj.GetObjectKind().GroupVersionKind()
 
@@ -81,13 +82,13 @@ func (i *injectorImpl) InjectableNamespaces() ([]string, error) {
 		}
 
 		if deployment.Namespace == "" {
-			set["default"] = struct{}{}
+			set.Insert("default")
 		} else {
-			set[deployment.Namespace] = struct{}{}
+			set.Insert(deployment.Namespace)
 		}
 	}
 
-	return sets.StringKeySet(set).List(), nil
+	return set.AsSlice(), nil
 }
 
 func (i *injectorImpl) Inject(sidecar v1.Container) ([]*unstructured.Unstructured, error) {
