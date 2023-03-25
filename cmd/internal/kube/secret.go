@@ -3,8 +3,6 @@ package kube
 import (
 	"bytes"
 	"encoding/base64"
-	"os"
-	"path/filepath"
 	"text/template"
 
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -43,7 +41,7 @@ var secretCmd = &cobra.Command{
 		}
 
 		// Otherwise, write the generated secret to the given file path
-		err = writeSecretFile(output, secretFilePathFlag)
+		err = writeFile(output, secretFilePathFlag)
 		if err != nil {
 			return cmderr.AkitaErr{Err: errors.Wrapf(err, "Failed to write generated secret to %s", output)}
 		}
@@ -100,62 +98,6 @@ func handleSecretGeneration(namespace, key, secret string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
-}
-
-// Writes the generated secret to the given file path
-func writeSecretFile(data []byte, filePath string) error {
-	secretFile, err := createSecretFile(filePath)
-	if err != nil {
-		return cmderr.AkitaErr{
-			Err: cmderr.AkitaErr{
-				Err: errors.Wrapf(
-					err,
-					"failed to create secret file %s",
-					filePath,
-				),
-			},
-		}
-	}
-	defer secretFile.Close()
-
-	_, err = secretFile.Write(data)
-	if err != nil {
-		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to write generated secret file")}
-	}
-
-	return nil
-}
-
-// Creates a file at the given path to be used for storing of the generated Secret configuration
-// If the directory provided does not exist, an error will be returned and the file will not be created
-func createSecretFile(path string) (*os.File, error) {
-	// Split the output flag value into directory and filename
-	outputDir, outputName := filepath.Split(path)
-
-	// Get the absolute path of the output directory
-	absOutputDir, err := filepath.Abs(outputDir)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to resolve the absolute path of the output directory")
-	}
-
-	// Check that the output directory exists
-	if _, statErr := os.Stat(absOutputDir); os.IsNotExist(statErr) {
-		return nil, errors.Errorf("output directory %s does not exist", absOutputDir)
-	}
-
-	// Check if the output file already exists
-	outputFilePath := filepath.Join(absOutputDir, outputName)
-	if _, statErr := os.Stat(outputFilePath); statErr == nil {
-		return nil, errors.Errorf("output file %s already exists", outputFilePath)
-	}
-
-	// Create the output file in the output directory
-	outputFile, err := os.Create(outputFilePath)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create the output file")
-	}
-
-	return outputFile, nil
 }
 
 func init() {
