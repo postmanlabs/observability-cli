@@ -72,7 +72,7 @@ var injectCmd = &cobra.Command{
 		// Create the output buffer
 		out := new(bytes.Buffer)
 
-		// Either write the secret to a file or append it to the output
+		// Either write the secret to a file or prepend it to the output
 		if secretFilePath, exists := secretOpts.Filepath.Get(); exists {
 			err = writeFile(secretBuf.Bytes(), secretFilePath)
 			if err != nil {
@@ -81,8 +81,9 @@ var injectCmd = &cobra.Command{
 
 			printer.Infof("Kubernetes Secret generated to %s\n", secretFilePath)
 		} else {
-			// Append the secret to the output
-			out.Write(secretBuf.Bytes())
+			// Assign the secret to the output buffer
+			// We do this so that the secret is written before any injected Deployment resources that depend on it
+			out = secretBuf
 		}
 
 		// Inject the sidecar into the input file
