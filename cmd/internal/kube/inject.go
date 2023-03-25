@@ -26,10 +26,13 @@ var injectCmd = &cobra.Command{
 	RunE: func(_ *cobra.Command, args []string) error {
 		secretOpts := resolveSecretGenerationOptions(secretInjectFlag)
 
-		// If the user specified a secret file path, but did not specify an output file, return an error
+		// To avoid users unintentionally attempting to apply injected Deployments via pipeline without
+		// their dependent Secrets, require that the user explicitly specify an output file.
 		if secretOpts.ShouldInject && secretOpts.Filepath.IsSome() && injectOutputFlag == "" {
+			printer.Errorln("Cannot specify a Secret file path without an output file (using --output or -o)")
+			printer.Infoln("To generate a Secret file on its own, use `akita kube secret`")
 			return cmderr.AkitaErr{
-				Err: errors.New("cannot specify a secret file path without an output file (using --output or -o)"),
+				Err: errors.New("invalid flag usage"),
 			}
 		}
 
