@@ -238,7 +238,7 @@ func init() {
 		"secret",
 		"s",
 		"false",
-		`Whether to generate a Kubernetes Secret. If set to "true", the secret will be prepended to modified Kubernetes YAML file. Specify a path to write the secret to a separate file.`,
+		`Whether to generate a Kubernetes Secret. If set to "true", the secret will be prepended to the modified Kubernetes YAML file. Specify a path to write the secret to a separate file.`,
 	)
 	// Default value is "true" when the flag is given without an argument.
 	injectCmd.Flags().Lookup("secret").NoOptDefVal = "true"
