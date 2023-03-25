@@ -22,7 +22,7 @@ var (
 var injectCmd = &cobra.Command{
 	Use:   "inject",
 	Short: "Inject Akita into a Kubernetes deployment",
-	Long:  "Inject Akita into a Kubernetes deployment or set of deployments and output the result to stdout or a file",
+	Long:  "Inject Akita into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
 	RunE: func(_ *cobra.Command, args []string) error {
 		secretOpts := resolveSecretGenerationOptions(secretInjectFlag)
 
@@ -113,6 +113,7 @@ var injectCmd = &cobra.Command{
 	},
 }
 
+// A parsed representation of the `--secret` option.
 type secretGenerationOptions struct {
 	// Whether to inject a secret
 	ShouldInject bool
@@ -168,6 +169,7 @@ func createSidecar(projectName string) v1.Container {
 	return sidecar
 }
 
+// Parses the given value for the `--secret` option.
 func resolveSecretGenerationOptions(flagValue string) secretGenerationOptions {
 	if flagValue == "" || flagValue == "false" {
 		return secretGenerationOptions{
@@ -223,6 +225,7 @@ func init() {
 		"false",
 		`Whether to generate a Kubernetes Secret. If set to "true" the secret will be appended to the stdout. Specify a path to write the secret to a file.`,
 	)
+	// Default value is "true" when the flag is given without an argument.
 	injectCmd.Flags().Lookup("secret").NoOptDefVal = "true"
 
 	Cmd.AddCommand(injectCmd)
