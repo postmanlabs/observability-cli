@@ -2,6 +2,7 @@ package kube
 
 import (
 	"bytes"
+
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube/injector"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -13,10 +14,20 @@ import (
 )
 
 var (
+	// The target Yaml faile to be injected
+	// This is required for execution of injectCmd
 	injectFileNameFlag string
-	injectOutputFlag   string
-	projectNameFlag    string
-	secretInjectFlag   string
+	// The output file to write the injected Yaml to
+	// If not set, injectCmd will default to printing the output to stdout
+	injectOutputFlag string
+	// The name of the project that the injected deployments should be associated with
+	// This will be used by the agent to determine which Akita service to report traffic to
+	projectNameFlag string
+	// Represents the options for generating a secret
+	// When set to "false" or left empty, injectCmd will not generate a secret
+	// When set to "true", injectCmd will prepend a secret to each injectable namespace found in the file to inject (injectFileNameFlag)
+	// Otherwise, injectCmd will treat secretInjectFlag as the file path all secrets should be generated to
+	secretInjectFlag string
 )
 
 var injectCmd = &cobra.Command{
