@@ -3,6 +3,7 @@ package learn
 import (
 	"bytes"
 	"compress/flate"
+	"github.com/akitasoftware/akita-cli/telemetry"
 	"net/http"
 	"strings"
 	"testing"
@@ -127,6 +128,7 @@ type parseTest struct {
 }
 
 func TestParseHTTPRequest(t *testing.T) {
+	telemetry.Init(false)
 	standardMethodMeta := &as.MethodMeta{
 		Meta: &as.MethodMeta_Http{
 			Http: &as.HTTPMethodMeta{
