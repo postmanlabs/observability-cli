@@ -22,7 +22,8 @@ var (
 
 var secretCmd = &cobra.Command{
 	Use:   "secret",
-	Short: "Generate a Kubernetes secret containing the Akita credentials",
+	Short: "Generate a Kubernetes Secret manifest",
+	Long: "Generate a Kubernetes Secret manfiest to store your Akita API credentials and output the result to standard output or a file",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key, secret, err := cmderr.RequireAPICredentials("Akita API key is required for Kubernetes Secret generation")
 		if err != nil {
