@@ -64,13 +64,13 @@ type baseClient struct {
 
 func newBaseClient(rawHost string, cli akid.ClientID) baseClient {
 	host := "api." + rawHost
-	// If rawHost is IP or IP:port, use that directly. This is mostly to support
-	// tests.
+	// If rawHost is IP, IP:port, localhost, or localhost:port, use that
+	// directly. This is mostly to support tests.
 	if h, _, err := net.SplitHostPort(rawHost); err == nil {
-		if net.ParseIP(h) != nil {
+		if h == "localhost" || net.ParseIP(h) != nil {
 			host = rawHost
 		}
-	} else if net.ParseIP(rawHost) != nil {
+	} else if rawHost == "localhost" || net.ParseIP(rawHost) != nil {
 		host = rawHost
 	}
 
