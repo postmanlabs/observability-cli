@@ -115,7 +115,7 @@ func getTraces(cmd *cobra.Command, args []string) error {
 	// push the limit and sort to the backend.
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	sessions, err := learnClient.ListLearnSessions(ctx, serviceID, tags)
+	sessions, err := learnClient.ListLearnSessions(ctx, serviceID, tags, 250, 0)
 	if err != nil {
 		return err
 	}

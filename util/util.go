@@ -127,7 +127,7 @@ func GetLearnSessionByTags(c rest.LearnClient, serviceID akid.ServiceID, tags ma
 	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
 	defer cancel()
 
-	sessions, err := c.ListLearnSessions(ctx, serviceID, tags)
+	sessions, err := c.ListLearnSessions(ctx, serviceID, tags, 250, 0)
 	if err != nil {
 		return nil, errors.Wrapf(err, "listing sessions for %v by tag failed", akid.String(serviceID))
 	}

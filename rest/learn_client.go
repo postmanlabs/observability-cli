@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/akitasoftware/akita-libs/akid"
@@ -26,6 +27,8 @@ type learnClientImpl struct {
 	serviceID akid.ServiceID
 }
 
+var _ LearnClient = (*learnClientImpl)(nil)
+
 func NewLearnClient(host string, cli akid.ClientID, svc akid.ServiceID) *learnClientImpl {
 	return &learnClientImpl{
 		BaseClient: NewBaseClient(host, cli),
@@ -33,9 +36,11 @@ func NewLearnClient(host string, cli akid.ClientID, svc akid.ServiceID) *learnCl
 	}
 }
 
-func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string) ([]*kgxapi.ListedLearnSession, error) {
+func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string, limit int, offset int) ([]*kgxapi.ListedLearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
 	q := url.Values{}
+	q.Add("limit", strconv.Itoa(limit))
+	q.Add("offset", strconv.Itoa(offset))
 	for k, v := range tags {
 		q.Add(fmt.Sprintf("tag[%s]", k), v)
 	}
