@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/akitasoftware/akita-libs/akid"
@@ -21,27 +22,31 @@ var (
 )
 
 type learnClientImpl struct {
-	baseClient
+	BaseClient
 
 	serviceID akid.ServiceID
 }
 
+var _ LearnClient = (*learnClientImpl)(nil)
+
 func NewLearnClient(host string, cli akid.ClientID, svc akid.ServiceID) *learnClientImpl {
 	return &learnClientImpl{
-		baseClient: newBaseClient(host, cli),
+		BaseClient: NewBaseClient(host, cli),
 		serviceID:  svc,
 	}
 }
 
-func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string) ([]*kgxapi.ListedLearnSession, error) {
+func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string, limit int, offset int) ([]*kgxapi.ListedLearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
 	q := url.Values{}
+	q.Add("limit", strconv.Itoa(limit))
+	q.Add("offset", strconv.Itoa(offset))
 	for k, v := range tags {
 		q.Add(fmt.Sprintf("tag[%s]", k), v)
 	}
 
 	var resp kgxapi.ListSessionsResponse
-	err := c.getWithQuery(ctx, p, q, &resp)
+	err := c.GetWithQuery(ctx, p, q, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +60,7 @@ func (c *learnClientImpl) ListLearnSessionsWithStats(ctx context.Context, svc ak
 	q.Add("get_stats", "true")
 
 	var resp kgxapi.ListSessionsResponse
-	err := c.getWithQuery(ctx, p, q, &resp)
+	err := c.GetWithQuery(ctx, p, q, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +70,7 @@ func (c *learnClientImpl) ListLearnSessionsWithStats(ctx context.Context, svc ak
 func (c *learnClientImpl) GetLearnSession(ctx context.Context, svc akid.ServiceID, lrn akid.LearnSessionID) (*kgxapi.LearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn))
 	var resp kgxapi.LearnSession
-	err := c.get(ctx, p, &resp)
+	err := c.Get(ctx, p, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +81,7 @@ func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *k
 	req := kgxapi.CreateLearnSessionRequest{BaseAPISpecRef: baseSpecRef, Tags: tags, Name: name}
 	var resp kgxapi.LearnSession
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
-	err := c.post(ctx, p, req, &resp)
+	err := c.Post(ctx, p, req, &resp)
 	if err != nil {
 		return akid.LearnSessionID{}, err
 	}
@@ -88,7 +93,7 @@ func (c *learnClientImpl) AsyncReportsUpload(ctx context.Context, lrn akid.Learn
 	resp := map[string]interface{}{}
 
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_reports")
-	return c.post(ctx, p, req, &resp)
+	return c.Post(ctx, p, req, &resp)
 }
 
 func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []akid.LearnSessionID, opts CreateSpecOptions) (akid.APISpecID, error) {
@@ -117,7 +122,7 @@ func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []ak
 
 	p := path.Join("/v1/services", akid.String(c.serviceID), "specs")
 	var resp kgxapi.CreateSpecResponse
-	err := c.post(ctx, p, req, &resp)
+	err := c.Post(ctx, p, req, &resp)
 	return resp.ID, err
 }
 
@@ -129,7 +134,7 @@ func (c *learnClientImpl) GetSpec(ctx context.Context, api akid.APISpecID, opts 
 	p := path.Join("/v1/services", akid.String(c.serviceID), "specs", akid.String(api))
 
 	var resp kgxapi.GetSpecResponse
-	err := c.getWithQuery(ctx, p, qs, &resp)
+	err := c.GetWithQuery(ctx, p, qs, &resp)
 	return resp, err
 }
 
@@ -143,14 +148,14 @@ func (c *learnClientImpl) ListSpecs(ctx context.Context) ([]kgxapi.SpecInfo, err
 	p := path.Join("/v1/services", akid.String(c.serviceID), "specs")
 
 	var resp kgxapi.ListSpecsResponse
-	err := c.getWithQuery(ctx, p, qs, &resp)
+	err := c.GetWithQuery(ctx, p, qs, &resp)
 	return resp.Specs, err
 }
 
 func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (kgxapi.APISpecVersion, error) {
 	var resp kgxapi.APISpecVersion
 	p := path.Join("/v1/services", akid.String(c.serviceID), "spec-versions", version)
-	err := c.get(ctx, p, &resp)
+	err := c.Get(ctx, p, &resp)
 	if err != nil {
 		return kgxapi.APISpecVersion{}, err
 	}
@@ -160,7 +165,7 @@ func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (k
 func (c *learnClientImpl) UploadSpec(ctx context.Context, req kgxapi.UploadSpecRequest) (*kgxapi.UploadSpecResponse, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "upload-spec")
 	var resp kgxapi.UploadSpecResponse
-	err := c.post(ctx, p, req, &resp)
+	err := c.Post(ctx, p, req, &resp)
 	return &resp, err
 }
 
@@ -169,7 +174,7 @@ func (c *learnClientImpl) GetAPISpecIDByName(ctx context.Context, n string) (aki
 		ID akid.APISpecID `json:"id"`
 	}{}
 	path := fmt.Sprintf("/v1/services/%s/ids/specs/%s", akid.String(c.serviceID), n)
-	err := c.get(ctx, path, &resp)
+	err := c.Get(ctx, path, &resp)
 	return resp.ID, err
 }
 
@@ -178,7 +183,7 @@ func (c *learnClientImpl) GetLearnSessionIDByName(ctx context.Context, n string)
 		ID akid.LearnSessionID `json:"id"`
 	}{}
 	path := fmt.Sprintf("/v1/services/%s/ids/learn_sessions/%s", akid.String(c.serviceID), n)
-	err := c.get(ctx, path, &resp)
+	err := c.Get(ctx, path, &resp)
 	return resp.ID, err
 }
 
@@ -186,7 +191,7 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 	var resp path_trie.PathTrie
 	path := fmt.Sprintf("/v1/services/%s/specs/%s/diff/%s/trie",
 		akid.String(c.serviceID), akid.String(baseID), akid.String(newID))
-	err := c.get(ctx, path, &resp)
+	err := c.Get(ctx, path, &resp)
 	return &resp, err
 }
 
@@ -197,7 +202,7 @@ func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serv
 
 	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s", serviceID, deployment)
 	var resp struct{}
-	return c.post(ctx, path, req, &resp)
+	return c.Post(ctx, path, req, &resp)
 }
 
 func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostInitialClientTelemetryRequest) error {
@@ -207,7 +212,7 @@ func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, servic
 
 	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s/start", serviceID, deployment)
 	var resp struct{}
-	return c.post(ctx, path, req, &resp)
+	return c.Post(ctx, path, req, &resp)
 }
 
 func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpecID, versionName string) error {
@@ -219,7 +224,7 @@ func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpe
 		APISpecID: specID,
 	}
 
-	return c.post(ctx, path, req, &resp)
+	return c.Post(ctx, path, req, &resp)
 }
 
 // Returns events aggregated in 1-minute intervals.
@@ -239,7 +244,7 @@ func (c *learnClientImpl) GetTimeline(ctx context.Context, serviceID akid.Servic
 	q.Add("aggregate", string(api_schema.Aggr_99p))
 
 	var resp kgxapi.TimelineResponse
-	err := c.getWithQuery(ctx, path, q, &resp)
+	err := c.GetWithQuery(ctx, path, q, &resp)
 	return resp, err
 }
 
@@ -253,6 +258,6 @@ func (c *learnClientImpl) GetGraphEdges(ctx context.Context, serviceID akid.Serv
 	q.Add("type", graphType)
 
 	var resp kgxapi.GraphResponse
-	err := c.getWithQuery(ctx, path, q, &resp)
+	err := c.GetWithQuery(ctx, path, q, &resp)
 	return resp, err
 }

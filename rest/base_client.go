@@ -56,13 +56,13 @@ func SetAPIErrorHandler(f APIErrorHandler) {
 	apiErrorHandler = f
 }
 
-type baseClient struct {
+type BaseClient struct {
 	host     string
 	scheme   string // http or https
 	clientID akid.ClientID
 }
 
-func newBaseClient(rawHost string, cli akid.ClientID) baseClient {
+func NewBaseClient(rawHost string, cli akid.ClientID) BaseClient {
 	host := "api." + rawHost
 	// If rawHost is IP, IP:port, localhost, or localhost:port, use that
 	// directly. This is mostly to support tests.
@@ -74,7 +74,7 @@ func newBaseClient(rawHost string, cli akid.ClientID) baseClient {
 		host = rawHost
 	}
 
-	c := baseClient{
+	c := BaseClient{
 		scheme:   "https",
 		host:     host,
 		clientID: cli,
@@ -87,11 +87,11 @@ func newBaseClient(rawHost string, cli akid.ClientID) baseClient {
 }
 
 // Sends GET request and parses the response as JSON.
-func (c baseClient) get(ctx context.Context, path string, resp interface{}) error {
-	return c.getWithQuery(ctx, path, nil, resp)
+func (c BaseClient) Get(ctx context.Context, path string, resp interface{}) error {
+	return c.GetWithQuery(ctx, path, nil, resp)
 }
 
-func (c baseClient) getWithQuery(ctx context.Context, path string, query url.Values, resp interface{}) (e error) {
+func (c BaseClient) GetWithQuery(ctx context.Context, path string, query url.Values, resp interface{}) (e error) {
 	defer func() {
 		if e != nil {
 			reportError(http.MethodGet, path, e)
@@ -120,7 +120,7 @@ func (c baseClient) getWithQuery(ctx context.Context, path string, query url.Val
 
 // Sends POST request after marshaling body into JSON and parses the response as
 // JSON.
-func (c baseClient) post(ctx context.Context, path string, body interface{}, resp interface{}) (e error) {
+func (c BaseClient) Post(ctx context.Context, path string, body interface{}, resp interface{}) (e error) {
 	defer func() {
 		if e != nil {
 			reportError(http.MethodGet, path, e)

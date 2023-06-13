@@ -11,18 +11,18 @@ import (
 )
 
 type frontClientImpl struct {
-	baseClient
+	BaseClient
 }
 
 func NewFrontClient(host string, cli akid.ClientID) *frontClientImpl {
 	return &frontClientImpl{
-		baseClient: newBaseClient(host, cli),
+		BaseClient: NewBaseClient(host, cli),
 	}
 }
 
 func (c *frontClientImpl) GetServices(ctx context.Context) ([]Service, error) {
 	resp := []Service{}
-	if err := c.get(ctx, "/v1/services", &resp); err != nil {
+	if err := c.Get(ctx, "/v1/services", &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -30,7 +30,7 @@ func (c *frontClientImpl) GetServices(ctx context.Context) ([]Service, error) {
 
 func (c *frontClientImpl) GetUser(ctx context.Context) (User, error) {
 	resp := User{}
-	err := c.get(ctx, "/v1/user", &resp)
+	err := c.Get(ctx, "/v1/user", &resp)
 	return resp, err
 }
 
@@ -41,7 +41,7 @@ func (c *frontClientImpl) DaemonHeartbeat(ctx context.Context, daemonName string
 		DaemonName: daemonName,
 	}
 	resp := struct{}{}
-	return c.post(ctx, "/v1/daemon/heartbeat", body, &resp)
+	return c.Post(ctx, "/v1/daemon/heartbeat", body, &resp)
 }
 
 func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, daemonName string, serviceID akid.ServiceID, activeTraces []akid.LearnSessionID) (daemon.ActiveTraceDiff, error) {
@@ -54,7 +54,7 @@ func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, da
 	}
 	var resp daemon.ActiveTraceDiff
 	path := path.Join("/v1/services", akid.String(serviceID), "daemon")
-	err := c.post(ctx, path, body, &resp)
+	err := c.Post(ctx, path, body, &resp)
 	return resp, err
 }
 
@@ -63,7 +63,7 @@ func (c *frontClientImpl) GetGitHubPREnabledState(ctx context.Context, gitHubPR 
 	response := struct {
 		AkitaEnabled bool `json:"akita_enabled"`
 	}{}
-	if err := c.get(ctx, endpoint, &response); err != nil {
+	if err := c.Get(ctx, endpoint, &response); err != nil {
 		return false, err
 	}
 	return response.AkitaEnabled, nil
