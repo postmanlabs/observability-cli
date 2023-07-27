@@ -31,6 +31,9 @@ var (
 	// Maps learn session name to ID.
 	learnSessionNameCache = cache.New(30*time.Second, 5*time.Minute)
 
+	// Maps postmanCollectionID to ID
+	postmanCollectionIDCache = cache.New(30*time.Second, 5*time.Minute)
+
 	// API timeout
 	apiTimeout = 20 * time.Second
 )
@@ -88,6 +91,50 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	}
 	telemetry.Failure("Unknown project ID")
 	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for %s", name)
+}
+
+func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
+	// Normalize the collectionID.
+	collectionID = strings.ToLower(collectionID)
+
+	if id, found := postmanCollectionIDCache.Get(collectionID); found {
+		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
+		return id.(akid.ServiceID), nil
+	}
+
+	// Fill cache.
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+	services, err := c.GetServices(ctx)
+	if err != nil {
+		return akid.ServiceID{}, errors.Wrap(err, "failed to get list of services associated with the API Key")
+	}
+
+	var result akid.ServiceID
+	for _, svc := range services {
+		if svc.ID == (akid.ServiceID{}) {
+			continue
+		}
+
+		if svc.PostmanMetaData == (rest.PostmanMetaData{}) {
+			continue
+		}
+
+		// Normalize collectionID.
+		svcCollectionID := strings.ToLower(svc.PostmanMetaData.CollectionID)
+
+		if strings.EqualFold(collectionID, svcCollectionID) {
+			result = svc.ID
+			postmanCollectionIDCache.Set(svcCollectionID, svc.ID, cache.DefaultExpiration)
+		}
+	}
+
+	if (result != akid.ServiceID{}) {
+		printer.Stderr.Debugf("Postman collectionID %q is %q\n", collectionID, akid.String(result))
+		return result, nil
+	}
+	telemetry.Failure("Unknown postman collectionID")
+	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for Postman collectionID %s", collectionID)
 }
 
 func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
