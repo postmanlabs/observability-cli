@@ -72,7 +72,7 @@ var Cmd = &cobra.Command{
 
 		// Check that exactly one of --out or --project is specified.
 		if !outFlag.IsSet() && serviceFlag == "" && postmanCollectionID == "" {
-			return errors.New("exactly one of --out or --project must be specified")
+			return errors.New("exactly one of --out, --project or --collection must be specified")
 		}
 
 		// If --project was given, convert it to an equivalent --out.
@@ -82,11 +82,6 @@ var Cmd = &cobra.Command{
 				return errors.Wrap(err, "bad project name")
 			}
 			outFlag.AkitaURI = &uri
-		}
-
-		if (postmanAPIKey == "" && postmanCollectionID != "") ||
-			(postmanAPIKey != "" && postmanCollectionID == "") {
-			return errors.New("Both --collection and --key must be specified.")
 		}
 
 		if postmanAPIKey != "" {
@@ -230,11 +225,15 @@ func init() {
 		"",
 		"Your Postman collectionID. Both --collection and --key must be specified.")
 
+	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
+
 	Cmd.Flags().StringVar(
 		&postmanAPIKey,
 		"key",
 		"",
 		"Your Postman API Key. Both --collection and --key must be specified.")
+
+	Cmd.MarkFlagsRequiredTogether("collection", "key")
 
 	Cmd.Flags().StringVar(
 		&postmanEnvironment,
