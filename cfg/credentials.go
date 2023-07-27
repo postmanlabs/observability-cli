@@ -10,18 +10,19 @@ import (
 )
 
 // Credential config can be set in 2 ways:
-// 	1. Via YAML config file under $HOME/.akita/credentials.yaml
-//  	The file layout is a map mapping profile to the API key ID and secret
-//  	(currently only default profile is supported). For example:
 //
-//		```yaml
-//		default:
-//			api_key_id: apk_6NiejyYEVpWfziUXJgovV6
-//			api_key_secret: 09328501313h39tgh91238tg
-//		profile-1:
-//			api_key_id: apk_XvGyglmvHQoMcq3WOoLly
-//			api_key_secret: 34985g298g2498ty243gh2jl
-//		```
+//  1. Via YAML config file under $HOME/.akita/credentials.yaml
+//     The file layout is a map mapping profile to the API key ID and secret
+//     (currently only default profile is supported). For example:
+//
+//     ```yaml
+//     default:
+//     api_key_id: apk_6NiejyYEVpWfziUXJgovV6
+//     api_key_secret: 09328501313h39tgh91238tg
+//     profile-1:
+//     api_key_id: apk_XvGyglmvHQoMcq3WOoLly
+//     api_key_secret: 34985g298g2498ty243gh2jl
+//     ```
 //
 //  2. Via environment variables `AKITA_API_KEY_ID` and `AKITA_API_KEY_SECRET`.
 var creds = viper.New()
@@ -29,6 +30,31 @@ var creds = viper.New()
 const (
 	credsFileName = "credentials"
 )
+
+// Create the config file if it doesn't exist.
+func writeConfigToFile(profile string, keyValueMap map[string]string) error {
+	if profile != "default" {
+		return errors.Errorf("non-default profile not supported yet")
+	}
+
+	credsFile := GetCredentialsConfigPath()
+	if _, err := os.Stat(credsFile); os.IsNotExist(err) {
+		// Create initial config file.
+		if f, err := os.OpenFile(credsFile, os.O_CREATE|os.O_EXCL, 0600); err != nil {
+			return errors.Wrapf(err, "failed to create %s", credsFile)
+		} else {
+			f.Close()
+		}
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to stat %s", credsFile)
+	}
+
+	for key, value := range keyValueMap {
+		creds.Set(profile+"."+key, value)
+	}
+
+	return creds.WriteConfig()
+}
 
 func initCreds() {
 	// Set up credentials to read from config file.
@@ -65,24 +91,26 @@ func GetAPIKeyAndSecret() (string, string) {
 
 // Writes API key ID and secret to the config file.
 func WriteAPIKeyAndSecret(profile, keyID, keySecret string) error {
-	if profile != "default" {
-		return errors.Errorf("non-default profile not supported yet")
+	keyValueMap := map[string]string{
+		"api_key_id":     keyID,
+		"api_key_secret": keySecret,
 	}
 
-	// Create the config file if it doesn't exist.
-	credsFile := GetCredentialsConfigPath()
-	if _, err := os.Stat(credsFile); os.IsNotExist(err) {
-		// Create initial config file.
-		if f, err := os.OpenFile(credsFile, os.O_CREATE|os.O_EXCL, 0600); err != nil {
-			return errors.Wrapf(err, "failed to create %s", credsFile)
-		} else {
-			f.Close()
-		}
-	} else if err != nil {
-		return errors.Wrapf(err, "failed to stat %s", credsFile)
+	return writeConfigToFile(profile, keyValueMap)
+}
+
+// Get Postman API key and environment from config file
+func GetPostmanAPIKeyAndEnvironment() (string, string) {
+	// Only support default profile for now.
+	return creds.GetString("default.postman_api_key"), creds.GetString("default.postman_env")
+}
+
+// Writes Postman API key and environment to the config file.
+func WritePostmanAPIKeyAndEnvironment(profile, postmanAPIKey string, postmanEnvironment string) error {
+	keyValueMap := map[string]string{
+		"postman_api_key": postmanAPIKey,
+		"postman_env":     postmanEnvironment,
 	}
 
-	creds.Set(profile+".api_key_id", keyID)
-	creds.Set(profile+".api_key_secret", keySecret)
-	return creds.WriteConfig()
+	return writeConfigToFile(profile, keyValueMap)
 }
