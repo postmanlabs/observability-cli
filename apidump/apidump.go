@@ -80,10 +80,13 @@ type Args struct {
 
 	// Optional args
 
-	// If both LocalPath and AkitaURI are set, data is teed to both local traces
+	// If both LocalPath and AkitaURI are set, data is feed to both local traces
 	// and backend trace.
 	// If unset, defaults to a random spec name on Akita Cloud.
 	Out location.Location
+
+	// Args used to using agent with Postman
+	PostmanCollectionID string
 
 	Interfaces     []string
 	Filter         string
@@ -172,12 +175,24 @@ func (a *apidump) LookupService() error {
 		return nil
 	}
 	frontClient := rest.NewFrontClient(a.Domain, a.ClientID)
-	backendSvc, err := util.GetServiceIDByName(frontClient, a.Out.AkitaURI.ServiceName)
-	if err != nil {
-		return err
+
+	if a.PostmanCollectionID != "" {
+		backendSvc, err := util.GetServiceIDByPostmanCollectionID(frontClient, a.PostmanCollectionID)
+		if err != nil {
+			return err
+		}
+
+		a.backendSvc = backendSvc
+	} else {
+		backendSvc, err := util.GetServiceIDByName(frontClient, a.Out.AkitaURI.ServiceName)
+		if err != nil {
+			return err
+		}
+
+		a.backendSvc = backendSvc
 	}
-	a.backendSvc = backendSvc
-	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, backendSvc)
+
+	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, a.backendSvc)
 	return nil
 }
 

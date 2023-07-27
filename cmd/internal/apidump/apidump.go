@@ -11,6 +11,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -24,6 +25,9 @@ var (
 	// Optional flags
 	outFlag                 location.Location
 	serviceFlag             string
+	postmanCollectionID     string
+	postmanAPIKey           string
+	postmanEnvironment      string
 	interfacesFlag          []string
 	filterFlag              string
 	sampleRateFlag          float64
@@ -67,7 +71,7 @@ var Cmd = &cobra.Command{
 		}
 
 		// Check that exactly one of --out or --project is specified.
-		if outFlag.IsSet() == (serviceFlag != "") {
+		if !outFlag.IsSet() && serviceFlag == "" && postmanCollectionID == "" {
 			return errors.New("exactly one of --out or --project must be specified")
 		}
 
@@ -76,6 +80,24 @@ var Cmd = &cobra.Command{
 			uri, err := akiuri.Parse(akiuri.Scheme + serviceFlag)
 			if err != nil {
 				return errors.Wrap(err, "bad project name")
+			}
+			outFlag.AkitaURI = &uri
+		}
+
+		if (postmanAPIKey == "" && postmanCollectionID != "") ||
+			(postmanAPIKey != "" && postmanCollectionID == "") {
+			return errors.New("Both --collection and --key must be specified.")
+		}
+
+		if postmanAPIKey != "" {
+			cfg.WritePostmanAPIKeyAndEnvironment("default", postmanAPIKey, postmanEnvironment)
+		}
+
+		// ToDo: Do we need to change akiuri package also to check proper collectionID format??
+		if postmanCollectionID != "" {
+			uri, err := akiuri.Parse(akiuri.Scheme + postmanCollectionID)
+			if err != nil {
+				return errors.Wrap(err, "bad postman collection-id name")
 			}
 			outFlag.AkitaURI = &uri
 		}
@@ -159,6 +181,7 @@ var Cmd = &cobra.Command{
 			ClientID:                telemetry.GetClientID(),
 			Domain:                  rest.Domain,
 			Out:                     outFlag,
+			PostmanCollectionID:     postmanCollectionID,
 			Tags:                    traceTags,
 			SampleRate:              sampleRateFlag,
 			WitnessesPerMinute:      rateLimitFlag,
@@ -200,6 +223,24 @@ func init() {
 		"project",
 		"",
 		"Your Akita project. Exactly one of --out or --project must be specified.")
+
+	Cmd.Flags().StringVar(
+		&postmanCollectionID,
+		"collection",
+		"",
+		"Your Postman collectionID. Both --collection and --key must be specified.")
+
+	Cmd.Flags().StringVar(
+		&postmanAPIKey,
+		"key",
+		"",
+		"Your Postman API Key. Both --collection and --key must be specified.")
+
+	Cmd.Flags().StringVar(
+		&postmanEnvironment,
+		"environment",
+		"",
+		"Your Postman Environment. Default value is PREVIEW")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
