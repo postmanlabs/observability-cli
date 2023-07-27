@@ -23,14 +23,14 @@ var (
 var secretCmd = &cobra.Command{
 	Use:   "secret",
 	Short: "Generate a Kubernetes Secret manifest containing your Akita API credentials",
-	Long: "Generate a Kubernetes Secret manifest containing your Akita API credentials and output the result to standard output or a file",
+	Long:  "Generate a Kubernetes Secret manifest containing your Akita API credentials and output the result to standard output or a file",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key, secret, err := cmderr.RequireAPICredentials("Akita API key is required for Kubernetes Secret generation")
 		if err != nil {
 			return err
 		}
 
-		output, err := handleSecretGeneration(namespaceFlag, key, secret)
+		output, err := handleAkitaSecretGeneration(namespaceFlag, key, secret)
 		if err != nil {
 			return err
 		}
@@ -66,10 +66,15 @@ type secretTemplateInput struct {
 	APISecret string
 }
 
-func initSecretTemplate() error {
+func initSecretTemplate(isAkita bool) error {
 	var err error
 
-	secretTemplate, err = template.ParseFS(templateFS, "template/akita-secret.tmpl")
+	if isAkita {
+		secretTemplate, err = template.ParseFS(templateFS, "template/akita-secret.tmpl")
+	} else {
+		secretTemplate, err = template.ParseFS(templateFS, "template/postman-secret.tmpl")
+	}
+
 	if err != nil {
 		return cmderr.AkitaErr{Err: errors.Wrap(err, "failed to parse secret template")}
 	}
@@ -79,8 +84,8 @@ func initSecretTemplate() error {
 
 // Generates a Kubernetes secret config file for Akita
 // On success, the generated output is returned as a string.
-func handleSecretGeneration(namespace, key, secret string) ([]byte, error) {
-	err := initSecretTemplate()
+func handleAkitaSecretGeneration(namespace, key, secret string) ([]byte, error) {
+	err := initSecretTemplate(true)
 	if err != nil {
 		return nil, cmderr.AkitaErr{Err: errors.Wrap(err, "failed to initialize secret template")}
 	}
@@ -89,6 +94,29 @@ func handleSecretGeneration(namespace, key, secret string) ([]byte, error) {
 		Namespace: namespace,
 		APIKey:    base64.StdEncoding.EncodeToString([]byte(key)),
 		APISecret: base64.StdEncoding.EncodeToString([]byte(secret)),
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+
+	err = secretTemplate.Execute(buf, input)
+	if err != nil {
+		return nil, cmderr.AkitaErr{Err: errors.Wrap(err, "failed to generate template")}
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Generates a Kubernetes secret config file for Postman
+// On success, the generated output is returned as a string.
+func handlePostmanSecretGeneration(namespace, key string) ([]byte, error) {
+	err := initSecretTemplate(false)
+	if err != nil {
+		return nil, cmderr.AkitaErr{Err: errors.Wrap(err, "failed to initialize secret template")}
+	}
+
+	input := secretTemplateInput{
+		Namespace: namespace,
+		APIKey:    base64.StdEncoding.EncodeToString([]byte(key)),
 	}
 
 	buf := bytes.NewBuffer([]byte{})

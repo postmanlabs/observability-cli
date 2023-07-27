@@ -67,6 +67,7 @@ func initCreds() {
 	creds.AutomaticEnv()
 	creds.BindEnv("default.api_key_id", "AKITA_API_KEY_ID")
 	creds.BindEnv("default.api_key_secret", "AKITA_API_KEY_SECRET")
+	creds.BindEnv("default.postman_api_key", "AKITA_POSTMAN_API_KEY")
 
 	if err := creds.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {

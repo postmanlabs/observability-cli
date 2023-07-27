@@ -3,6 +3,7 @@ package kube
 import (
 	"bytes"
 
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube/injector"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -28,6 +29,11 @@ var (
 	// When set to "true", injectCmd will prepend a secret to each injectable namespace found in the file to inject (injectFileNameFlag)
 	// Otherwise, injectCmd will treat secretInjectFlag as the file path all secrets should be generated to
 	secretInjectFlag string
+
+	// Postman related flags
+	postmanCollectionID string
+	postmanAPIKey       string
+	postmanEnvironment  string
 )
 
 var injectCmd = &cobra.Command{
@@ -35,6 +41,17 @@ var injectCmd = &cobra.Command{
 	Short: "Inject Akita into a Kubernetes deployment",
 	Long:  "Inject Akita into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
 	RunE: func(_ *cobra.Command, args []string) error {
+		if projectNameFlag == "" && postmanCollectionID == "" {
+			return cmderr.AkitaErr{
+				Err: errors.New("exactly one of --project or --collection must be specified"),
+			}
+		}
+
+		// Adding postman API key and Environment in config for further uses
+		if postmanCollectionID != "" {
+			cfg.WritePostmanAPIKeyAndEnvironment("default", postmanAPIKey, postmanEnvironment)
+		}
+
 		secretOpts := resolveSecretGenerationOptions(secretInjectFlag)
 
 		// To avoid users unintentionally attempting to apply injected Deployments via pipeline without
@@ -62,24 +79,36 @@ var injectCmd = &cobra.Command{
 		// Generate a secret for each namespace in the deployment if the user specified secret generation
 		secretBuf := new(bytes.Buffer)
 		if secretOpts.ShouldInject {
-			key, secret, err := cmderr.RequireAPICredentials("API credentials are required to generate secret.")
-			if err != nil {
-				return err
-			}
-
 			namespaces, err := injectr.InjectableNamespaces()
 			if err != nil {
 				return err
 			}
 
-			for _, namespace := range namespaces {
-				r, err := handleSecretGeneration(namespace, key, secret)
+			if postmanCollectionID != "" {
+				for _, namespace := range namespaces {
+					r, err := handlePostmanSecretGeneration(namespace, postmanAPIKey)
+					if err != nil {
+						return err
+					}
+
+					secretBuf.WriteString("---\n")
+					secretBuf.Write(r)
+				}
+			} else {
+				key, secret, err := cmderr.RequireAPICredentials("API credentials are required to generate secret.")
 				if err != nil {
 					return err
 				}
 
-				secretBuf.WriteString("---\n")
-				secretBuf.Write(r)
+				for _, namespace := range namespaces {
+					r, err := handleAkitaSecretGeneration(namespace, key, secret)
+					if err != nil {
+						return err
+					}
+
+					secretBuf.WriteString("---\n")
+					secretBuf.Write(r)
+				}
 			}
 		}
 
@@ -100,8 +129,16 @@ var injectCmd = &cobra.Command{
 			out = secretBuf
 		}
 
+		var container v1.Container
+
 		// Inject the sidecar into the input file
-		rawInjected, err := injector.ToRawYAML(injectr, createSidecar(projectNameFlag))
+		if postmanCollectionID != "" {
+			container = createPostmanSidecar(postmanCollectionID, postmanEnvironment)
+		} else {
+			container = createAkitaSidecar(projectNameFlag)
+		}
+
+		rawInjected, err := injector.ToRawYAML(injectr, container)
 		if err != nil {
 			return cmderr.AkitaErr{Err: errors.Wrap(err, "Failed to inject sidecars")}
 		}
@@ -136,7 +173,7 @@ type secretGenerationOptions struct {
 	Filepath optionals.Optional[string]
 }
 
-func createSidecar(projectName string) v1.Container {
+func createAkitaSidecar(projectName string) v1.Container {
 	sidecar := v1.Container{
 		Name:  "akita",
 		Image: "akitasoftware/cli:latest",
@@ -176,6 +213,43 @@ func createSidecar(projectName string) v1.Container {
 			},
 		},
 		Args: []string{"apidump", "--project", projectName},
+		SecurityContext: &v1.SecurityContext{
+			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
+		},
+	}
+
+	return sidecar
+}
+
+func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string) v1.Container {
+	sidecar := v1.Container{
+		Name:  "akita",
+		Image: "akitasoftware/cli:latest",
+		Env: []v1.EnvVar{
+			{
+				Name: "AKITA_POSTMAN_API_KEY",
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: "akita-postman-secrets",
+						},
+						Key: "postman-api-key",
+					},
+				},
+			},
+		},
+		Lifecycle: &v1.Lifecycle{
+			PreStop: &v1.LifecycleHandler{
+				Exec: &v1.ExecAction{
+					Command: []string{
+						"/bin/sh",
+						"-c",
+						"AKITA_PID=$(pgrep akita) && kill -2 $AKITA_PID && tail -f /proc/$AKITA_PID/fd/1",
+					},
+				},
+			},
+		},
+		Args: []string{"apidump", "--collection", postmanCollectionID, "--environment", postmanEnvironment},
 		SecurityContext: &v1.SecurityContext{
 			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
 		},
@@ -231,7 +305,6 @@ func init() {
 		"",
 		"Name of the Akita project to which the traffic will be uploaded.",
 	)
-	_ = injectCmd.MarkFlagRequired("project")
 
 	injectCmd.Flags().StringVarP(
 		&secretInjectFlag,
@@ -242,6 +315,28 @@ func init() {
 	)
 	// Default value is "true" when the flag is given without an argument.
 	injectCmd.Flags().Lookup("secret").NoOptDefVal = "true"
+
+	injectCmd.Flags().StringVar(
+		&postmanCollectionID,
+		"collection",
+		"",
+		"Your Postman collectionID. Both --collection and --key must be specified.")
+
+	injectCmd.Flags().StringVar(
+		&postmanAPIKey,
+		"key",
+		"",
+		"Your Postman API Key. Both --collection and --key must be specified.")
+
+	injectCmd.Flags().StringVar(
+		&postmanEnvironment,
+		"environment",
+		"",
+		"Your Postman Environment. Default value is PREVIEW")
+
+	injectCmd.MarkFlagsRequiredTogether("collection", "key")
+
+	injectCmd.MarkFlagsMutuallyExclusive("project", "collection")
 
 	Cmd.AddCommand(injectCmd)
 }
