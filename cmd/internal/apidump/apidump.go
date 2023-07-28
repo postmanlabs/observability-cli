@@ -217,7 +217,7 @@ func init() {
 		&postmanCollectionID,
 		"collection",
 		"",
-		"Your Postman collectionID. Both --collection and --key must be specified.")
+		"Your Postman collectionID.")
 
 	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
 
