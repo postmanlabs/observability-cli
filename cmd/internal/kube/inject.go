@@ -3,7 +3,6 @@ package kube
 import (
 	"bytes"
 
-	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube/injector"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -32,7 +31,6 @@ var (
 
 	// Postman related flags
 	postmanCollectionID string
-	postmanAPIKey       string
 	postmanEnvironment  string
 )
 
@@ -45,11 +43,6 @@ var injectCmd = &cobra.Command{
 			return cmderr.AkitaErr{
 				Err: errors.New("exactly one of --project or --collection must be specified"),
 			}
-		}
-
-		// Adding postman API key and Environment in config for further uses
-		if postmanCollectionID != "" {
-			cfg.WritePostmanAPIKeyAndEnvironment("default", postmanAPIKey, postmanEnvironment)
 		}
 
 		secretOpts := resolveSecretGenerationOptions(secretInjectFlag)
@@ -85,8 +78,13 @@ var injectCmd = &cobra.Command{
 			}
 
 			if postmanCollectionID != "" {
+				key, err := cmderr.RequirePostmanAPICredentials("Postman API credentials are required to generate secret.")
+				if err != nil {
+					return err
+				}
+
 				for _, namespace := range namespaces {
-					r, err := handlePostmanSecretGeneration(namespace, postmanAPIKey)
+					r, err := handlePostmanSecretGeneration(namespace, key)
 					if err != nil {
 						return err
 					}
@@ -95,7 +93,7 @@ var injectCmd = &cobra.Command{
 					secretBuf.Write(r)
 				}
 			} else {
-				key, secret, err := cmderr.RequireAPICredentials("API credentials are required to generate secret.")
+				key, secret, err := cmderr.RequireAkitaAPICredentials("Akita API credentials are required to generate secret.")
 				if err != nil {
 					return err
 				}
@@ -222,16 +220,22 @@ func createAkitaSidecar(projectName string) v1.Container {
 }
 
 func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string) v1.Container {
+	args := []string{"apidump", "--collection", postmanCollectionID}
+
+	if postmanEnvironment != "" {
+		args = append(args, "--environment", postmanEnvironment)
+	}
+
 	sidecar := v1.Container{
 		Name:  "akita",
 		Image: "akitasoftware/cli:latest",
 		Env: []v1.EnvVar{
 			{
-				Name: "AKITA_POSTMAN_API_KEY",
+				Name: "POSTMAN_API_KEY",
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
 						LocalObjectReference: v1.LocalObjectReference{
-							Name: "akita-postman-secrets",
+							Name: "postman-agent-secrets",
 						},
 						Key: "postman-api-key",
 					},
@@ -249,7 +253,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 				},
 			},
 		},
-		Args: []string{"apidump", "--collection", postmanCollectionID, "--environment", postmanEnvironment},
+		Args: args,
 		SecurityContext: &v1.SecurityContext{
 			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
 		},
@@ -320,21 +324,14 @@ func init() {
 		&postmanCollectionID,
 		"collection",
 		"",
-		"Your Postman collectionID. Both --collection and --key must be specified.")
-
-	injectCmd.Flags().StringVar(
-		&postmanAPIKey,
-		"key",
-		"",
-		"Your Postman API Key. Both --collection and --key must be specified.")
+		"Your Postman collectionID.")
 
 	injectCmd.Flags().StringVar(
 		&postmanEnvironment,
 		"environment",
 		"",
-		"Your Postman Environment. Default value is PREVIEW")
-
-	injectCmd.MarkFlagsRequiredTogether("collection", "key")
+		"Your Postman Environment.")
+	injectCmd.Flags().MarkHidden("environment")
 
 	injectCmd.MarkFlagsMutuallyExclusive("project", "collection")
 
