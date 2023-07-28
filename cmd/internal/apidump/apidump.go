@@ -11,7 +11,6 @@ import (
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
-	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -26,7 +25,6 @@ var (
 	outFlag                 location.Location
 	serviceFlag             string
 	postmanCollectionID     string
-	postmanAPIKey           string
 	postmanEnvironment      string
 	interfacesFlag          []string
 	filterFlag              string
@@ -82,10 +80,6 @@ var Cmd = &cobra.Command{
 				return errors.Wrap(err, "bad project name")
 			}
 			outFlag.AkitaURI = &uri
-		}
-
-		if postmanAPIKey != "" {
-			cfg.WritePostmanAPIKeyAndEnvironment("default", postmanAPIKey, postmanEnvironment)
 		}
 
 		// ToDo: Do we need to change akiuri package also to check proper collectionID format??
@@ -228,18 +222,11 @@ func init() {
 	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
 
 	Cmd.Flags().StringVar(
-		&postmanAPIKey,
-		"key",
-		"",
-		"Your Postman API Key. Both --collection and --key must be specified.")
-
-	Cmd.MarkFlagsRequiredTogether("collection", "key")
-
-	Cmd.Flags().StringVar(
 		&postmanEnvironment,
 		"environment",
 		"",
-		"Your Postman Environment. Default value is PREVIEW")
+		"Your Postman Environment.")
+	Cmd.Flags().MarkHidden("environment")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,

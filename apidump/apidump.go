@@ -80,7 +80,7 @@ type Args struct {
 
 	// Optional args
 
-	// If both LocalPath and AkitaURI are set, data is feed to both local traces
+	// If both LocalPath and AkitaURI are set, data is teed to both local traces
 	// and backend trace.
 	// If unset, defaults to a random spec name on Akita Cloud.
 	Out location.Location
