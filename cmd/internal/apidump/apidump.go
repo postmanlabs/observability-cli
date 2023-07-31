@@ -2,6 +2,7 @@ package apidump
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -24,6 +26,8 @@ var (
 	// Optional flags
 	outFlag                 location.Location
 	serviceFlag             string
+	postmanCollectionID     string
+	postmanEnvironment      string
 	interfacesFlag          []string
 	filterFlag              string
 	sampleRateFlag          float64
@@ -67,8 +71,8 @@ var Cmd = &cobra.Command{
 		}
 
 		// Check that exactly one of --out or --project is specified.
-		if outFlag.IsSet() == (serviceFlag != "") {
-			return errors.New("exactly one of --out or --project must be specified")
+		if !outFlag.IsSet() && serviceFlag == "" && postmanCollectionID == "" {
+			return errors.New("exactly one of --out, --project or --collection must be specified")
 		}
 
 		// If --project was given, convert it to an equivalent --out.
@@ -78,6 +82,15 @@ var Cmd = &cobra.Command{
 				return errors.Wrap(err, "bad project name")
 			}
 			outFlag.AkitaURI = &uri
+		}
+
+		// If --collection was given, set rest.domain and environment config
+		if postmanCollectionID != "" {
+			env := strings.ToUpper(postmanEnvironment)
+
+			cfg.WritePostmanEnvironment("default", env)
+
+			rest.Domain = "staging.akita.software"
 		}
 
 		// Look up existing trace by tags
@@ -159,6 +172,7 @@ var Cmd = &cobra.Command{
 			ClientID:                telemetry.GetClientID(),
 			Domain:                  rest.Domain,
 			Out:                     outFlag,
+			PostmanCollectionID:     postmanCollectionID,
 			Tags:                    traceTags,
 			SampleRate:              sampleRateFlag,
 			WitnessesPerMinute:      rateLimitFlag,
@@ -200,6 +214,21 @@ func init() {
 		"project",
 		"",
 		"Your Akita project. Exactly one of --out or --project must be specified.")
+
+	Cmd.Flags().StringVar(
+		&postmanCollectionID,
+		"collection",
+		"",
+		"Your Postman collectionID.")
+
+	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
+
+	Cmd.Flags().StringVar(
+		&postmanEnvironment,
+		"environment",
+		"",
+		"Your Postman Environment.")
+	Cmd.Flags().MarkHidden("environment")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
