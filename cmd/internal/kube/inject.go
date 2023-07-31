@@ -2,11 +2,15 @@ package kube
 
 import (
 	"bytes"
+	"strings"
 
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube/injector"
 	"github.com/akitasoftware/akita-cli/printer"
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
+	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/go-utils/optionals"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -43,6 +47,24 @@ var injectCmd = &cobra.Command{
 			return cmderr.AkitaErr{
 				Err: errors.New("exactly one of --project or --collection must be specified"),
 			}
+		}
+
+		// If --collection was given, set rest.domain and environment config (if given)
+		if postmanCollectionID != "" {
+			if postmanEnvironment != "" {
+				env := strings.ToUpper(postmanEnvironment)
+
+				cfg.WritePostmanEnvironment("default", env)
+			}
+
+			rest.Domain = "staging.akita.software"
+		}
+
+		// Lookup service *first* (if we are remote) ensuring that collectionId
+		// or projectName is correct and exists.
+		err := lookupService(postmanCollectionID, projectNameFlag)
+		if err != nil {
+			return err
 		}
 
 		secretOpts := resolveSecretGenerationOptions(secretInjectFlag)
@@ -282,6 +304,24 @@ func resolveSecretGenerationOptions(flagValue string) secretGenerationOptions {
 		ShouldInject: true,
 		Filepath:     optionals.Some(flagValue),
 	}
+}
+
+// Check if service exists or not
+func lookupService(postmanCollectionID, serviceName string) error {
+	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
+
+	if postmanCollectionID != "" {
+		_, err := util.GetServiceIDByPostmanCollectionID(frontClient, postmanCollectionID)
+		if err != nil {
+			return err
+		}
+	} else if serviceName != "" {
+		_, err := util.GetServiceIDByName(frontClient, serviceName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func init() {
