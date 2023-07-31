@@ -84,11 +84,13 @@ var Cmd = &cobra.Command{
 			outFlag.AkitaURI = &uri
 		}
 
-		// If --collection was given, set rest.domain and environment config
+		// If --collection was given, set rest.domain and environment config (if given)
 		if postmanCollectionID != "" {
-			env := strings.ToUpper(postmanEnvironment)
+			if postmanEnvironment != "" {
+				env := strings.ToUpper(postmanEnvironment)
 
-			cfg.WritePostmanEnvironment("default", env)
+				cfg.WritePostmanEnvironment("default", env)
+			}
 
 			rest.Domain = "staging.akita.software"
 		}
