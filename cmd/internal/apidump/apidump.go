@@ -2,6 +2,7 @@ package apidump
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -82,13 +84,13 @@ var Cmd = &cobra.Command{
 			outFlag.AkitaURI = &uri
 		}
 
-		// ToDo: Do we need to change akiuri package also to check proper collectionID format??
+		// If --collection was given, set rest.domain and environment config
 		if postmanCollectionID != "" {
-			uri, err := akiuri.Parse(akiuri.Scheme + postmanCollectionID)
-			if err != nil {
-				return errors.Wrap(err, "bad postman collection-id name")
-			}
-			outFlag.AkitaURI = &uri
+			env := strings.ToUpper(postmanEnvironment)
+
+			cfg.WritePostmanEnvironment("default", env)
+
+			rest.Domain = "staging.akita.software"
 		}
 
 		// Look up existing trace by tags

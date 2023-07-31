@@ -166,7 +166,7 @@ func newSession(args *Args) *apidump {
 
 // Is the target the Akita backend as expected, or a local HAR file?
 func (a *apidump) TargetIsRemote() bool {
-	return a.Out.AkitaURI != nil
+	return a.Out.AkitaURI != nil || a.PostmanCollectionID != ""
 }
 
 // Lookup the service and create a learn client targeting it.

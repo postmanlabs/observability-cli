@@ -39,7 +39,7 @@ type HTTPError struct {
 func (he HTTPError) Error() string {
 	if he.StatusCode == 401 {
 		return `Invalid credentials, run "login" or use AKITA_API_KEY_SECRET environment variable.` +
-			`If using with Postman, specify correct Postman API Key and environment`
+			`If using with Postman, use POSTMAN_API_KEY environment variable`
 	}
 	return fmt.Sprintf("received status code %d, body: %s", he.StatusCode, string(he.Body))
 }
