@@ -130,7 +130,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	}
 
 	if (result != akid.ServiceID{}) {
-		printer.Stderr.Debugf("Postman collectionID %q is %q\n", collectionID, akid.String(result))
+		printer.Stderr.Debugf("Postman collectionID %q is %q\n", collectionID, result)
 		return result, nil
 	}
 	telemetry.Failure("Unknown postman collectionID")
