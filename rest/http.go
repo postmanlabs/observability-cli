@@ -38,7 +38,8 @@ type HTTPError struct {
 
 func (he HTTPError) Error() string {
 	if he.StatusCode == 401 {
-		return `Invalid credentials, run "login" or use AKITA_API_KEY_SECRET environment variable`
+		return `Invalid credentials, run "login" or use AKITA_API_KEY_SECRET environment variable.` +
+			`If using with Postman, specify correct Postman API Key and environment`
 	}
 	return fmt.Sprintf("received status code %d, body: %s", he.StatusCode, string(he.Body))
 }
@@ -117,18 +118,34 @@ func sendRequest(ctx context.Context, req *http.Request) ([]byte, error) {
 		ctx = c
 	}
 
-	apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
-	if apiKeyID == "" {
-		return nil, errors.New(`API key ID not found, run "login" or use AKITA_API_KEY_ID environment variable`)
+	postmanAPIKey, postmanEnv := cfg.GetPostmanAPIKeyAndEnvironment()
+
+	if postmanAPIKey == "" {
+		apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
+
+		if apiKeyID == "" {
+			return nil, errors.New(`API key ID not found, run "login" or use AKITA_API_KEY_ID environment variable`)
+		}
+
+		if apiKeySecret == "" {
+			return nil, errors.New(`API key secret not found, run "login" or use AKITA_API_KEY_SECRET environment variable`)
+		}
+
+		req.SetBasicAuth(apiKeyID, apiKeySecret)
+	} else {
+		// Set postman API key as header
+		req.Header.Set("x-api-key", postmanAPIKey)
+
+		// Set postman env header if it exists
+		if postmanEnv != "" {
+			req.Header.Set("x-postman-env", postmanEnv)
+		}
+
 	}
-	if apiKeySecret == "" {
-		return nil, errors.New(`API key secret not found, run "login" or use AKITA_API_KEY_SECRET environment variable`)
-	}
-	req.SetBasicAuth(apiKeyID, apiKeySecret)
 
 	req.Header.Set("user-agent", GetUserAgent())
 
-	// Inlcude the git SHA that this copy of the CLI was built from. Its purpose
+	// Include the git SHA that this copy of the CLI was built from. Its purpose
 	// is two-fold:
 	// 1. The presence of this header is used as a heuristic to identify witnesses
 	// 		that contain akita's API traffic rather than actual user traffic.
