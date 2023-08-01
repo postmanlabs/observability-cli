@@ -2,7 +2,6 @@ package apidump
 
 import (
 	"os"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
-	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
 	"github.com/akitasoftware/akita-cli/location"
@@ -27,7 +25,6 @@ var (
 	outFlag                 location.Location
 	serviceFlag             string
 	postmanCollectionID     string
-	postmanEnvironment      string
 	interfacesFlag          []string
 	filterFlag              string
 	sampleRateFlag          float64
@@ -82,17 +79,6 @@ var Cmd = &cobra.Command{
 				return errors.Wrap(err, "bad project name")
 			}
 			outFlag.AkitaURI = &uri
-		}
-
-		// If --collection was given, set rest.domain and environment config (if given)
-		if postmanCollectionID != "" {
-			if postmanEnvironment != "" {
-				env := strings.ToUpper(postmanEnvironment)
-
-				cfg.WritePostmanEnvironment("default", env)
-			}
-
-			rest.Domain = "staging.akita.software"
 		}
 
 		// Look up existing trace by tags
@@ -224,13 +210,6 @@ func init() {
 		"Your Postman collectionID.")
 
 	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
-
-	Cmd.Flags().StringVar(
-		&postmanEnvironment,
-		"environment",
-		"",
-		"Your Postman Environment.")
-	Cmd.Flags().MarkHidden("environment")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,

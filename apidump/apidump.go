@@ -553,6 +553,13 @@ func (a *apidump) Run() error {
 				return errors.Errorf("Cannot automatically rotate sessions when a session name is provided.")
 			}
 		}
+	} else if args.PostmanCollectionID != "" {
+		args.Out.AkitaURI = &akiuri.URI{
+			ObjectType: akiuri.TRACE.Ptr(),
+			// Placeholder name for postman collectionIds
+			ServiceName: "Postman_" + args.PostmanCollectionID,
+			ObjectName:  util.RandomLearnSessionName(),
+		}
 	}
 
 	// If --dogfood is specified, enable assertions in the buffer-pool code.
