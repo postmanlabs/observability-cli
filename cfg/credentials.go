@@ -108,9 +108,10 @@ func GetPostmanAPIKeyAndEnvironment() (string, string) {
 }
 
 // Writes Postman API key and environment to the config file.
-func WritePostmanEnvironment(profile, postmanEnvironment string) error {
+func WritePostmanAPIKeyAndEnvironment(profile, postmanApiKey, postmanEnvironment string) error {
 	keyValueMap := map[string]string{
-		"postman_env": postmanEnvironment,
+		"postman_api_key": postmanApiKey,
+		"postman_env":     postmanEnvironment,
 	}
 
 	return writeConfigToFile(profile, keyValueMap)
