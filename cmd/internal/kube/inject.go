@@ -2,9 +2,7 @@ package kube
 
 import (
 	"bytes"
-	"strings"
 
-	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube/injector"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -47,17 +45,6 @@ var injectCmd = &cobra.Command{
 			return cmderr.AkitaErr{
 				Err: errors.New("exactly one of --project or --collection must be specified"),
 			}
-		}
-
-		// If --collection was given, set rest.domain and environment config (if given)
-		if postmanCollectionID != "" {
-			if postmanEnvironment != "" {
-				env := strings.ToUpper(postmanEnvironment)
-
-				cfg.WritePostmanEnvironment("default", env)
-			}
-
-			rest.Domain = "staging.akita.software"
 		}
 
 		// Lookup service *first* (if we are remote) ensuring that collectionId
@@ -365,13 +352,6 @@ func init() {
 		"collection",
 		"",
 		"Your Postman collectionID.")
-
-	injectCmd.Flags().StringVar(
-		&postmanEnvironment,
-		"environment",
-		"",
-		"Your Postman Environment.")
-	injectCmd.Flags().MarkHidden("environment")
 
 	injectCmd.MarkFlagsMutuallyExclusive("project", "collection")
 
