@@ -67,6 +67,8 @@ func initCreds() {
 	creds.AutomaticEnv()
 	creds.BindEnv("default.api_key_id", "AKITA_API_KEY_ID")
 	creds.BindEnv("default.api_key_secret", "AKITA_API_KEY_SECRET")
+	creds.BindEnv("default.postman_api_key", "POSTMAN_API_KEY")
+	creds.BindEnv("default.postman_env", "POSTMAN_ENV")
 
 	if err := creds.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
@@ -106,9 +108,9 @@ func GetPostmanAPIKeyAndEnvironment() (string, string) {
 }
 
 // Writes Postman API key and environment to the config file.
-func WritePostmanAPIKeyAndEnvironment(profile, postmanAPIKey string, postmanEnvironment string) error {
+func WritePostmanAPIKeyAndEnvironment(profile, postmanApiKey, postmanEnvironment string) error {
 	keyValueMap := map[string]string{
-		"postman_api_key": postmanAPIKey,
+		"postman_api_key": postmanApiKey,
 		"postman_env":     postmanEnvironment,
 	}
 

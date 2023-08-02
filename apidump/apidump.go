@@ -85,6 +85,9 @@ type Args struct {
 	// If unset, defaults to a random spec name on Akita Cloud.
 	Out location.Location
 
+	// Args used to using agent with Postman
+	PostmanCollectionID string
+
 	Interfaces     []string
 	Filter         string
 	Tags           map[tags.Key]string
@@ -163,7 +166,7 @@ func newSession(args *Args) *apidump {
 
 // Is the target the Akita backend as expected, or a local HAR file?
 func (a *apidump) TargetIsRemote() bool {
-	return a.Out.AkitaURI != nil
+	return a.Out.AkitaURI != nil || a.PostmanCollectionID != ""
 }
 
 // Lookup the service and create a learn client targeting it.
@@ -172,12 +175,24 @@ func (a *apidump) LookupService() error {
 		return nil
 	}
 	frontClient := rest.NewFrontClient(a.Domain, a.ClientID)
-	backendSvc, err := util.GetServiceIDByName(frontClient, a.Out.AkitaURI.ServiceName)
-	if err != nil {
-		return err
+
+	if a.PostmanCollectionID != "" {
+		backendSvc, err := util.GetServiceIDByPostmanCollectionID(frontClient, a.PostmanCollectionID)
+		if err != nil {
+			return err
+		}
+
+		a.backendSvc = backendSvc
+	} else {
+		backendSvc, err := util.GetServiceIDByName(frontClient, a.Out.AkitaURI.ServiceName)
+		if err != nil {
+			return err
+		}
+
+		a.backendSvc = backendSvc
 	}
-	a.backendSvc = backendSvc
-	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, backendSvc)
+
+	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, a.backendSvc)
 	return nil
 }
 
@@ -537,6 +552,13 @@ func (a *apidump) Run() error {
 			if args.LearnSessionLifetime != time.Duration(0) {
 				return errors.Errorf("Cannot automatically rotate sessions when a session name is provided.")
 			}
+		}
+	} else if args.PostmanCollectionID != "" {
+		args.Out.AkitaURI = &akiuri.URI{
+			ObjectType: akiuri.TRACE.Ptr(),
+			// Placeholder name for postman collectionIds
+			ServiceName: "Postman_" + args.PostmanCollectionID,
+			ObjectName:  util.RandomLearnSessionName(),
 		}
 	}
 
