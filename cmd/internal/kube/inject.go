@@ -3,6 +3,7 @@ package kube
 import (
 	"bytes"
 
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube/injector"
 	"github.com/akitasoftware/akita-cli/printer"
@@ -33,7 +34,6 @@ var (
 
 	// Postman related flags
 	postmanCollectionID string
-	postmanEnvironment  string
 )
 
 var injectCmd = &cobra.Command{
@@ -140,7 +140,8 @@ var injectCmd = &cobra.Command{
 
 		// Inject the sidecar into the input file
 		if postmanCollectionID != "" {
-			container = createPostmanSidecar(postmanCollectionID, postmanEnvironment)
+			_, env := cfg.GetPostmanAPIKeyAndEnvironment()
+			container = createPostmanSidecar(postmanCollectionID, env)
 		} else {
 			container = createAkitaSidecar(projectNameFlag)
 		}
@@ -229,28 +230,31 @@ func createAkitaSidecar(projectName string) v1.Container {
 }
 
 func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string) v1.Container {
-	args := []string{"apidump", "--collection", postmanCollectionID}
+	envs := []v1.EnvVar{
+		{
+			Name: "POSTMAN_API_KEY",
+			ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{
+						Name: "postman-agent-secrets",
+					},
+					Key: "postman-api-key",
+				},
+			},
+		},
+	}
 
 	if postmanEnvironment != "" {
-		args = append(args, "--environment", postmanEnvironment)
+		envs = append(envs, v1.EnvVar{
+			Name:  "POSTMAN_ENV",
+			Value: postmanEnvironment,
+		})
 	}
 
 	sidecar := v1.Container{
 		Name:  "akita",
 		Image: "akitasoftware/cli:latest",
-		Env: []v1.EnvVar{
-			{
-				Name: "POSTMAN_API_KEY",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: "postman-agent-secrets",
-						},
-						Key: "postman-api-key",
-					},
-				},
-			},
-		},
+		Env:   envs,
 		Lifecycle: &v1.Lifecycle{
 			PreStop: &v1.LifecycleHandler{
 				Exec: &v1.ExecAction{
@@ -262,7 +266,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 				},
 			},
 		},
-		Args: args,
+		Args: []string{"apidump", "--collection", postmanCollectionID},
 		SecurityContext: &v1.SecurityContext{
 			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
 		},
