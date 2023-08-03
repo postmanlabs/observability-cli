@@ -68,3 +68,21 @@ func (c *frontClientImpl) GetGitHubPREnabledState(ctx context.Context, gitHubPR 
 	}
 	return response.AkitaEnabled, nil
 }
+
+func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collectionId, env string) (Service, error) {
+	resp := Service{}
+	body := struct {
+		Name            string          `json:"name"`
+		PostmanMetaData PostmanMetaData `json:"postman_meta_data"`
+	}{
+		Name: serviceName,
+		PostmanMetaData: PostmanMetaData{
+			CollectionID: collectionId,
+			Environment:  env,
+		},
+	}
+
+	err := c.Post(ctx, "/v1/services", body, &resp)
+
+	return resp, err
+}
