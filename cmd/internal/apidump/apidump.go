@@ -24,6 +24,7 @@ var (
 	// Optional flags
 	outFlag                 location.Location
 	serviceFlag             string
+	postmanCollectionID     string
 	interfacesFlag          []string
 	filterFlag              string
 	sampleRateFlag          float64
@@ -67,8 +68,8 @@ var Cmd = &cobra.Command{
 		}
 
 		// Check that exactly one of --out or --project is specified.
-		if outFlag.IsSet() == (serviceFlag != "") {
-			return errors.New("exactly one of --out or --project must be specified")
+		if !outFlag.IsSet() && serviceFlag == "" && postmanCollectionID == "" {
+			return errors.New("exactly one of --out, --project or --collection must be specified")
 		}
 
 		// If --project was given, convert it to an equivalent --out.
@@ -159,6 +160,7 @@ var Cmd = &cobra.Command{
 			ClientID:                telemetry.GetClientID(),
 			Domain:                  rest.Domain,
 			Out:                     outFlag,
+			PostmanCollectionID:     postmanCollectionID,
 			Tags:                    traceTags,
 			SampleRate:              sampleRateFlag,
 			WitnessesPerMinute:      rateLimitFlag,
@@ -200,6 +202,14 @@ func init() {
 		"project",
 		"",
 		"Your Akita project. Exactly one of --out or --project must be specified.")
+
+	Cmd.Flags().StringVar(
+		&postmanCollectionID,
+		"collection",
+		"",
+		"Your Postman collectionID.")
+
+	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,

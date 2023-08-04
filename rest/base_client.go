@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -64,13 +65,13 @@ type BaseClient struct {
 
 func NewBaseClient(rawHost string, cli akid.ClientID) BaseClient {
 	host := "api." + rawHost
-	// If rawHost is IP, IP:port, localhost, or localhost:port, use that
-	// directly. This is mostly to support tests.
+	// If rawHost is either of these: IP, IP:port, localhost, localhost:port or postman host
+	// use that directly. This is to support postman agent and tests.
 	if h, _, err := net.SplitHostPort(rawHost); err == nil {
 		if h == "localhost" || net.ParseIP(h) != nil {
 			host = rawHost
 		}
-	} else if rawHost == "localhost" || net.ParseIP(rawHost) != nil {
+	} else if rawHost == "localhost" || net.ParseIP(rawHost) != nil || strings.Contains(rawHost, "postman") {
 		host = rawHost
 	}
 

@@ -91,7 +91,7 @@ func init() {
 
 func addAgentToECS(cmd *cobra.Command, args []string) error {
 	// Check for API key
-	_, _, err := cmderr.RequireAPICredentials("The Akita agent must have an API key in order to capture traces.")
+	_, _, err := cmderr.RequireAkitaAPICredentials("The Akita agent must have an API key in order to capture traces.")
 	if err != nil {
 		return err
 	}

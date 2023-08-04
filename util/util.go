@@ -12,6 +12,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -30,6 +31,9 @@ var (
 
 	// Maps learn session name to ID.
 	learnSessionNameCache = cache.New(30*time.Second, 5*time.Minute)
+
+	// Maps postmanCollectionID to ID
+	postmanCollectionIDCache = cache.New(30*time.Second, 5*time.Minute)
 
 	// API timeout
 	apiTimeout = 20 * time.Second
@@ -88,6 +92,59 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	}
 	telemetry.Failure("Unknown project ID")
 	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for %s", name)
+}
+
+func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
+	// Normalize the collectionID.
+	collectionID = strings.ToLower(collectionID)
+	_, env := cfg.GetPostmanAPIKeyAndEnvironment()
+
+	if id, found := postmanCollectionIDCache.Get(collectionID); found {
+		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
+		return id.(akid.ServiceID), nil
+	}
+
+	// Fill cache.
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+	services, err := c.GetServices(ctx)
+	if err != nil {
+		return akid.ServiceID{}, errors.Wrap(err, "failed to get list of services associated with the API Key")
+	}
+
+	var result akid.ServiceID
+	for _, svc := range services {
+		if svc.ID == (akid.ServiceID{}) {
+			continue
+		}
+
+		if svc.PostmanMetaData == (rest.PostmanMetaData{}) {
+			continue
+		}
+
+		// Normalize collectionID.
+		svcCollectionID := strings.ToLower(svc.PostmanMetaData.CollectionID)
+		svcEnv := strings.ToUpper(svc.PostmanMetaData.Environment)
+
+		if strings.EqualFold(collectionID, svcCollectionID) && strings.EqualFold(svcEnv, env) {
+			result = svc.ID
+			postmanCollectionIDCache.Set(svcEnv+"|"+svcCollectionID, svc.ID, cache.DefaultExpiration)
+		}
+	}
+
+	if (result != akid.ServiceID{}) {
+		printer.Stderr.Debugf("Postman collectionID %q is %q\n", collectionID, result)
+		return result, nil
+	}
+
+	printer.Debugf("Found no service for given collectionID: %s, creating a new service", collectionID)
+	// Create service for given postman collectionID
+	service, err := c.CreateService(ctx, "Postman-"+randomName(), collectionID, env)
+	if err != nil {
+		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create or get service for given collectionID: %s", collectionID))
+	}
+
+	return service.ID, nil
 }
 
 func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
