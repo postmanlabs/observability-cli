@@ -5,11 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -17,11 +15,6 @@ import (
 
 	"github.com/akitasoftware/akita-libs/akid"
 )
-
-// Global flag exposed by the root command.
-// This doesn't *really* belong here, but previously it
-// was buried in the "internal" package where we couldn't use it.
-var Domain string
 
 // Use a proxy, "" is none. (This is because the flags package doesn't support Optional)
 // May be a URL, a domain name, or an IP address.  HTTP is assumed as the protocol if
@@ -64,20 +57,9 @@ type BaseClient struct {
 }
 
 func NewBaseClient(rawHost string, cli akid.ClientID) BaseClient {
-	host := "api." + rawHost
-	// If rawHost is either of these: IP, IP:port, localhost, localhost:port or postman host
-	// use that directly. This is to support postman agent and tests.
-	if h, _, err := net.SplitHostPort(rawHost); err == nil {
-		if h == "localhost" || net.ParseIP(h) != nil {
-			host = rawHost
-		}
-	} else if rawHost == "localhost" || net.ParseIP(rawHost) != nil || strings.Contains(rawHost, "postman") {
-		host = rawHost
-	}
-
 	c := BaseClient{
 		scheme:   "https",
-		host:     host,
+		host:     DomainToHost(rawHost),
 		clientID: cli,
 	}
 	if viper.GetBool("test_only_disable_https") {

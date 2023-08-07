@@ -51,10 +51,6 @@ var (
 	logFormatFlag                       string
 )
 
-const (
-	defaultDomain = "akita.software"
-)
-
 var (
 	rootCmd = &cobra.Command{
 		Use:           "akita",
@@ -74,6 +70,13 @@ var (
 )
 
 func preRun(cmd *cobra.Command, args []string) {
+	// Decide on the domain name to use, _before_ initializing telemetry,
+	// which may make an API call.
+	if rest.Domain == "" {
+		rest.Domain = rest.DefaultDomain()
+	}
+
+	// Initialize Segment-based telemetry of usage information and CLI errors.
 	telemetry.Init(true)
 
 	switch logFormatFlag {
@@ -178,7 +181,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", defaultDomain, "Your assigned Akita domain (e.g. company.akita.software)")
+	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", "", "The domain name of Akita cloud instance to use.")
 	rootCmd.PersistentFlags().MarkHidden("domain")
 
 	// Use a proxy or permit a mismatched certificate.
