@@ -37,6 +37,11 @@ func DefaultDomain() string {
 	// Dispatch based on Postman environment.
 	// TODO: fill in with real domains once available.
 	switch strings.ToUpper(env) {
+	case "":
+		// Not specified by user, PREVIEW for now, but
+		// FIXME: change to PRODUCTION in next release.
+		printer.Warningf("Using Akita staging backend, default environment is PREVIEW\n")
+		return "api.staging.akita.software"
 	case "BETA", "PREVIEW":
 		printer.Debugf("Selecting Akita staging backend for Postman pre-production testing.\n")
 		return "api.staging.akita.software"
