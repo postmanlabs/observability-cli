@@ -182,6 +182,14 @@ type secretGenerationOptions struct {
 }
 
 func createAkitaSidecar(projectName string) v1.Container {
+	args := []string{"apidump", "--project", projectName}
+
+	// If a nondefault --domain flag was used in the inject command, use it
+	// for the container as well.
+	if rest.Domain != rest.DefaultDomain() {
+		args = append(args, "--domain", rest.Domain)
+	}
+
 	sidecar := v1.Container{
 		Name:  "akita",
 		Image: "akitasoftware/cli:latest",
@@ -220,7 +228,7 @@ func createAkitaSidecar(projectName string) v1.Container {
 				},
 			},
 		},
-		Args: []string{"apidump", "--project", projectName},
+		Args: args,
 		SecurityContext: &v1.SecurityContext{
 			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
 		},
@@ -230,6 +238,13 @@ func createAkitaSidecar(projectName string) v1.Container {
 }
 
 func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string) v1.Container {
+	args := []string{"apidump", "--collection", postmanCollectionID}
+
+	// If a nondefault --domain flag was used, specify it for the container as well.
+	if rest.Domain != rest.DefaultDomain() {
+		args = append(args, "--domain", rest.Domain)
+	}
+
 	envs := []v1.EnvVar{
 		{
 			Name: "POSTMAN_API_KEY",
@@ -266,7 +281,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 				},
 			},
 		},
-		Args: []string{"apidump", "--collection", postmanCollectionID},
+		Args: args,
 		SecurityContext: &v1.SecurityContext{
 			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
 		},
