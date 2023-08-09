@@ -70,7 +70,9 @@ func (c *frontClientImpl) GetGitHubPREnabledState(ctx context.Context, gitHubPR 
 	return response.AkitaEnabled, nil
 }
 
-func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collectionId, env string) (CreateServiceResponse, error) {
+// Create a mirror service in the user's organization. The environment is implicit based
+// on credentials.
+func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collectionId) (CreateServiceResponse, error) {
 	resp := CreateServiceResponse{}
 	body := struct {
 		Name            string          `json:"name"`
@@ -79,7 +81,6 @@ func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collec
 		Name: serviceName,
 		PostmanMetaData: PostmanMetaData{
 			CollectionID: collectionId,
-			Environment:  strings.ToUpper(env),
 		},
 	}
 

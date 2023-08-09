@@ -140,7 +140,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	name := postmanRandomName()
 	printer.Debugf("Found no service for given collectionID: %s, creating a new service %q\n", collectionID, name)
 	// Create service for given postman collectionID
-	resp, err := c.CreateService(ctx, name, collectionID, env)
+	resp, err := c.CreateService(ctx, name, collectionID)
 	if err != nil {
 		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create or get service for given collectionID: %s", collectionID))
 	}
