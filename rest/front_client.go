@@ -4,7 +4,6 @@ import (
 	"context"
 	"path"
 	"strconv"
-	"strings"
 
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/daemon"
@@ -72,7 +71,7 @@ func (c *frontClientImpl) GetGitHubPREnabledState(ctx context.Context, gitHubPR 
 
 // Create a mirror service in the user's organization. The environment is implicit based
 // on credentials.
-func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collectionId) (CreateServiceResponse, error) {
+func (c *frontClientImpl) CreateService(ctx context.Context, serviceName string, collectionId string) (CreateServiceResponse, error) {
 	resp := CreateServiceResponse{}
 	body := struct {
 		Name            string          `json:"name"`
