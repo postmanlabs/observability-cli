@@ -137,7 +137,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 		return result, nil
 	}
 
-	printer.Debugf("Found no service for given collectionID: %s, creating a new service", collectionID)
+	printer.Debugf("Found no service for given collectionID: %s, creating a new service\n", collectionID)
 	// Create service for given postman collectionID
 	service, err := c.CreateService(ctx, "Postman-"+randomName(), collectionID, env)
 	if err != nil {
