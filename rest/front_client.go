@@ -69,8 +69,8 @@ func (c *frontClientImpl) GetGitHubPREnabledState(ctx context.Context, gitHubPR 
 	return response.AkitaEnabled, nil
 }
 
-func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collectionId, env string) (Service, error) {
-	resp := Service{}
+func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collectionId, env string) (CreateServiceResponse, error) {
+	resp := CreateServiceResponse{}
 	body := struct {
 		Name            string          `json:"name"`
 		PostmanMetaData PostmanMetaData `json:"postman_meta_data"`

@@ -137,14 +137,14 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 		return result, nil
 	}
 
-	printer.Debugf("Found no service for given collectionID: %s, creating a new service", collectionID)
+	printer.Debugf("Found no service for given collectionID: %s, creating a new service\n", collectionID)
 	// Create service for given postman collectionID
-	service, err := c.CreateService(ctx, "Postman-"+randomName(), collectionID, env)
+	resp, err := c.CreateService(ctx, "Postman-"+randomName(), collectionID, env)
 	if err != nil {
 		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create or get service for given collectionID: %s", collectionID))
 	}
 
-	return service.ID, nil
+	return resp.ResourceID, nil
 }
 
 func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
