@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -104,7 +105,8 @@ func WriteAPIKeyAndSecret(profile, keyID, keySecret string) error {
 // Get Postman API key and environment from config file
 func GetPostmanAPIKeyAndEnvironment() (string, string) {
 	// Only support default profile for now.
-	return creds.GetString("default.postman_api_key"), creds.GetString("default.postman_env")
+	env := strings.ToUpper(creds.GetString("default.postman_env"))
+	return creds.GetString("default.postman_api_key"), env
 }
 
 // Writes Postman API key and environment to the config file.

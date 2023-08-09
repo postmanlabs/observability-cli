@@ -137,14 +137,17 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 		return result, nil
 	}
 
-	printer.Debugf("Found no service for given collectionID: %s, creating a new service\n", collectionID)
+	name := postmanRandomName()
+	printer.Debugf("Found no service for given collectionID: %s, creating a new service %q\n", collectionID, name)
 	// Create service for given postman collectionID
-	service, err := c.CreateService(ctx, "Postman-"+randomName(), collectionID, env)
+	resp, err := c.CreateService(ctx, name, collectionID, env)
 	if err != nil {
 		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create or get service for given collectionID: %s", collectionID))
 	}
 
-	return service.ID, nil
+	printer.Debugf("Got service ID %s\n", resp.ResourceID)
+
+	return resp.ResourceID, nil
 }
 
 func DaemonHeartbeat(c rest.FrontClient, daemonName string) error {
@@ -255,10 +258,31 @@ func ResolveSpecURI(lc rest.LearnClient, uri akiuri.URI) (akid.APISpecID, error)
 	return lc.GetAPISpecIDByName(ctx, uri.ObjectName)
 }
 
+// Adjective and Noun are up to 11 characters each
+// Random hex = 8 characters
+// Separators = 2 characters
+// Up to 32 characters, which is the maximum supported.
 func randomName() string {
 	return strings.Join([]string{
 		randomdata.Adjective(),
 		randomdata.Noun(),
+		uuid.New().String()[0:8],
+	}, "-")
+}
+
+// Adjective: 11 characters
+// Random hex = 8 characters
+// "pm" and separators = 5 characters
+// Leaves up to 8 characters for the name
+func postmanRandomName() string {
+	noun := randomdata.Noun()
+	if len(noun) > 8 {
+		noun = noun[0:8]
+	}
+	return strings.Join([]string{
+		randomdata.Adjective(),
+		noun,
+		"pm",
 		uuid.New().String()[0:8],
 	}, "-")
 }
