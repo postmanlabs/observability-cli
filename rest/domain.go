@@ -60,10 +60,10 @@ func DefaultDomain() string {
 // Convert domain to the specific host to contact.
 func DomainToHost(domain string) string {
 	switch domain {
-	case "akitasoftware.com":
-		return "api.akitasoftware.com"
-	case "staging.akitasoftware.com":
-		return "api.staging.akitasoftware.com"
+	case "akita.software":
+		return "api.akita.software"
+	case "staging.akita.software":
+		return "api.staging.akita.software"
 	default:
 		return domain
 	}
