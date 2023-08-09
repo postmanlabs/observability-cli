@@ -168,6 +168,11 @@ var injectCmd = &cobra.Command{
 		return nil
 	},
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// This function overrides the root command preRun so we need to duplicate the domain setup.
+		if rest.Domain == "" {
+			rest.Domain = rest.DefaultDomain()
+		}
+
 		// Initialize the telemetry client, but do not allow any logs to be printed
 		telemetry.Init(false)
 	},
