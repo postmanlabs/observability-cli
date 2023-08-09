@@ -4,6 +4,7 @@ import (
 	"context"
 	"path"
 	"strconv"
+	"strings"
 
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/daemon"
@@ -78,7 +79,7 @@ func (c *frontClientImpl) CreateService(ctx context.Context, serviceName, collec
 		Name: serviceName,
 		PostmanMetaData: PostmanMetaData{
 			CollectionID: collectionId,
-			Environment:  env,
+			Environment:  strings.ToUpper(env),
 		},
 	}
 
