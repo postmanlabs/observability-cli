@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"text/template"
 
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -54,6 +55,11 @@ var secretCmd = &cobra.Command{
 	// Override the parent command's PersistentPreRun to prevent any logs from being printed.
 	// This is necessary because the secret command is intended to be used in a pipeline
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// This function overrides the root command preRun so we need to duplicate the domain setup.
+		if rest.Domain == "" {
+			rest.Domain = rest.DefaultDomain()
+		}
+
 		// Initialize the telemetry client, but do not allow any logs to be printed
 		telemetry.Init(false)
 	},
