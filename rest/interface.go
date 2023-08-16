@@ -63,7 +63,7 @@ type LearnClient interface {
 
 type FrontClient interface {
 	GetServices(context.Context) ([]Service, error)
-	CreateService(context.Context, string, string, string) (CreateServiceResponse, error)
+	CreateService(context.Context, string, string) (CreateServiceResponse, error)
 	DaemonHeartbeat(ctx context.Context, daemonName string) error
 
 	// Long-polls for changes to the set of active traces for a service.
