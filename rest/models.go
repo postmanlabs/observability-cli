@@ -7,7 +7,7 @@ import (
 
 type PostmanMetaData struct {
 	CollectionID string `json:"collection_id"`
-	Environment  string `json:"environment"`
+	Environment  string `json:"environment,omitempty"`
 }
 
 // TODO: shouldn't this be in akita-cli/api_schema?
