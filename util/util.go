@@ -122,11 +122,10 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 
 		// Normalize collectionID.
 		svcCollectionID := strings.ToLower(svc.PostmanMetaData.CollectionID)
-		svcEnv := strings.ToUpper(svc.PostmanMetaData.Environment)
 
 		if strings.EqualFold(collectionID, svcCollectionID) {
 			result = svc.ID
-			postmanCollectionIDCache.Set(svcEnv+"|"+svcCollectionID, svc.ID, cache.DefaultExpiration)
+			postmanCollectionIDCache.Set(svcCollectionID, svc.ID, cache.DefaultExpiration)
 		}
 	}
 
