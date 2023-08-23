@@ -12,7 +12,6 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 
-	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -97,7 +96,6 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
 	// Normalize the collectionID.
 	collectionID = strings.ToLower(collectionID)
-	_, env := cfg.GetPostmanAPIKeyAndEnvironment()
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {
 		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
@@ -124,11 +122,10 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 
 		// Normalize collectionID.
 		svcCollectionID := strings.ToLower(svc.PostmanMetaData.CollectionID)
-		svcEnv := strings.ToUpper(svc.PostmanMetaData.Environment)
 
-		if strings.EqualFold(collectionID, svcCollectionID) && strings.EqualFold(svcEnv, env) {
+		if strings.EqualFold(collectionID, svcCollectionID) {
 			result = svc.ID
-			postmanCollectionIDCache.Set(svcEnv+"|"+svcCollectionID, svc.ID, cache.DefaultExpiration)
+			postmanCollectionIDCache.Set(svcCollectionID, svc.ID, cache.DefaultExpiration)
 		}
 	}
 
