@@ -42,7 +42,10 @@ func DefaultDomain() string {
 		// FIXME: change to PRODUCTION in next release.
 		printer.Warningf("Using Akita staging backend, default environment is PREVIEW\n")
 		return "api.staging.akita.software"
-	case "BETA", "PREVIEW":
+	case "BETA":
+		printer.Debugf("Selecting Akita staging backend for Postman pre-production testing.\n")
+		return "api.getpostman-beta.com"
+	case "PREVIEW":
 		printer.Debugf("Selecting Akita staging backend for Postman pre-production testing.\n")
 		return "api.staging.akita.software"
 	case "PRODUCTION", "STAGE":
