@@ -43,7 +43,7 @@ func DefaultDomain() string {
 		printer.Warningf("Using Akita staging backend, default environment is PREVIEW\n")
 		return "api.staging.akita.software"
 	case "BETA":
-		printer.Debugf("Selecting Akita staging backend for Postman pre-production testing.\n")
+		printer.Debugf("Selecting api.getpostman-beta.com endpoint.\n")
 		return "api.getpostman-beta.com"
 	case "PREVIEW":
 		printer.Debugf("Selecting Akita staging backend for Postman pre-production testing.\n")
