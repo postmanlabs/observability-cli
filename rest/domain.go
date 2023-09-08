@@ -35,25 +35,28 @@ func DefaultDomain() string {
 	}
 
 	// Dispatch based on Postman environment.
-	// TODO: fill in with real domains once available.
 	switch strings.ToUpper(env) {
 	case "":
-		// Not specified by user, PREVIEW for now, but
-		// FIXME: change to PRODUCTION in next release.
-		printer.Warningf("Using Akita staging backend, default environment is PREVIEW\n")
-		return "api.staging.akita.software"
-	case "BETA", "PREVIEW":
-		printer.Debugf("Selecting Akita staging backend for Postman pre-production testing.\n")
-		return "api.staging.akita.software"
-	case "PRODUCTION", "STAGE":
-		printer.Warningf("Using Akita staging backend, production not supported yet!\n")
-		return "api.staging.akita.software"
+		// Not specified by user, default to PRODUCTION
+		return "api.getpostman.com"
 	case "DEV":
 		printer.Debugf("Selecting localhost backend for DEV environment.\n")
 		return "localhost:50443"
+	case "BETA":
+		printer.Debugf("Selecting Postman beta backend for pre-production testing.\n")
+		return "api.getpostman-beta.com"
+	case "PREVIEW":
+		printer.Debugf("Selecting Postman preview backend for pre-production testing.\n")
+		return "api.getpostman-preview.com"
+	case "STAGE":
+		printer.Debugf("Selecting Postman staging backend for pre-production testing.\n")
+		return "api.getpostman-stage.com"
+	case "PRODUCTION":
+		printer.Debugf("Selecting Postman production backend.\n")
+		return "api.getpostman.com"
 	default:
 		printer.Warningf("Unknown Postman environment %q, using production.\n")
-		return "api.akita.software"
+		return "api.getpostman.com"
 	}
 }
 
