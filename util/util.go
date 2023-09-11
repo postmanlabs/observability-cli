@@ -139,7 +139,16 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	// Create service for given postman collectionID
 	resp, err := c.CreateService(ctx, name, collectionID)
 	if err != nil {
-		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create or get service for given collectionID: %s", collectionID))
+		printer.Stderr.Debugf("Failed to create service for given collectionID: %s\n", err)
+
+		if httpErr, ok := err.(rest.HTTPError); ok && httpErr.StatusCode == 403 {
+			errMsg := fmt.Sprintf("You cannot send traffic to the collection with ID %s."+
+				" Ensure that your collection ID is correct and that you have edit permissions on the collection."+
+				" If you do not have edit permissions, please contact the workspace administrator to add you as a collection editor.", collectionID)
+			return akid.ServiceID{}, errors.New(errMsg)
+		}
+
+		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create service for given collectionID: %s", collectionID))
 	}
 
 	printer.Debugf("Got service ID %s\n", resp.ResourceID)
