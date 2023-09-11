@@ -229,7 +229,7 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			wf.awsProfile = "default"
 			return awf_next(getProfileState)
 		}
-		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to support@akitasoftware.com for assistance.\n", err)
+		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", err)
 		return awf_error(errors.Wrapf(err, "Error loading AWS credentials"))
 	}
 
@@ -510,7 +510,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 			return awf_next(getTaskState)
 		}
 		printer.Errorf("Could not load ECS task definition: %v\n", describeErr)
-		return awf_error(errors.New("Error while loading ECS task definition; please contact support@akitasoftware.com for assistance."))
+		return awf_error(errors.New("Error while loading ECS task definition; please contact observability-support@postman.com for assistance."))
 	}
 
 	wf.ecsTaskDefinition = output
@@ -993,7 +993,7 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 		// TODO: guide the user through this?
 		printer.Infof("You can use the AWS web console to delete the task definition \"%s:%s\". The previous task definition should still be in use.\n",
 			wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
-		return awf_error(errors.New("The modified task failed to deploy. Please contact support@akitasoftware.com for assistance."))
+		return awf_error(errors.New("The modified task failed to deploy. Please contact observability-support@postman.com for assistance."))
 	}
 
 	reportStep("ECS Service Updated")

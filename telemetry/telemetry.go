@@ -101,7 +101,7 @@ func Init(isLoggingEnabled bool) {
 		if isLoggingEnabled {
 			printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
 			printer.Infof("Akita support will not be able to see any errors you encounter.\n")
-			printer.Infof("Please send this log message to support@akitasoftware.com.\n")
+			printer.Infof("Please send this log message to observability-support@postman.com.\n")
 		}
 		analyticsClient = nullClient{}
 	} else {
@@ -313,6 +313,6 @@ func Shutdown() {
 	if err != nil {
 		printer.Stderr.Errorf("Error flushing telemetry: %v\n", err)
 		printer.Infof("Akita support may not be able to see the last error message you received.\n")
-		printer.Infof("Please send the CLI output to support@akitasoftware.com.\n")
+		printer.Infof("Please send the CLI output to observability-support@postman.com.\n")
 	}
 }

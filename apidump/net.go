@@ -89,7 +89,7 @@ func showPermissionErrors(sampleError error) error {
 	// TODO: Known errors without error-specific help:
 	//   * "The device is not up"
 	printer.Warningf("The agent could not access any network interfaces. Please contact\n")
-	printer.Warningf("support@akitasoftware.com with the log messages above.\n")
+	printer.Warningf("observability-support@postman.com with the log messages above.\n")
 	return NewApidumpError(api_schema.ApidumpError_PCAPInterfaceOther, "Error while checking permissions.")
 }
 
