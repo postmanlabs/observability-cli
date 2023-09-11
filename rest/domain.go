@@ -38,25 +38,25 @@ func DefaultDomain() string {
 	switch strings.ToUpper(env) {
 	case "":
 		// Not specified by user, default to PRODUCTION
-		return "api.getpostman.com"
+		return "api.observability.postman.com"
 	case "DEV":
 		printer.Debugf("Selecting localhost backend for DEV environment.\n")
 		return "localhost:50443"
 	case "BETA":
 		printer.Debugf("Selecting Postman beta backend for pre-production testing.\n")
-		return "api.getpostman-beta.com"
+		return "api.observability.postman-beta.com"
 	case "PREVIEW":
 		printer.Debugf("Selecting Postman preview backend for pre-production testing.\n")
-		return "api.getpostman-preview.com"
+		return "api.observability.postman-preview.com"
 	case "STAGE":
 		printer.Debugf("Selecting Postman staging backend for pre-production testing.\n")
-		return "api.getpostman-stage.com"
+		return "api.observability.postman-stage.com"
 	case "PRODUCTION":
 		printer.Debugf("Selecting Postman production backend.\n")
-		return "api.getpostman.com"
+		return "api.observability.postman.com"
 	default:
 		printer.Warningf("Unknown Postman environment %q, using production.\n")
-		return "api.getpostman.com"
+		return "api.observability.postman.com"
 	}
 }
 
