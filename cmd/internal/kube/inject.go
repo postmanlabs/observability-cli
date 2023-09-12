@@ -186,6 +186,9 @@ type secretGenerationOptions struct {
 	Filepath optionals.Optional[string]
 }
 
+// The image to use for the Akita sidecar
+const akitaImage = "public.ecr.aws/akitasoftware/akita-cli:latest"
+
 func createAkitaSidecar(projectName string) v1.Container {
 	args := []string{"apidump", "--project", projectName}
 
@@ -197,7 +200,7 @@ func createAkitaSidecar(projectName string) v1.Container {
 
 	sidecar := v1.Container{
 		Name:  "akita",
-		Image: "akitasoftware/cli:latest",
+		Image: akitaImage,
 		Env: []v1.EnvVar{
 			{
 				Name: "AKITA_API_KEY_ID",
@@ -273,7 +276,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 
 	sidecar := v1.Container{
 		Name:  "akita",
-		Image: "akitasoftware/cli:latest",
+		Image: akitaImage,
 		Env:   envs,
 		Lifecycle: &v1.Lifecycle{
 			PreStop: &v1.LifecycleHandler{
