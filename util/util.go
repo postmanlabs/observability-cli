@@ -96,6 +96,8 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
 	// Normalize the collectionID.
 	collectionID = strings.ToLower(collectionID)
+	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
+		"Please contact postman support(observability-support@postman.com) with the error details"
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {
 		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
@@ -108,8 +110,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	services, err := c.GetServices(ctx)
 	if err != nil {
 		printer.Stderr.Debugf("Failed to get list of services associated with the API Key: %s\n", err)
-		return akid.ServiceID{}, errors.Wrap(err, "Something went wrong while starting the Agent. "+
-			"Please contact postman support(observability-support@postman.com) with the error details")
+		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 	}
 
 	var result akid.ServiceID
@@ -150,8 +151,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 			return akid.ServiceID{}, error
 		}
 
-		return akid.ServiceID{}, errors.Wrap(err, "Something went wrong while starting the Agent. "+
-			"Please contact postman support(observability-support@postman.com) with the error details")
+		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 	}
 
 	printer.Debugf("Got service ID %s\n", resp.ResourceID)
