@@ -54,7 +54,7 @@ func (_ nullClient) Close() error {
 // This should be called once at startup either from the root command or from a subcommand that overrides the default PersistentPreRun.
 func Init(isLoggingEnabled bool) {
 	// Opt-out mechanism
-	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY")
+	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY") + os.Getenv("POSTMAN_LC_AGENT_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
 		if val, err := strconv.ParseBool(disableTelemetry); err == nil && val {
 			printer.Infof("Telemetry disabled via opt-out.\n")
