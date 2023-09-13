@@ -97,7 +97,9 @@ const (
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
 	// Akita agent image locations
-	akitaECRImage = "docker.postman.com/postman-lc-agent"
+	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
+	akitaDockerImage = "akitasoftware/cli"
+	postmanECRImage  = "docker.postman.com/postman-lc-agent"
 )
 
 // Run the "add to ECS" workflow until we complete or get an error.
@@ -530,7 +532,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	// Check that the Akita CLI is not already present
 	for _, container := range output.ContainerDefinitions {
 		image := aws.ToString(container.Image)
-		if matchesImage(image, akitaECRImage) {
+		if matchesImage(image, postmanECRImage) || matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
 			printer.Errorf("The selected task definition already has the image %q; Akita is already installed.\n", image)
 			printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
 			return awf_next(getTaskState)
@@ -854,7 +856,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
 		},
 		Essential: aws.Bool(false),
-		Image:     aws.String(akitaECRImage),
+		Image:     aws.String(postmanECRImage),
 	})
 
 	output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
