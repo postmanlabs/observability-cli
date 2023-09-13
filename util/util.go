@@ -97,7 +97,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	// Normalize the collectionID.
 	collectionID = strings.ToLower(collectionID)
 	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
-		"Please contact postman support(observability-support@postman.com) with the error details"
+		"Please contact Postman support (observability-support@postman.com) with the error details"
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {
 		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
