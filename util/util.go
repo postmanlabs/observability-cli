@@ -96,6 +96,8 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
 	// Normalize the collectionID.
 	collectionID = strings.ToLower(collectionID)
+	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
+		"Please contact Postman support (observability-support@postman.com) with the error details"
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {
 		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
@@ -107,7 +109,8 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	defer cancel()
 	services, err := c.GetServices(ctx)
 	if err != nil {
-		return akid.ServiceID{}, errors.Wrap(err, "failed to get list of services associated with the API Key")
+		printer.Stderr.Debugf("Failed to get list of services associated with the API Key: %s\n", err)
+		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 	}
 
 	var result akid.ServiceID
@@ -139,7 +142,16 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	// Create service for given postman collectionID
 	resp, err := c.CreateService(ctx, name, collectionID)
 	if err != nil {
-		return akid.ServiceID{}, errors.Wrap(err, fmt.Sprintf("failed to create or get service for given collectionID: %s", collectionID))
+		printer.Stderr.Debugf("Failed to create service for given collectionID: %s\n", err)
+
+		if httpErr, ok := err.(rest.HTTPError); ok && httpErr.StatusCode == 403 {
+			error := fmt.Errorf("You cannot send traffic to the collection with ID %s. "+
+				"Ensure that your collection ID is correct and that you have edit permissions on the collection. "+
+				"If you do not have edit permissions, please contact the workspace administrator to add you as a collection editor.", collectionID)
+			return akid.ServiceID{}, error
+		}
+
+		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 	}
 
 	printer.Debugf("Got service ID %s\n", resp.ResourceID)
