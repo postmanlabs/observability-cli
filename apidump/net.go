@@ -79,7 +79,7 @@ func showPermissionErrors(sampleError error) error {
 		} else {
 			return NewApidumpErrorf(
 				api_schema.ApidumpError_PCAPInterfaceNotImplemented,
-				"Unable to read network interfaces. If your host architecture is not %s, try using the Akita install script: `bash -c \"$(curl -L https://releases.akita.software/scripts/install_akita.sh)\"`",
+				"Unable to read network interfaces. If your host architecture is not %s, try using the Postman Live Collections Agent install script: `bash -c \"$(curl -L https://releases.observability.postman.com/scripts/install-postman-lc-agent.sh)\"`",
 				arch,
 			)
 		}

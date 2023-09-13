@@ -38,12 +38,12 @@ var (
 
 var injectCmd = &cobra.Command{
 	Use:   "inject",
-	Short: "Inject Akita into a Kubernetes deployment",
-	Long:  "Inject Akita into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
+	Short: "Inject the Postman Live Collections Agent into a Kubernetes deployment",
+	Long:  "Inject the Postman Live Collections Agent into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
 	RunE: func(_ *cobra.Command, args []string) error {
 		if projectNameFlag == "" && postmanCollectionID == "" {
 			return cmderr.AkitaErr{
-				Err: errors.New("exactly one of --project or --collection must be specified"),
+				Err: errors.New("--collection must be specified. Or, if you are an Akita user, use --project instead."),
 			}
 		}
 
@@ -60,7 +60,7 @@ var injectCmd = &cobra.Command{
 		// their dependent Secrets, require that the user explicitly specify an output file.
 		if secretOpts.ShouldInject && secretOpts.Filepath.IsSome() && injectOutputFlag == "" {
 			printer.Errorln("Cannot specify a Secret file path without an output file (using --output or -o)")
-			printer.Infoln("To generate a Secret file on its own, use `akita kube secret`")
+			printer.Infoln("To generate a Secret file on its own, use `postman-lc-agent kube secret`")
 			return cmderr.AkitaErr{
 				Err: errors.New("invalid flag usage"),
 			}
@@ -186,7 +186,7 @@ type secretGenerationOptions struct {
 	Filepath optionals.Optional[string]
 }
 
-// The image to use for the Akita sidecar
+// The image to use for the Postman LCA sidecar
 const akitaImage = "docker.postman.com/postman-lc-agent:latest"
 
 func createAkitaSidecar(projectName string) v1.Container {
@@ -275,7 +275,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 	}
 
 	sidecar := v1.Container{
-		Name:  "akita",
+		Name:  "postman-lc-agent",
 		Image: akitaImage,
 		Env:   envs,
 		Lifecycle: &v1.Lifecycle{
@@ -361,7 +361,7 @@ func init() {
 		"project",
 		"p",
 		"",
-		"Name of the Akita project to which the traffic will be uploaded.",
+		"Name of the Akita project to which the traffic will be uploaded. If you are a Postman user, use --collection instead.",
 	)
 
 	injectCmd.Flags().StringVarP(
@@ -378,7 +378,7 @@ func init() {
 		&postmanCollectionID,
 		"collection",
 		"",
-		"Your Postman collectionID.")
+		"Your Postman collection ID. If you are an Akita user, use --project instead.")
 
 	injectCmd.MarkFlagsMutuallyExclusive("project", "collection")
 

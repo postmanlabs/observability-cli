@@ -3,7 +3,7 @@
 export GO111MODULE = on
 
 build: clean
-	go build -o bin/akita .
+	go build -o bin/postman-lc-agent .
 
 clean:
 	go clean

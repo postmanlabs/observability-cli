@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-akita-cli
+postman-lc-agent
 bin/
 
 # Test binary, built with `go test -c`

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	uaRegexp = regexp.MustCompile(`^akita-cli\/(.*) \((.*); (.*); (.*)\)$`)
+	uaRegexp = regexp.MustCompile(`^postman-lc-agent\/(.*) \((.*); (.*); (.*)\)$`)
 )
 
 // Type of environment where the CLI is running.
@@ -58,7 +58,7 @@ type UA struct {
 }
 
 func (ua UA) String() string {
-	return fmt.Sprintf("akita-cli/%s (%s; %s; %s)", ua.Version, ua.OS, ua.Arch, ua.EnvType)
+	return fmt.Sprintf("postman-lc-agent/%s (%s; %s; %s)", ua.Version, ua.OS, ua.Arch, ua.EnvType)
 }
 
 func FromString(s string) (UA, error) {
