@@ -166,7 +166,7 @@ func (p *NetworkTrafficParser) ParseFromInterface(interfaceName, bpfFilter strin
 				// packets more recently than that gap.
 				//
 				// TODO: is this maybe the source of splices, too?  Converting dropped packets
-				// into a continous stream?
+				// into a continuous stream?
 				//
 				// Streams that are idle need to be closed eventually, too.  We use a larger
 				// threshold for that because it costs us less memory to keep just a

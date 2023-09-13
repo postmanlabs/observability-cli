@@ -227,7 +227,7 @@ func (b *NginxBackend) handleRequest(rw http.ResponseWriter, req *http.Request) 
 func (b *NginxBackend) handleResponse(rw http.ResponseWriter, req *http.Request) {
 	// Check for JSON encoding
 	if httpErr := daemon.EnsureJSONEncodedRequestBody(req); httpErr != nil {
-		telemetry.RateLimitError("NGINX handleResonse", errors.New("Bad content-type"))
+		telemetry.RateLimitError("NGINX handleResponse", errors.New("Bad content-type"))
 		writeTextResponse(rw, 400, "Expecting application/json body")
 		return
 	}

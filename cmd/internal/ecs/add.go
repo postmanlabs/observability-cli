@@ -28,7 +28,7 @@ func reportStep(stepName string) {
 }
 
 // A function which executes the next part of the workflow,
-// and picks a next state (Some) or exits (None), or signals an eror.
+// and picks a next state (Some) or exits (None), or signals an error.
 type AddWorkflowState func(*AddWorkflow) (next optionals.Optional[AddWorkflowState], err error)
 
 // Helper functions for choosing the next state.
@@ -193,7 +193,7 @@ func initState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState],
 
 // Ask the user to specify a profile; "" is fine to use the default profile.
 // TODO: it seems very difficult to present a list (which is what I was trying
-// to do orginally) because the SDK doesn't provide an API to do that, and
+// to do originally) because the SDK doesn't provide an API to do that, and
 // its config file parser is internal.
 func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get AWS Profile")

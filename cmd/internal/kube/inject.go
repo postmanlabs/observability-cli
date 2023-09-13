@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	// The target Yaml faile to be injected
+	// The target Yaml failed to be injected
 	// This is required for execution of injectCmd
 	injectFileNameFlag string
 	// The output file to write the injected Yaml to

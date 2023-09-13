@@ -196,7 +196,7 @@ func (a *apidump) LookupService() error {
 	return nil
 }
 
-// Send the initial mesage to the backend indicating successful start
+// Send the initial message to the backend indicating successful start
 func (a *apidump) SendInitialTelemetry() {
 	// Do not send packet capture telemetry for local captures.
 	if !a.TargetIsRemote() {
@@ -758,7 +758,7 @@ func (a *apidump) Run() error {
 			}
 
 			// If this is false, we will still parse TLS client and server hello messages
-			// but not process them futher.
+			// but not process them further.
 			if args.CollectTCPAndTLSReports {
 				// Process TLS traffic into TLS-connection metadata.
 				collector = tls_conn_tracker.NewCollector(collector)

@@ -90,7 +90,7 @@ func getTraces(cmd *cobra.Command, args []string) error {
 	case serviceFlag == "":
 		serviceFlag = serviceArg
 	case serviceArg == "":
-		// servceFlag is nonempty
+		// serviceFlag is nonempty
 		break
 	case serviceFlag != serviceArg:
 		return fmt.Errorf("Different projects specified in flag and URI.")

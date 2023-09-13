@@ -253,7 +253,7 @@ func APIError(method string, path string, e error) {
 	)
 }
 
-// Report a failure withoout a specific error object
+// Report a failure without a specific error object
 func Failure(message string) {
 	analyticsClient.Track(distinctID(),
 		message,

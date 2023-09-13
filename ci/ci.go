@@ -29,12 +29,12 @@ func (c CI) String() string {
 	}
 }
 
-// Implments encoding.TextMarshaler
+// Implements encoding.TextMarshaler
 func (c CI) MarshalText() ([]byte, error) {
 	return []byte(c.String()), nil
 }
 
-// Implments encoding.TextUnmarshaler
+// Implements encoding.TextUnmarshaler
 func (c *CI) UnmarshalText(s []byte) error {
 	switch string(s) {
 	case "CircleCI":

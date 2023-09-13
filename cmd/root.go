@@ -293,6 +293,6 @@ func init() {
 	legacy.SpecsCmd.Hidden = true
 	rootCmd.AddCommand(legacy.SpecsCmd)
 
-	// Special hidden comands
+	// Special hidden commands
 	rootCmd.AddCommand(ascii.Cmd)
 }

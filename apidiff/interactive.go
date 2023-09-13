@@ -77,7 +77,7 @@ func interactiveDisplay(diff *path_trie.PathTrie) error {
 	})
 
 	rootFrame := tview.NewFrame(rootPage)
-	// To go from individial diff pages back to the root page, users need to use
+	// To go from individual diff pages back to the root page, users need to use
 	// ESC. However, if we add the ESC help text as a separate frame on each diff
 	// page, we get nested frames with both instructions. Plus, the 'q' escape
 	// behavior is applied to all pages. Hence, we put both help text ('q' and

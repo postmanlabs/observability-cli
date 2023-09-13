@@ -6,7 +6,7 @@ import (
 	"github.com/akitasoftware/go-utils/optionals"
 )
 
-/* Rest API schema objects for the communcation between
+/* Rest API schema objects for the communication between
    the NGINX module and the Akita agent */
 
 // An incoming request to Nginx.
