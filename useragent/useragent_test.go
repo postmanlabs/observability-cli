@@ -14,7 +14,7 @@ func TestString(t *testing.T) {
 		Arch:    "amd64",
 		EnvType: ENV_DOCKER,
 	}
-	assert.Equal(t, "akita-cli/1.2.3 (linux; amd64; docker)", ua.String())
+	assert.Equal(t, "postman-lc-agent/1.2.3 (linux; amd64; docker)", ua.String())
 }
 
 func TestFromString(t *testing.T) {
@@ -26,7 +26,7 @@ func TestFromString(t *testing.T) {
 	}{
 		{
 			name:  "good case",
-			input: "akita-cli/1.2.3 (linux; amd64; docker)",
+			input: "postman-lc-agent/1.2.3 (linux; amd64; docker)",
 			expected: UA{
 				Version: ver.Must(ver.NewSemver("1.2.3")),
 				OS:      "linux",
@@ -36,7 +36,7 @@ func TestFromString(t *testing.T) {
 		},
 		{
 			name:  "empty os is ok",
-			input: "akita-cli/1.2.3 (; amd64; docker)",
+			input: "postman-lc-agent/1.2.3 (; amd64; docker)",
 			expected: UA{
 				Version: ver.Must(ver.NewSemver("1.2.3")),
 				OS:      "",
@@ -46,7 +46,7 @@ func TestFromString(t *testing.T) {
 		},
 		{
 			name:  "empty arch is ok",
-			input: "akita-cli/1.2.3 (linux; ; docker)",
+			input: "postman-lc-agent/1.2.3 (linux; ; docker)",
 			expected: UA{
 				Version: ver.Must(ver.NewSemver("1.2.3")),
 				OS:      "linux",
@@ -56,12 +56,12 @@ func TestFromString(t *testing.T) {
 		},
 		{
 			name:      "bad version",
-			input:     "akita-cli/1.2x.3 (linux; amd64; docker)",
+			input:     "postman-lc-agent/1.2x.3 (linux; amd64; docker)",
 			expectErr: true,
 		},
 		{
 			name:      "bad env",
-			input:     "akita-cli/1.2.3 (linux; amd64; i-dont-exist)",
+			input:     "postman-lc-agent/1.2.3 (linux; amd64; i-dont-exist)",
 			expectErr: true,
 		},
 	}
