@@ -187,7 +187,7 @@ type secretGenerationOptions struct {
 }
 
 // The image to use for the Akita sidecar
-const akitaImage = "public.ecr.aws/akitasoftware/akita-cli:latest"
+const akitaImage = "docker.postman.com/postman-lc-agent:latest"
 
 func createAkitaSidecar(projectName string) v1.Container {
 	args := []string{"apidump", "--project", projectName}
