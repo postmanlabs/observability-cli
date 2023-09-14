@@ -177,7 +177,7 @@ func (a *apidump) LookupService() error {
 	frontClient := rest.NewFrontClient(a.Domain, a.ClientID)
 
 	if a.PostmanCollectionID != "" {
-		backendSvc, err := util.GetServiceIDByPostmanCollectionID(frontClient, a.PostmanCollectionID)
+		backendSvc, err := util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, a.PostmanCollectionID)
 		if err != nil {
 			return err
 		}
