@@ -325,7 +325,7 @@ func lookupService(postmanCollectionID, serviceName string) error {
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
 
 	if postmanCollectionID != "" {
-		_, err := util.GetServiceIDByPostmanCollectionID(frontClient, postmanCollectionID)
+		_, err := util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, postmanCollectionID)
 		if err != nil {
 			return err
 		}
