@@ -47,7 +47,7 @@ func showPermissionErrors(sampleError error) error {
 				printer.Warningf("It might be that you are in a PaaS that disallows packet capture, or the local configuration has disabled that privilege by default.\n")
 				return NewApidumpError(api_schema.ApidumpError_PCAPPermission, "Insufficient permissions in container.")
 			} else {
-				printer.Warningf("Although you are running as root, the Akita agent lacks the CAP_NET_RAW capability.\n")
+				printer.Warningf("Although you are running as root, the Postman Live Collections Agent lacks the CAP_NET_RAW capability.\n")
 				printer.Warningf("It might be that you are in a restricted environment which disallows packet capture, even as the root user.\n")
 				return NewApidumpError(api_schema.ApidumpError_PCAPPermission, "Insufficient permissions.")
 			}
@@ -63,8 +63,8 @@ func showPermissionErrors(sampleError error) error {
 
 		printer.Warningf(
 			"The agent received \"Function not implemented\" when trying to read from your network interfaces. "+
-				"This often indicates that the Akita agent was built for a different architecture than your host architecture. "+
-				"This Akita agent binary was built for %s.\n",
+				"This often indicates that the Postman Live Collections Agent was built for a different architecture than your host architecture. "+
+				"This Postman Live Collections Agent binary was built for %s.\n",
 			arch,
 		)
 
@@ -72,14 +72,14 @@ func showPermissionErrors(sampleError error) error {
 			return NewApidumpErrorf(
 				api_schema.ApidumpError_PCAPInterfaceNotImplemented,
 				"Unable to read network interfaces. If your host architecture is not %s, try using "+
-					"`docker pull --platform $YOUR_ARCHITECTURE docker.postman.com/postman-lc-agent:latest` to pull an Akita agent "+
+					"`docker pull --platform $YOUR_ARCHITECTURE docker.postman.com/postman-lc-agent:latest` to pull a Postman Live Collections Agent "+
 					"built for your architecture.",
 				arch,
 			)
 		} else {
 			return NewApidumpErrorf(
 				api_schema.ApidumpError_PCAPInterfaceNotImplemented,
-				"Unable to read network interfaces. If your host architecture is not %s, try using the Akita install script: `bash -c \"$(curl -L https://releases.akita.software/scripts/install_akita.sh)\"`",
+				"Unable to read network interfaces. If your host architecture is not %s, try using the Postman Live Collections Agent install script: `bash -c \"$(curl -L https://releases.observability.postman.com/scripts/install-postman-lc-agent.sh)\"`",
 				arch,
 			)
 		}

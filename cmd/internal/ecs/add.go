@@ -96,7 +96,7 @@ const (
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
-	// Akita agent image locations
+	// Postman Live Collections Agent image locations
 	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
 	akitaDockerImage = "akitasoftware/cli"
 	postmanECRImage  = "docker.postman.com/postman-lc-agent"
@@ -486,7 +486,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "Which task should Akita monitor?",
-			Help:    "Select the ECS task definition to modify. We will add the Akita agent as a sidecar to the task.",
+			Help:    "Select the ECS task definition to modify. We will add the Postman Live Collections Agent as a sidecar to the task.",
 			Options: tasks,
 		},
 		&taskAnswer,
@@ -668,7 +668,7 @@ func (wf *AddWorkflow) showPlannedChanges() {
 				defaultKeySecretName, wf.awsRegion)
 		}
 	}
-	printer.Infof("Create a new version %d of task definition %q which includes the Akita agent as a sidecar.\n",
+	printer.Infof("Create a new version %d of task definition %q which includes the Postman Live Collections Agent as a sidecar.\n",
 		wf.ecsTaskDefinition.Revision+1, wf.ecsTaskDefinitionFamily)
 	printer.Infof("Update service %q in cluster %q to the new task definition.\n",
 		wf.ecsService, wf.ecsCluster)

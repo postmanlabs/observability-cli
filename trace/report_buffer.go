@@ -96,11 +96,11 @@ func (buf *reportBuffer) Flush() error {
 			if e.StatusCode == http.StatusTooManyRequests {
 				// XXX Not all commands that call into this code have a --rate-limit
 				// option.
-				err = errors.Wrap(err, "your witness uploads are being throttled. Akita will generate partial results. Try reducing the --rate-limit value to avoid this.")
+				err = errors.Wrap(err, "your witness uploads are being throttled. Postman Live Insights will generate partial results. Try reducing the --rate-limit value to avoid this.")
 			}
 		}
 
-		printer.Warningf("Failed to upload to Akita Cloud: %v\n", err)
+		printer.Warningf("Failed to upload to Postman: %v\n", err)
 	}
 	printer.Debugf("Uploaded %d witnesses, %d TCP connection reports, and %d TLS handshake reports\n", len(buf.Witnesses), len(buf.TCPConnections), len(buf.TLSHandshakes))
 

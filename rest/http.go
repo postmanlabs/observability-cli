@@ -38,8 +38,7 @@ type HTTPError struct {
 
 func (he HTTPError) Error() string {
 	if he.StatusCode == 401 {
-		return `Invalid credentials, run "login" or use AKITA_API_KEY_SECRET environment variable. ` +
-			`If using with Postman, use POSTMAN_API_KEY environment variable`
+		return `Invalid credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman. If using with Akita, run "login" or use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables.`
 	}
 	return fmt.Sprintf("received status code %d, body: %s", he.StatusCode, string(he.Body))
 }
@@ -91,7 +90,7 @@ func initHTTPClient() {
 	}
 	transport.TLSClientConfig = &tls.Config{}
 	if PermitInvalidCertificate {
-		printer.Warningf("Disabling TLS checking; sending traffic without verifying identity of Akita servers.\n")
+		printer.Warningf("Disabling TLS checking; sending traffic without verifying identity of Postman servers.\n")
 		transport.TLSClientConfig.InsecureSkipVerify = true
 	}
 	if ExpectedServerName != "" {
@@ -124,13 +123,11 @@ func sendRequest(ctx context.Context, req *http.Request) ([]byte, error) {
 		apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
 
 		if apiKeyID == "" {
-			return nil, errors.New(`API key ID not found, run "login" or use AKITA_API_KEY_ID environment variable. ` +
-				`If using with Postman, use POSTMAN_API_KEY environment variable`)
+			return nil, errors.New(`Missing or incomplete credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman. If using with Akita, run "login" or use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables.`)
 		}
 
 		if apiKeySecret == "" {
-			return nil, errors.New(`API key secret not found, run "login" or use AKITA_API_KEY_SECRET environment variable. ` +
-				`If using with Postman, use POSTMAN_API_KEY environment variable`)
+			return nil, errors.New(`Akita API key secret not found, run "login" or use AKITA_API_KEY_SECRET environment variable. If using with Postman, ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman.`)
 		}
 
 		req.SetBasicAuth(apiKeyID, apiKeySecret)

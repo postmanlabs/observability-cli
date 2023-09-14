@@ -53,9 +53,9 @@ var (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:           "akita",
-		Short:         "Gateway to all Akita services.",
-		Long:          "Complete documentation is available at https://docs.akita.software",
+		Use:           "postman-lc-agent",
+		Short:         "The Postman Live Collections Agent",
+		Long:          "Documentation is available at https://voyager.postman.com/pdf/live-insights-documentation-postman.pdf",
 		Version:       version.CLIDisplayString(),
 		SilenceErrors: true, // We print our own errors from subcommands in Execute function
 		// Don't print usage after error, we only print help if we cannot parse
@@ -101,7 +101,7 @@ func preRun(cmd *cobra.Command, args []string) {
 	// Somehow, this doesn't appear before "akita --version" (good) or
 	// "akita --help" (less good), only before commands or the usage
 	// information if no command is given.
-	printer.Stdout.Infof("Akita Agent %s\n", version.ReleaseVersion())
+	printer.Stdout.Infof("Postman Live Collections Agent %s\n", version.ReleaseVersion())
 
 	// This is after argument parsing so that rest.Domain is correct,
 	// but won't be called if there is an error parsing the flags.
@@ -186,9 +186,9 @@ func init() {
 
 	// Use a proxy or permit a mismatched certificate.
 	rootCmd.PersistentFlags().StringVar(&rest.ProxyAddress, "proxy", "", "The domain name, IP address, or URL of an HTTP proxy server to use")
-	rootCmd.PersistentFlags().BoolVar(&rest.PermitInvalidCertificate, "skip-tls-validate", false, "Skip TLS validation on the connection to api.akita.software")
+	rootCmd.PersistentFlags().BoolVar(&rest.PermitInvalidCertificate, "skip-tls-validate", false, "Skip TLS validation on the connection to the back end")
 	rootCmd.PersistentFlags().MarkHidden("skip-tls-validate")
-	rootCmd.PersistentFlags().StringVar(&rest.ExpectedServerName, "server-tls-name", "", "Provide an alternate TLS server name to accept instead of api.akita.software")
+	rootCmd.PersistentFlags().StringVar(&rest.ExpectedServerName, "server-tls-name", "", "Provide an alternate TLS server name to accept")
 	rootCmd.PersistentFlags().MarkHidden("server-tls-name")
 
 	// Semi-secret somewhat-safe flags
@@ -272,8 +272,10 @@ func init() {
 	rootCmd.AddCommand(ci_guard.GuardCommand(apidiff.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(apidump.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(apispec.Cmd))
+	daemon.Cmd.Hidden = true
 	rootCmd.AddCommand(daemon.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(learn.Cmd))
+	login.Cmd.Hidden = true
 	rootCmd.AddCommand(login.Cmd)
 	rootCmd.AddCommand(ci_guard.GuardCommand(setversion.Cmd))
 
