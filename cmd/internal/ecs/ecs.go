@@ -3,7 +3,6 @@ package ecs
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -106,7 +105,7 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cmderr.AkitaErr{
 			Err: fmt.Errorf(
-				"Could not find the serviceId for %q",
+				"could not find the serviceId for %q",
 				collectionId,
 			),
 		}
@@ -116,5 +115,5 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 }
 
 func removeAgentFromECS(cmd *cobra.Command, args []string) error {
-	return fmt.Errorf("This command is not yet implemented")
+	return fmt.Errorf("this command is not yet implemented")
 }

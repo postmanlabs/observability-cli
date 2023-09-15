@@ -85,20 +85,21 @@ type AddWorkflow struct {
 
 const (
 	// Tag to use for objects created by the Akita CLI
-	akitaCreationTagKey       = "akita.software:created_by"
-	akitaCreationTagValue     = "Akita Software ECS integration"
-	akitaModificationTagKey   = "akita.software:modified_by"
-	akitaModificationTagValue = "Akita Software ECS integration"
+	akitaCreationTagKey       = "postman.software:created_by"
+	akitaCreationTagValue     = "Postman Software ECS integration"
+	akitaModificationTagKey   = "postman.software:modified_by"
+	akitaModificationTagValue = "Postman Software ECS integration"
 
 	// Separate AWS secrets for the key ID and key secret
 	// TODO: make these configurable
-	akitaSecretPrefix    = "akita.software/"
+	akitaSecretPrefix    = "postman.software/"
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
 	// Postman Live Collections Agent image locations
 	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
 	akitaDockerImage = "akitasoftware/cli"
+	// TODO: postmanDockerImage needed ?
 	postmanECRImage  = "docker.postman.com/postman-lc-agent"
 )
 
@@ -845,7 +846,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Name: aws.String("akita-agent"),
 		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
 		// For now we can leave the defaults in place, but they might be a bit large for EC2.
-		EntryPoint: []string{"/akita", "apidump", "--project", projectFlag},
+		EntryPoint: []string{"/akita", "apidump", "--collection", collectionId},
 		Environment: []types.KeyValuePair{
 			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
 			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
