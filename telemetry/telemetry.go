@@ -54,7 +54,7 @@ func (_ nullClient) Close() error {
 // This should be called once at startup either from the root command or from a subcommand that overrides the default PersistentPreRun.
 func Init(isLoggingEnabled bool) {
 	// Opt-out mechanism
-	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY")
+	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY") + os.Getenv("POSTMAN_LC_AGENT_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
 		if val, err := strconv.ParseBool(disableTelemetry); err == nil && val {
 			printer.Infof("Telemetry disabled via opt-out.\n")
@@ -100,7 +100,7 @@ func Init(isLoggingEnabled bool) {
 	if err != nil {
 		if isLoggingEnabled {
 			printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
-			printer.Infof("Akita support will not be able to see any errors you encounter.\n")
+			printer.Infof("Postman support will not be able to see any errors you encounter.\n")
 			printer.Infof("Please send this log message to observability-support@postman.com.\n")
 		}
 		analyticsClient = nullClient{}
@@ -141,8 +141,8 @@ func getDistinctID() string {
 		}
 
 		printer.Infof("Telemetry using temporary ID; /v1/user API call failed: %v\n", err)
-		printer.Infof("This error may indicate a problem communicating with the Akita servers,\n")
-		printer.Infof("but the agent will still attempt to send telemetry Akita support.\n")
+		printer.Infof("This error may indicate a problem communicating with the Postman servers,\n")
+		printer.Infof("but the agent will still attempt to send telemetry to Postman support.\n")
 	}
 
 	if key != "" {
@@ -312,7 +312,7 @@ func Shutdown() {
 	err := analyticsClient.Close()
 	if err != nil {
 		printer.Stderr.Errorf("Error flushing telemetry: %v\n", err)
-		printer.Infof("Akita support may not be able to see the last error message you received.\n")
+		printer.Infof("Postman support may not be able to see the last error message you received.\n")
 		printer.Infof("Please send the CLI output to observability-support@postman.com.\n")
 	}
 }

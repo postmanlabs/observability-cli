@@ -10,6 +10,7 @@ import (
 
 // Parent command for listing objects from Akita.
 var Cmd = &cobra.Command{
+	Deprecated:   "This is no longer supported and will be removed in a future release.",
 	Use:          "get [AKITAURI]",
 	Short:        "List or download objects in the Akita cloud.",
 	Long:         "List or download objects in the Akita cloud.",

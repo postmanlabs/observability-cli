@@ -133,10 +133,10 @@ func (s *Summary) printPortHighlights(top *client_telemetry.PacketCountSummary) 
 			if thisPort.TLSHello > 0 {
 				printer.Stderr.Infof("TCP Port %5d: appears to contain a mix of encrypted and unencrypted traffic.\n", p)
 			} else if thisPort.Unparsed > thisPort.TCPPackets*3/10 {
-				printer.Stderr.Infof("TCP Port %5d: has an unusually high amount of traffic that Akita cannot parse.\n", p)
+				printer.Stderr.Infof("TCP Port %5d: has an unusually high amount of traffic that Postman cannot parse.\n", p)
 			}
 			if thisPort.HTTP2Prefaces > 0 {
-				printer.Stderr.Infof("TCP Port %5d: Contains HTTP/2 traffic (%d connections detected), which Akita cannot parse.\n", p, thisPort.HTTP2Prefaces)
+				printer.Stderr.Infof("TCP Port %5d: Contains HTTP/2 traffic (%d connections detected), which Postman cannot parse.\n", p, thisPort.HTTP2Prefaces)
 			}
 			continue
 		}
@@ -158,7 +158,7 @@ func (s *Summary) printPortHighlights(top *client_telemetry.PacketCountSummary) 
 
 		// If we saw HTTP/2, report it.
 		if thisPort.HTTP2Prefaces > 0 {
-			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP/1.1 requests or responses, %d HTTP/2 connection attempts. Akita cannot currently parse HTTP/2.\n",
+			printer.Stderr.Infof("TCP port %5d: %5d packets (%d%% of total), no HTTP/1.1 requests or responses, %d HTTP/2 connection attempts. Postman cannot currently parse HTTP/2.\n",
 				p, thisPort.TCPPackets, pct, thisPort.HTTP2Prefaces)
 			continue
 		}
@@ -170,7 +170,8 @@ func (s *Summary) printPortHighlights(top *client_telemetry.PacketCountSummary) 
 }
 
 // XXX(cns): Not all metrics can be associated with a host.  We currently have
-//    HTTP requests and TLS handshakes.
+//
+//	HTTP requests and TLS handshakes.
 func (s *Summary) printHostHighlights(top *client_telemetry.PacketCountSummary) {
 	// Sort by HTTP traffic volume, then TLS handshake counts, both descending.
 	// We do not have TCP packet counts for hosts.
@@ -300,7 +301,7 @@ func (s *Summary) PrintWarnings() {
 				s.PrefilterSummary.Total().HTTPRequests)
 		}
 		if env.InDocker() && env.HasDockerInternalHostAddress() {
-			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Akita agent with `brew install akita-cli`.  See docs.akita.software/docs/macos-local for details.\n")
+			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Postman Live Collections Agent with `brew install postman-lc-agent`.\n")
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No HTTP calls captured!"))
 		return

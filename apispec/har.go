@@ -31,7 +31,7 @@ func ProcessHAR(col trace.Collector, p string) (int, error) {
 	if errs.TotalCount > 0 {
 		entriesCount := len(harContent.Log.Entries)
 		printer.Stderr.Warningf("Encountered errors with %d HAR file entries.\n", entriesCount-successCount)
-		printer.Stderr.Warningf("Akita will ignore entries with errors and generate a spec from the %d entries successfully processed.\n", successCount)
+		printer.Stderr.Warningf("Postman Live Insights will ignore entries with errors and generate a spec from the %d entries successfully processed.\n", successCount)
 
 		printer.Stderr.Warningf("Sample errors:\n")
 		for _, e := range errs.Samples {

@@ -63,7 +63,7 @@ const (
 )
 
 const (
-	subcommandOutputDelimiter = "======= _AKITA_SUBCOMMAND_ ======="
+	subcommandOutputDelimiter = "======= _POSTMAN_SUBCOMMAND_ ======="
 )
 
 type filterState string
@@ -177,7 +177,7 @@ func (a *apidump) LookupService() error {
 	frontClient := rest.NewFrontClient(a.Domain, a.ClientID)
 
 	if a.PostmanCollectionID != "" {
-		backendSvc, err := util.GetServiceIDByPostmanCollectionID(frontClient, a.PostmanCollectionID)
+		backendSvc, err := util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, a.PostmanCollectionID)
 		if err != nil {
 			return err
 		}
@@ -394,7 +394,7 @@ func (a *apidump) RotateLearnSession(done <-chan struct{}, collectors []trace.Le
 				printer.Errorf("Failed to create trace %s: %v\n", traceName, err)
 				break
 			}
-			printer.Infof("Rotating to new trace on Akita Cloud: %v\n", traceName)
+			printer.Infof("Rotating to new trace on Postman Cloud: %v\n", traceName)
 			for _, c := range collectors {
 				c.SwitchLearnSession(backendLrn)
 			}
@@ -542,7 +542,7 @@ func (a *apidump) Run() error {
 		if uri.ObjectType == nil {
 			uri.ObjectType = akiuri.TRACE.Ptr()
 		} else if !uri.ObjectType.IsTrace() {
-			return errors.Errorf("%q is not an Akita trace URI", uri)
+			return errors.Errorf("%q is not a Postman trace URI", uri)
 		}
 
 		// Use a random object name by default.
@@ -580,7 +580,7 @@ func (a *apidump) Run() error {
 		uri := a.Out.AkitaURI
 		backendLrn, err = util.NewLearnSession(args.Domain, args.ClientID, a.backendSvc, uri.ObjectName, traceTags, nil)
 		if err == nil {
-			printer.Infof("Created new trace on Akita Cloud: %s\n", uri)
+			printer.Infof("Created new trace on Postman Cloud: %s\n", uri)
 		} else {
 			var httpErr rest.HTTPError
 			if ok := errors.As(err, &httpErr); ok && httpErr.StatusCode == 409 {
@@ -955,7 +955,7 @@ func createLocalCollector(interfaceName, outDir string, tags map[tags.Key]string
 		}
 
 		// Check if we have permission to write to the directory.
-		testFile := filepath.Join(outDir, "akita_test")
+		testFile := filepath.Join(outDir, "postman_test")
 		if err := ioutil.WriteFile(testFile, []byte{1}, 0644); err == nil {
 			os.Remove(testFile)
 		} else {

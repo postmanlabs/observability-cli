@@ -33,7 +33,7 @@ var (
 
 var Cmd = &cobra.Command{
 	Use:   "ecs",
-	Short: "Add the Akita agent to AWS ECS.",
+	Short: "Add the Postman Live Collections Agent to AWS ECS.",
 	Long:  "The CLI will collect information from you and add the Akita container to an ECS Task.",
 	// N.B.: this is useless because the root command makes its own determination,
 	// need to return AkitaErr to not show the usage.
@@ -52,7 +52,7 @@ var AddToECSCmd = &cobra.Command{
 
 var RemoveFromECSCmd = &cobra.Command{
 	Use:          "remove",
-	Short:        "Remove the Akita agent from AWS ECS.",
+	Short:        "Remove the Postman Live Collections Agent from AWS ECS.",
 	Long:         "Remove a previously installed Akita container from an ECS Task.",
 	SilenceUsage: true,
 	RunE:         removeAgentFromECS,
@@ -91,7 +91,7 @@ func init() {
 
 func addAgentToECS(cmd *cobra.Command, args []string) error {
 	// Check for API key
-	_, _, err := cmderr.RequireAkitaAPICredentials("The Akita agent must have an API key in order to capture traces.")
+	_, _, err := cmderr.RequireAkitaAPICredentials("The Postman Live Collections Agent must have an API key in order to capture traces.")
 	if err != nil {
 		return err
 	}

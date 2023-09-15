@@ -196,12 +196,14 @@ func init() {
 		&outFlag,
 		"out",
 		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out or --project must be specified.")
+	Cmd.Flags().MarkDeprecated("out", "For use by Akita users")
 
 	Cmd.Flags().StringVar(
 		&serviceFlag,
 		"project",
 		"",
 		"Your Akita project. Exactly one of --out or --project must be specified.")
+	Cmd.Flags().MarkDeprecated("project", "For use by Akita users")
 
 	Cmd.Flags().StringVar(
 		&postmanCollectionID,
@@ -263,7 +265,7 @@ func init() {
 		&appendByTagFlag,
 		"append-by-tag",
 		false,
-		"Add to the most recent Akita trace with matching tag.")
+		"Add to the most recent trace with matching tag.")
 	Cmd.Flags().MarkDeprecated("append-by-tag", "and is no longer necessary. All traces in a project are now combined into a single model. Please remove this flag.")
 
 	Cmd.Flags().StringSliceVar(
@@ -314,7 +316,7 @@ func init() {
 		&pluginsFlag,
 		"plugins",
 		nil,
-		"Paths of third-party Akita plugins. They are executed in the order given.",
+		"Paths of third-party plugins. They are executed in the order given.",
 	)
 	Cmd.Flags().MarkHidden("plugins")
 

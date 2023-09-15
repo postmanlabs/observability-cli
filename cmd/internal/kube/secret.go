@@ -17,7 +17,8 @@ import (
 var (
 	secretFilePathFlag string
 	namespaceFlag      string
-	// Store a parsed representation of /template/akita-secret.tmpl
+	// Store a parsed representation of /template/akita-secret.tmpl or
+	// /template/postman-secret.tmpl.
 	secretTemplate *template.Template
 )
 

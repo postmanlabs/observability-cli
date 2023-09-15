@@ -11,6 +11,6 @@ jobs:
    name: Security Scan Job
    uses: postmanlabs/gh-security-scan-workflow/.github/workflows/security.yml@v1.0
    with: 
-     imagename: akita-cli
+     imagename: postman-lc-agent
      language: "['go']"
   

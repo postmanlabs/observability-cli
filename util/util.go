@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -93,24 +94,10 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for %s", name)
 }
 
-func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
-	// Normalize the collectionID.
-	collectionID = strings.ToLower(collectionID)
-	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
-		"Please contact Postman support (observability-support@postman.com) with the error details"
-
-	if id, found := postmanCollectionIDCache.Get(collectionID); found {
-		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
-		return id.(akid.ServiceID), nil
-	}
-
-	// Fill cache.
-	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
-	defer cancel()
+func GetServiceIDByPostmanCollectionID(c rest.FrontClient, ctx context.Context, collectionID string) (akid.ServiceID, error) {
 	services, err := c.GetServices(ctx)
 	if err != nil {
-		printer.Stderr.Debugf("Failed to get list of services associated with the API Key: %s\n", err)
-		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
+		return akid.ServiceID{}, err
 	}
 
 	var result akid.ServiceID
@@ -128,13 +115,38 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 
 		if strings.EqualFold(collectionID, svcCollectionID) {
 			result = svc.ID
-			postmanCollectionIDCache.Set(svcCollectionID, svc.ID, cache.DefaultExpiration)
 		}
 	}
 
-	if (result != akid.ServiceID{}) {
-		printer.Stderr.Debugf("Postman collectionID %q is %q\n", collectionID, result)
-		return result, nil
+	return result, nil
+}
+
+func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
+	// Normalize the collectionID.
+	collectionID = strings.ToLower(collectionID)
+	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
+		"Please contact Postman support (observability-support@postman.com) with the error details"
+	failedToCreateServiceErrMsg := "Failed to create service for given collectionID: %s\n"
+
+	if id, found := postmanCollectionIDCache.Get(collectionID); found {
+		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
+		return id.(akid.ServiceID), nil
+	}
+
+	// Fetch service and fill cache
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+
+	serviceID, err := GetServiceIDByPostmanCollectionID(c, ctx, collectionID)
+	if err != nil {
+		printer.Stderr.Debugf("Failed to get list of services associated with the API Key: %s\n", err)
+		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
+	}
+
+	if (serviceID != akid.ServiceID{}) {
+		printer.Stderr.Debugf("ServiceID for Postman collectionID %q is %q\n", collectionID, serviceID)
+		postmanCollectionIDCache.Set(collectionID, serviceID, cache.DefaultExpiration)
+		return serviceID, nil
 	}
 
 	name := postmanRandomName()
@@ -142,10 +154,33 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	// Create service for given postman collectionID
 	resp, err := c.CreateService(ctx, name, collectionID)
 	if err != nil {
-		printer.Stderr.Debugf("Failed to create service for given collectionID: %s\n", err)
+		httpErr, ok := err.(rest.HTTPError)
+		if !ok {
+			printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
+			return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
+		}
 
-		if httpErr, ok := err.(rest.HTTPError); ok && httpErr.StatusCode == 403 {
-			error := fmt.Errorf("You cannot send traffic to the collection with ID %s. "+
+		var errorResponse rest.CreateServiceErrorResponse
+		if err := json.Unmarshal(httpErr.Body, &errorResponse); err != nil {
+			printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
+			return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
+		}
+
+		if httpErr.StatusCode == 409 && errorResponse.Message == "collection_already_mapped" {
+			serviceID, err := GetServiceIDByPostmanCollectionID(c, ctx, collectionID)
+			if err != nil {
+				printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
+				return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
+			}
+
+			if (serviceID != akid.ServiceID{}) {
+				printer.Stderr.Debugf("ServiceID for Postman collectionID %q is %q\n", collectionID, serviceID)
+				postmanCollectionIDCache.Set(collectionID, serviceID, cache.DefaultExpiration)
+				return serviceID, nil
+			}
+
+		} else if httpErr.StatusCode == 403 {
+			error := fmt.Errorf("you cannot send traffic to the collection with ID %s. "+
 				"Ensure that your collection ID is correct and that you have edit permissions on the collection. "+
 				"If you do not have edit permissions, please contact the workspace administrator to add you as a collection editor.", collectionID)
 			return akid.ServiceID{}, error
@@ -155,6 +190,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) 
 	}
 
 	printer.Debugf("Got service ID %s\n", resp.ResourceID)
+	postmanCollectionIDCache.Set(collectionID, resp.ResourceID, cache.DefaultExpiration)
 
 	return resp.ResourceID, nil
 }

@@ -96,9 +96,10 @@ const (
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
-	// Akita agent image locations
+	// Postman Live Collections Agent image locations
 	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
 	akitaDockerImage = "akitasoftware/cli"
+	postmanECRImage  = "docker.postman.com/postman-lc-agent"
 )
 
 // Run the "add to ECS" workflow until we complete or get an error.
@@ -485,7 +486,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "Which task should Akita monitor?",
-			Help:    "Select the ECS task definition to modify. We will add the Akita agent as a sidecar to the task.",
+			Help:    "Select the ECS task definition to modify. We will add the Postman Live Collections Agent as a sidecar to the task.",
 			Options: tasks,
 		},
 		&taskAnswer,
@@ -531,7 +532,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	// Check that the Akita CLI is not already present
 	for _, container := range output.ContainerDefinitions {
 		image := aws.ToString(container.Image)
-		if matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
+		if matchesImage(image, postmanECRImage) || matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
 			printer.Errorf("The selected task definition already has the image %q; Akita is already installed.\n", image)
 			printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
 			return awf_next(getTaskState)
@@ -667,7 +668,7 @@ func (wf *AddWorkflow) showPlannedChanges() {
 				defaultKeySecretName, wf.awsRegion)
 		}
 	}
-	printer.Infof("Create a new version %d of task definition %q which includes the Akita agent as a sidecar.\n",
+	printer.Infof("Create a new version %d of task definition %q which includes the Postman Live Collections Agent as a sidecar.\n",
 		wf.ecsTaskDefinition.Revision+1, wf.ecsTaskDefinitionFamily)
 	printer.Infof("Update service %q in cluster %q to the new task definition.\n",
 		wf.ecsService, wf.ecsCluster)
@@ -855,7 +856,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
 		},
 		Essential: aws.Bool(false),
-		Image:     aws.String(akitaECRImage),
+		Image:     aws.String(postmanECRImage),
 	})
 
 	output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
