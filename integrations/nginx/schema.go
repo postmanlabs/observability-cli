@@ -7,7 +7,7 @@ import (
 )
 
 /* Rest API schema objects for the communication between
-   the NGINX module and the Akita agent */
+   the NGINX module and the Postman Live Collections Agent */
 
 // An incoming request to Nginx.
 type MirroredRequest struct {
