@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -13,8 +14,8 @@ import (
 )
 
 var (
-	// Mandatory flag: Akita project name
-	projectFlag string
+	// Mandatory flag: Postman collection id
+	collectionId string
 
 	// Any of these will be interactively prompted if not given on the command line.
 	// On the other hand, to run non-interactively then all of them *must* be given.
@@ -34,7 +35,7 @@ var (
 var Cmd = &cobra.Command{
 	Use:   "ecs",
 	Short: "Add the Postman Live Collections Agent to AWS ECS.",
-	Long:  "The CLI will collect information from you and add the Akita container to an ECS Task.",
+	Long:  "The CLI will collect information from you and add the Postman live agent container to an ECS Task.",
 	// N.B.: this is useless because the root command makes its own determination,
 	// need to return AkitaErr to not show the usage.
 	SilenceUsage: true,
@@ -53,7 +54,7 @@ var AddToECSCmd = &cobra.Command{
 var RemoveFromECSCmd = &cobra.Command{
 	Use:          "remove",
 	Short:        "Remove the Postman Live Collections Agent from AWS ECS.",
-	Long:         "Remove a previously installed Akita container from an ECS Task.",
+	Long:         "Remove a previously installed Postman container from an ECS Task.",
 	SilenceUsage: true,
 	RunE:         removeAgentFromECS,
 
@@ -63,7 +64,7 @@ var RemoveFromECSCmd = &cobra.Command{
 
 func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
-	Cmd.PersistentFlags().StringVar(&projectFlag, "project", "", "Your Akita project.")
+	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your postman collection ID")
 	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
@@ -91,34 +92,23 @@ func init() {
 
 func addAgentToECS(cmd *cobra.Command, args []string) error {
 	// Check for API key
-	_, _, err := cmderr.RequireAkitaAPICredentials("The Postman Live Collections Agent must have an API key in order to capture traces.")
+	_, err := cmderr.RequirePostmanAPICredentials("The Postman Live Collections Agent must have an API key in order to capture traces.")
 	if err != nil {
 		return err
 	}
 
-	// Check project's existence
-	if projectFlag == "" {
-		return errors.New("Must specify the name of your Akita project with the --project flag.")
+	// Check collecton Id's existence
+	if collectionId == "" {
+		return errors.New("Must specify the id of your collection with the --collection flag.")
 	}
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
-	_, err = util.GetServiceIDByName(frontClient, projectFlag)
+	_, err = util.GetServiceIDByPostmanCollectionID(frontClient, context.Background(), collectionId)
 	if err != nil {
-		// TODO: we _could_ offer to create it, instead.
-		if strings.Contains(err.Error(), "cannot determine project ID") {
-			return cmderr.AkitaErr{
-				Err: fmt.Errorf(
-					"Could not find the project %q in the Akita cloud. Please create it from the Akita web console before proceeding.",
-					projectFlag,
-				),
-			}
-		} else {
-			return cmderr.AkitaErr{
-				Err: errors.Wrapf(
-					err,
-					"Could not look up the project %q in the Akita cloud",
-					projectFlag,
-				),
-			}
+		return cmderr.AkitaErr{
+			Err: fmt.Errorf(
+				"Could not find the serviceId for %q",
+				collectionId,
+			),
 		}
 	}
 
