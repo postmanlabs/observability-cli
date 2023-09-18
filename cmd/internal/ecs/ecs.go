@@ -34,7 +34,7 @@ var (
 var Cmd = &cobra.Command{
 	Use:   "ecs",
 	Short: "Add the Postman Live Collections Agent to AWS ECS.",
-	Long:  "The CLI will collect information from you and add the Postman live agent container to an ECS Task.",
+	Long:  "The CLI will collect information from you and add the Postman Live Collections Agent container to an ECS Task.",
 	// N.B.: this is useless because the root command makes its own determination,
 	// need to return AkitaErr to not show the usage.
 	SilenceUsage: true,
@@ -63,7 +63,7 @@ var RemoveFromECSCmd = &cobra.Command{
 
 func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
-	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your postman collection ID")
+	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your Postman collection ID")
 	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
@@ -98,7 +98,7 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 
 	// Check collecton Id's existence
 	if collectionId == "" {
-		return errors.New("Must specify the id of your collection with the --collection flag.")
+		return errors.New("Must specify the ID of your collection with the --collection flag.")
 	}
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
 	_, err = util.GetServiceIDByPostmanCollectionID(frontClient, context.Background(), collectionId)

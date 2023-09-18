@@ -85,22 +85,21 @@ type AddWorkflow struct {
 
 const (
 	// Tag to use for objects created by the Akita CLI
-	akitaCreationTagKey       = "postman.software:created_by"
-	akitaCreationTagValue     = "Postman Software ECS integration"
-	akitaModificationTagKey   = "postman.software:modified_by"
-	akitaModificationTagValue = "Postman Software ECS integration"
+	akitaCreationTagKey       = "postman:created_by"
+	akitaCreationTagValue     = "Postman Live Insights ECS integration"
+	akitaModificationTagKey   = "postman:modified_by"
+	akitaModificationTagValue = "Postman Live Insights ECS integration"
 
 	// Separate AWS secrets for the key ID and key secret
 	// TODO: make these configurable
-	akitaSecretPrefix    = "postman.software/"
+	akitaSecretPrefix    = "postman/"
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
 	// Postman Live Collections Agent image locations
 	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
 	akitaDockerImage = "akitasoftware/cli"
-	// TODO: postmanDockerImage needed ?
-	postmanECRImage  = "docker.postman.com/postman-lc-agent"
+	postmanECRImage = "docker.postman.com/postman-lc-agent"
 )
 
 // Run the "add to ECS" workflow until we complete or get an error.
@@ -841,15 +840,15 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Value: aws.String(akitaCreationTagValue),
 	})
 
-	apiKey, apiSecret := cfg.GetAPIKeyAndSecret()
+	pKey, pEnv := cfg.GetPostmanAPIKeyAndEnvironment()
 	input.ContainerDefinitions = append(input.ContainerDefinitions, types.ContainerDefinition{
-		Name: aws.String("akita-agent"),
+		Name: aws.String("postman-lc-agent"),
 		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
 		// For now we can leave the defaults in place, but they might be a bit large for EC2.
-		EntryPoint: []string{"/akita", "apidump", "--collection", collectionId},
+		EntryPoint: []string{"/postman-lc-agent", "apidump", "--collection", collectionId},
 		Environment: []types.KeyValuePair{
-			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
-			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
+			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
+			{Name: aws.String("POSTMAN_ENV"), Value: &pEnv},
 
 			// Setting these environment variables will cause the traces to be tagged.
 			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
