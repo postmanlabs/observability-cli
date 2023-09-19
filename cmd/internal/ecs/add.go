@@ -99,7 +99,7 @@ const (
 	// Postman Live Collections Agent image locations
 	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
 	akitaDockerImage = "akitasoftware/cli"
-	postmanECRImage = "docker.postman.com/postman-lc-agent"
+	postmanECRImage  = "docker.postman.com/postman-lc-agent"
 )
 
 // Run the "add to ECS" workflow until we complete or get an error.
@@ -841,20 +841,24 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	})
 
 	pKey, pEnv := cfg.GetPostmanAPIKeyAndEnvironment()
+	envs := []types.KeyValuePair{}
+	if pEnv != "" {
+		envs = append(envs, []types.KeyValuePair{
+			{Name: aws.String("POSTMAN_ENV"), Value: &pEnv},
+		}...)
+	}
 	input.ContainerDefinitions = append(input.ContainerDefinitions, types.ContainerDefinition{
 		Name: aws.String("postman-lc-agent"),
 		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
 		// For now we can leave the defaults in place, but they might be a bit large for EC2.
 		EntryPoint: []string{"/postman-lc-agent", "apidump", "--collection", collectionId},
-		Environment: []types.KeyValuePair{
+		Environment: append(envs, []types.KeyValuePair{
 			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
-			{Name: aws.String("POSTMAN_ENV"), Value: &pEnv},
-
 			// Setting these environment variables will cause the traces to be tagged.
-			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
-			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
-			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
-		},
+			{Name: aws.String("POSTMAN_AWS_REGION"), Value: &wf.awsRegion},
+			{Name: aws.String("POSTMAN_ECS_SERVICE"), Value: &wf.ecsService},
+			{Name: aws.String("POSTMAN_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
+		}...),
 		Essential: aws.Bool(false),
 		Image:     aws.String(postmanECRImage),
 	})

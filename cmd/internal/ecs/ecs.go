@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -41,7 +40,7 @@ var Cmd = &cobra.Command{
 	RunE:         addAgentToECS,
 }
 
-// 'akita ecs' should default to 'akita ecs add'
+// 'postman-lc-agent ecs' should default to 'postman-lc-agent ecs add'
 var AddToECSCmd = &cobra.Command{
 	Use:          "add",
 	Short:        Cmd.Short,
