@@ -101,14 +101,9 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 		return errors.New("Must specify the ID of your collection with the --collection flag.")
 	}
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
-	_, err = util.GetServiceIDByPostmanCollectionID(frontClient, context.Background(), collectionId)
+	_, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
 	if err != nil {
-		return cmderr.AkitaErr{
-			Err: fmt.Errorf(
-				"could not find the serviceId for %q",
-				collectionId,
-			),
-		}
+		return err
 	}
 
 	return RunAddWorkflow()
