@@ -85,14 +85,14 @@ type AddWorkflow struct {
 
 const (
 	// Tag to use for objects created by the Akita CLI
-	akitaCreationTagKey       = "akita.software:created_by"
-	akitaCreationTagValue     = "Akita Software ECS integration"
-	akitaModificationTagKey   = "akita.software:modified_by"
-	akitaModificationTagValue = "Akita Software ECS integration"
+	akitaCreationTagKey       = "postman:created_by"
+	akitaCreationTagValue     = "Postman Live Insights ECS integration"
+	akitaModificationTagKey   = "postman:modified_by"
+	akitaModificationTagValue = "Postman Live Insights ECS integration"
 
 	// Separate AWS secrets for the key ID and key secret
 	// TODO: make these configurable
-	akitaSecretPrefix    = "akita.software/"
+	akitaSecretPrefix    = "postman/"
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
@@ -840,21 +840,25 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Value: aws.String(akitaCreationTagValue),
 	})
 
-	apiKey, apiSecret := cfg.GetAPIKeyAndSecret()
+	pKey, pEnv := cfg.GetPostmanAPIKeyAndEnvironment()
+	envs := []types.KeyValuePair{}
+	if pEnv != "" {
+		envs = append(envs, []types.KeyValuePair{
+			{Name: aws.String("POSTMAN_ENV"), Value: &pEnv},
+		}...)
+	}
 	input.ContainerDefinitions = append(input.ContainerDefinitions, types.ContainerDefinition{
-		Name: aws.String("akita-agent"),
+		Name: aws.String("postman-lc-agent"),
 		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
 		// For now we can leave the defaults in place, but they might be a bit large for EC2.
-		EntryPoint: []string{"/akita", "apidump", "--project", projectFlag},
-		Environment: []types.KeyValuePair{
-			{Name: aws.String("AKITA_API_KEY_ID"), Value: &apiKey},
-			{Name: aws.String("AKITA_API_KEY_SECRET"), Value: &apiSecret},
-
+		EntryPoint: []string{"/postman-lc-agent", "apidump", "--collection", collectionId},
+		Environment: append(envs, []types.KeyValuePair{
+			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
 			// Setting these environment variables will cause the traces to be tagged.
 			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
 			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
 			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
-		},
+		}...),
 		Essential: aws.Bool(false),
 		Image:     aws.String(postmanECRImage),
 	})
@@ -998,6 +1002,6 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 	}
 
 	reportStep("ECS Service Updated")
-	printer.Infof("Deployment successful! Please return to the Akita web console.\n")
+	printer.Infof("Deployment successful! Please return to the Postman Live collection you created.\n")
 	return awf_done()
 }
