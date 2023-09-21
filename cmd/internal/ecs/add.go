@@ -213,7 +213,7 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 
 	err = survey.AskOne(
 		&survey.Input{
-			Message: "Which of your AWS profiles should Akita use to configure ECS?",
+			Message: "Which of your AWS profiles should be used to configure ECS?",
 			Help:    "Enter the name of the AWS profile you use for configuring ECS, or leave blank to try the default profile. Akita needs this information to identify which AWS credentials to use.",
 			// Use the existing value as the default in case we repeat this step
 			Default: wf.awsProfile,
@@ -485,7 +485,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	var taskAnswer string
 	err = survey.AskOne(
 		&survey.Select{
-			Message: "Which task should Akita monitor?",
+			Message: "Which task should be monitored?",
 			Help:    "Select the ECS task definition to modify. We will add the Postman Live Collections Agent as a sidecar to the task.",
 			Options: tasks,
 		},
@@ -529,11 +529,11 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 		}
 	}
 
-	// Check that the Akita CLI is not already present
+	// Check that the postman-lc-agent is not already present
 	for _, container := range output.ContainerDefinitions {
 		image := aws.ToString(container.Image)
 		if matchesImage(image, postmanECRImage) || matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
-			printer.Errorf("The selected task definition already has the image %q; Akita is already installed.\n", image)
+			printer.Errorf("The selected task definition already has the image %q; postman-lc-agent is already installed.\n", image)
 			printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
 			return awf_next(getTaskState)
 		}
@@ -614,7 +614,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	err = survey.AskOne(
 		&survey.Select{
 			Message: "Which service should be updated to use the modified task definition?",
-			Help:    "Select the ECS service that will be updated with the modified task definition, so it can be monitored by Akita.",
+			Help:    "Select the ECS service that will be updated with the modified task definition, so it can be monitored.",
 			Options: choices,
 			Description: func(value string, _ int) string {
 				return services[arn(value)]
@@ -808,7 +808,7 @@ func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 	return awf_next(modifyTaskState)
 }
 
-// Create a new revision of the task definition which includes the Akita container.
+// Create a new revision of the task definition which includes the postman-lc-agent container.
 func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Modify ECS Task Definition")
 
