@@ -9,7 +9,7 @@
 ### Prerequisites
 
 - AWS credentials stored at `~/.aws/credentials` 
-- Your AWS credentails **must have** these AWS permissions [Setup ECS Permissions](#setup-aws-ecs-permissions)
+- Your AWS credentials **must have** these AWS permissions [Setup ECS Permissions](#setup-aws-ecs-permissions)
 - ECS service must have public internet access. For more information, see [Ensure Internet Access](#ensure-internet-access),
 
 ### Usage
