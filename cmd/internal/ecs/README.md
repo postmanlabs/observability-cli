@@ -7,6 +7,7 @@
 - Both EC2 and Fargate capacity providers are supported.
 
 ### Prerequisites
+
 - AWS credentials stored at `~/.aws/credentials` 
 - Your AWS credentails **must have** these AWS permissions [Setup ECS Permissions](#setup-aws-ecs-permissions)
 - ECS service must have public internet access. For more information, see [Ensure Internet Access](#ensure-internet-access),
@@ -35,7 +36,7 @@ postman-lc-agent ecs --help
 
 - Update your ECS service to the old revision of the task definition.
 
-### Set Up AWS ECS Permissions
+### Set Up AWS ECS permissions
 
 - Attach the following policy to your AWS profile.
 
@@ -61,12 +62,15 @@ postman-lc-agent ecs --help
 - **Instead** of the above policy, [AmazonECS_FullAccess](https://docs.aws.amazon.com/AmazonECS/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonECS_FullAccess) can also be used to ensure easy authoraization.
 
 ### Ensure internet access
+
 #### Fargate tasks
+
 - When using a public subnet, you can assign a public IP address to the task ENI.
 - When using a private subnet, the subnet can have a NAT gateway attached.
 - AWS Docs: See [Task networking for tasks hosted on Fargate](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-networking.html).
 
 #### EC2 tasks
+
 - Tasks must be launched in private subnets with NAT gateway. 
 - For more information, see [Task networking for tasks that are hosted on Amazon EC2 instances](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-networking.html)
 
