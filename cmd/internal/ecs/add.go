@@ -871,6 +871,8 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
 			return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
 		}
+		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", err)
+		return awf_error(errors.Wrap(err, "Error registering task definition"))
 	}
 	printer.Infof("Registered task definition %q revision %d.\n",
 		aws.ToString(output.TaskDefinition.Family),
@@ -912,6 +914,8 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 				wf.ecsServiceARN, uoe.OperationName)
 			return awf_error(errors.New("Failed to update the ECS service due to insufficient permissions."))
 		}
+		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", wf.ecsServiceARN, err)
+		return awf_error(errors.Wrapf(err, "Error updating ECS service %q", wf.ecsServiceARN))
 	}
 	printer.Infof("Updated service %q with new version of task definition.\n", wf.ecsService)
 
