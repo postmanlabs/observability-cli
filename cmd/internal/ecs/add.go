@@ -847,10 +847,9 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			{Name: aws.String("POSTMAN_ENV"), Value: &pEnv},
 		}...)
 	}
-	input.ContainerDefinitions = append(input.ContainerDefinitions, types.ContainerDefinition{
-		Name: aws.String("postman-lc-agent"),
-		// TODO: Cpu and Memory should be omitted for Fargate; they take their default values for EC2 if omitted.
-		// For now we can leave the defaults in place, but they might be a bit large for EC2.
+
+	agentContainer := types.ContainerDefinition{
+		Name:       aws.String("postman-lc-agent"),
 		EntryPoint: []string{"/postman-lc-agent", "apidump", "--collection", collectionId},
 		Environment: append(envs, []types.KeyValuePair{
 			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
@@ -861,7 +860,22 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		}...),
 		Essential: aws.Bool(false),
 		Image:     aws.String(postmanECRImage),
-	})
+	}
+
+	// If running on EC2, a memory size is required if no task-level memory size is specified.
+	// If running on Fargate, a task-level memory size is required, and the container-level
+	// setting is optional.
+	// We'll specify a memory reservation only when required, i.e., when the task-level memory
+	// is absent.
+	// TODO: come up with a better default value, 300MB is from internal dogfooding
+	if input.Memory == nil {
+		agentContainer.MemoryReservation = aws.Int32(300)
+	}
+
+	// TODO: cpu share is optional on EC2 but the default is "two CPU shares" which may be too large.
+	// It is optional in Fargate
+
+	input.ContainerDefinitions = append(input.ContainerDefinitions, agentContainer)
 
 	output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
 	if err != nil {
@@ -871,7 +885,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
 			return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
 		}
-		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", err)
+		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", err)
 		return awf_error(errors.Wrap(err, "Error registering task definition"))
 	}
 	printer.Infof("Registered task definition %q revision %d.\n",
@@ -914,7 +928,7 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 				wf.ecsServiceARN, uoe.OperationName)
 			return awf_error(errors.New("Failed to update the ECS service due to insufficient permissions."))
 		}
-		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", wf.ecsServiceARN, err)
+		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", wf.ecsServiceARN, err)
 		return awf_error(errors.Wrapf(err, "Error updating ECS service %q", wf.ecsServiceARN))
 	}
 	printer.Infof("Updated service %q with new version of task definition.\n", wf.ecsService)
