@@ -36,7 +36,7 @@ postman-lc-agent ecs --help
 
 - Update your ECS service to the old revision of the task definition.
 
-### Set Up AWS ECS permissions
+### Set up AWS ECS permissions
 
 - Attach the following policy to your AWS profile.
 
@@ -59,7 +59,7 @@ postman-lc-agent ecs --help
 	]
 }
 ```
-- **Instead** of the above policy, [AmazonECS_FullAccess](https://docs.aws.amazon.com/AmazonECS/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonECS_FullAccess) can also be used to ensure easy authoraization.
+- **Instead** of the above policy, [AmazonECS_FullAccess](https://docs.aws.amazon.com/AmazonECS/latest/userguide/security-iam-awsmanpol.html#security-iam-awsmanpol-AmazonECS_FullAccess) can also be used to ensure easy authorization.
 
 ### Ensure internet access
 
