@@ -61,7 +61,7 @@ func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
 	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your Postman collection ID")
 	Cmd.MarkPersistentFlagRequired("collection")
-	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "default", "Which of your AWS profiles to use to access ECS.")
+	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.MarkPersistentFlagRequired("region")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The ARN of your ECS cluster.")
@@ -92,12 +92,12 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 
 	// Check if cluster and service flags specify ARN
 	if !strings.HasPrefix(ecsClusterFlag, "arn:") {
-		return errors.New("Please copy the full ARN of your ECS cluster from AWS console")
+		return errors.New("Please copy the full ARN of your ECS cluster from the AWS console")
 	}
 
 	// Check if cluster and service flags specify ARN
 	if !strings.HasPrefix(ecsServiceFlag, "arn:") {
-		return errors.New("Please copy the full ARN of your ECS service from AWS console")
+		return errors.New("Please copy the full ARN of your ECS service from the AWS console")
 	}
 
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())

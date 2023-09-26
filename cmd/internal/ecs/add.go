@@ -3,6 +3,7 @@ package ecs
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -181,7 +182,13 @@ func initState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState],
 func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get AWS Profile")
 
-	wf.awsProfile = awsProfileFlag
+	if awsProfileFlag != "" {
+		wf.awsProfile = awsProfileFlag
+	} else if val, ok := os.LookupEnv("AWS_PROFILE"); ok {
+		wf.awsProfile = val
+	} else {
+		wf.awsProfile = "default"
+	}
 	if err = wf.createConfig(); err != nil {
 		if errors.Is(err, NoSuchProfileError) {
 			printer.Errorf("The AWS credentials file does not have profile %q. The error from the AWS library is shown below.\n")
@@ -268,7 +275,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 		image := aws.ToString(container.Image)
 		if matchesImage(image, postmanECRImage) || matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
 			printer.Errorf("The selected task definition already has the image %q; postman-lc-agent is already installed.\n", image)
-			printer.Infof("Please provide a different service or delete the task definition\n %q", wf.ecsTaskDefinitionARN)
+			printer.Infof("Please provide a different service or update the service to an older version of task definition without postman-lc-agent %q \n ", wf.ecsTaskDefinitionARN)
 			return awf_done()
 		}
 	}
@@ -317,7 +324,7 @@ func (wf *AddWorkflow) showPlannedChanges() {
 		}
 	}
 	printer.Infof("Create a new version of task definition %q which includes the Postman Live Collections Agent as a sidecar.\n",
-		wf.ecsTaskDefinition.Revision+1, wf.ecsTaskDefinitionFamily)
+		wf.ecsTaskDefinitionFamily)
 	printer.Infof("Update service %q in cluster %q to the new task definition.\n",
 		wf.ecsService, wf.ecsCluster)
 }
