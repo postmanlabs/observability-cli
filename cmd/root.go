@@ -20,6 +20,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/daemon"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ec2"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ecs"
 	"github.com/akitasoftware/akita-cli/cmd/internal/get"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube"
@@ -288,6 +289,7 @@ func init() {
 	rootCmd.AddCommand(ecs.Cmd)
 	rootCmd.AddCommand(nginx.Cmd)
 	rootCmd.AddCommand(kube.Cmd)
+	rootCmd.AddCommand(ec2.Cmd)
 
 	// Legacy commands, included for backward compatibility but are hidden.
 	legacy.SessionsCmd.Hidden = true
