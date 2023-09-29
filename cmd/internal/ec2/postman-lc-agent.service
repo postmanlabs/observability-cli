@@ -1,0 +1,11 @@
+[Unit]
+Description=Postman Live Collections Agent
+Wants=network-online.target
+After=network-online.target NetworkManager.service systemd-resolved.service
+
+[Service]
+EnvironmentFile=/etc/default/postman-lc-agent
+ExecStart=/usr/bin/postman-lc-agent apidump --collection "${COLLECTION_ID}" --interfaces "${INTERFACES}" --filter "${FILTER}"
+
+[Install]
+WantedBy=multi-user.target

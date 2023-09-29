@@ -21,8 +21,8 @@ var (
 
 var Cmd = &cobra.Command{
 	Use:          "setup",
-	Short:        "Add the Postman Live Collections Agent to EC2.",
-	Long:         "The CLI will add the Postman Live Collections Agent as a systemd service to your EC2 server.",
+	Short:        "Add the Postman Live Collections Agent to the current server.",
+	Long:         "The CLI will add the Postman Live Collections Agent as a systemd service to your current server.",
 	SilenceUsage: true,
 	RunE:         addAgentToEC2,
 }
@@ -45,7 +45,7 @@ func init() {
 		&dryRunFlag,
 		"dry-run",
 		false,
-		"Perform a dry run: show what will be done, but do not modify EC2.",
+		"Perform a dry run: show what will be done, but do not modify systemd services.",
 	)
 
 	Cmd.AddCommand(RemoveFromEC2Cmd)
@@ -68,7 +68,7 @@ func addAgentToEC2(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return RunAddWorkflow()
+	return setupAgentForServer(collectionId )
 }
 
 func removeAgentFromEC2(cmd *cobra.Command, args []string) error {
