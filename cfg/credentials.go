@@ -136,6 +136,6 @@ func CredentialsPresent() bool {
 // the user's API key would be bad) and have a way to map it to a
 // particular user -- seems better to fall back to local IDs.
 func DistinctIDFromCredentials() string {
-	key, _ := GetPostmanAPIKeyAndEnvironment()
+	key, _ := GetAPIKeyAndSecret()
 	return key
 }
