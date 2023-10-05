@@ -122,8 +122,7 @@ func getDistinctID() string {
 	// If there's no credentials configured, skip the API call and
 	// do not emit a log message.
 	// Similarly if telemetry is disabled.
-	key, secret := cfg.GetAPIKeyAndSecret()
-	if key != "" && secret != "" && analyticsEnabled {
+	if cfg.CredentialsPresent() && analyticsEnabled {
 		// Call the REST API to get the user email associated with the configured
 		// API key.
 		ctx, cancel := context.WithTimeout(context.Background(), userAPITimeout)
@@ -145,8 +144,11 @@ func getDistinctID() string {
 		printer.Infof("but the agent will still attempt to send telemetry to Postman support.\n")
 	}
 
-	if key != "" {
-		return key
+	// Try to derive a distinct ID from the credentials, if present, even
+	// if the /v1/user call failed.
+	keyID := cfg.DistinctIDFromCredentials()
+	if keyID != "" {
+		return keyID
 	}
 
 	localUser, err := user.Current()

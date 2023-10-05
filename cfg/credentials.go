@@ -118,3 +118,24 @@ func WritePostmanAPIKeyAndEnvironment(profile, postmanApiKey, postmanEnvironment
 
 	return writeConfigToFile(profile, keyValueMap)
 }
+
+// Check whether credentials are present, of any variety.
+func CredentialsPresent() bool {
+	key, _ := GetPostmanAPIKeyAndEnvironment()
+	if key != "" {
+		return true
+	}
+
+	key, secret := GetAPIKeyAndSecret()
+	return key != "" && secret != ""
+}
+
+// If we can't call /v1/user to get a distinct ID, we can try using
+// the credentials provided -- for now this is just an Akita API Key ID.
+// To use a Postman API key we'd have to both obfuscate it (logging
+// the user's API key would be bad) and have a way to map it to a
+// particular user -- seems better to fall back to local IDs.
+func DistinctIDFromCredentials() string {
+	key, _ := GetAPIKeyAndSecret()
+	return key
+}
