@@ -54,6 +54,12 @@ func setupAgentForServer(collectionId string) error {
 	if err != nil {
 		return err
 	}
+
+	err = enablePostmanAgent()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -70,27 +76,27 @@ func checkUserPermissions() error {
 	if err != nil {
 		return errors.Errorf("could not get current user. OS returned error: %q \n", err)
 	}
-	if strings.EqualFold(cu.Name, "root") {
+	if !strings.EqualFold(cu.Name, "root") {
 		return errors.Errorf("Please run the command again with user: root. \n")
 	}
 	return nil
 }
 
 func checkSystemdExists() error {
-	message := "Checking if systemd exists\n"
-	printer.Infof(message)
+	message := "Checking if systemd exists"
+	printer.Infof(message + "\n")
 	reportStep(message)
 
-	// _, serr := exec.LookPath("systemd")
-	// if serr != nil {
-	// 	return errors.Errorf("Could not find systemd binary in your OS.\n We don't have support for non-systemd OS as of now; For more information please contact observability-support@postman.com.\n")
-	// }
+	_, serr := exec.LookPath("systemd")
+	if serr != nil {
+		return errors.Errorf("Could not find systemd binary in your OS.\n We don't have support for non-systemd OS as of now; For more information please contact observability-support@postman.com.\n")
+	}
 	return nil
 }
 
 func configureSystemdFiles(collectionId string) error {
-	message := "Configuring systemd files\n"
-	printer.Infof(message)
+	message := "Configuring systemd files"
+	printer.Infof(message + "\n")
 	reportStep(message)
 
 	// Write collectionId and postman-api-key to go template file
@@ -143,7 +149,7 @@ func configureSystemdFiles(collectionId string) error {
 		return errors.Errorf("failed to create %s file in %s directory with err %q \n", serviceFileName, serviceFilePath, err)
 	}
 
-	return enablePostmanAgent()
+	return nil
 }
 
 // Starts the postman LCA agent as a systemd service
@@ -153,13 +159,13 @@ func enablePostmanAgent() error {
 	cmd := exec.Command("systemctl", []string{"daemon-reload"}...)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Errorf("failed to run systemctl daeomon-reload %q \n", err)
+		return errors.Wrapf(err, "failed to run systemctl daeomon-reload\n")
 	}
 	// systemctl start postman-lc-service
 	cmd = exec.Command("systemctl", []string{"start", serviceFileName}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return errors.Errorf("failed to run systemctl daeomon-reload %q \n", err)
+		return errors.Wrapf(err, "failed to run systemctl daeomon-reload\n")
 	}
 
 	return nil
