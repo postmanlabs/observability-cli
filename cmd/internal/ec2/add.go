@@ -74,10 +74,11 @@ func checkUserPermissions() error {
 	printer.Infof("Checking user permissions \n")
 	cu, err := user.Current()
 	if err != nil {
-		return errors.Errorf("could not get current user. OS returned error: %q \n", err)
+		return errors.Wrapf(err, "could not get current user\n")
 	}
 	if !strings.EqualFold(cu.Name, "root") {
-		return errors.Errorf("Please run the command again with user: root. \n")
+		printer.Errorf("root user is required to setup systemd service and edit related files")
+		return errors.Errorf("Please run the command again with root user")
 	}
 	return nil
 }
@@ -89,7 +90,8 @@ func checkSystemdExists() error {
 
 	_, serr := exec.LookPath("systemd")
 	if serr != nil {
-		return errors.Errorf("Could not find systemd binary in your OS.\n We don't have support for non-systemd OS as of now; For more information please contact observability-support@postman.com.\n")
+		printer.Errorf("We don't have support for non-systemd OS as of now.\n For more information please contact observability-support@postman.com.\n")
+		return errors.Errorf("Could not find systemd binary in your OS.")
 	}
 	return nil
 }
@@ -103,7 +105,7 @@ func configureSystemdFiles(collectionId string) error {
 
 	tmpl, err := template.ParseFS(envFileFS, envFileTemplateName)
 	if err != nil {
-		return errors.Errorf("failed to parse systemd env template file with error :%q\n Please contact observability-support@postman.com  with this log for further assistance.\n", err)
+		return errors.Wrapf(err, "systemd env file parsing failed")
 	}
 
 	data := struct {
@@ -113,40 +115,37 @@ func configureSystemdFiles(collectionId string) error {
 		PostmanAPIKey: os.Getenv("POSTMAN_API_KEY"),
 		CollectionId:  collectionId,
 	}
-	envFile, err := os.Create("env-postman-lc-agent")
-	if err != nil {
-		return errors.Errorf("Failed to write values to env file with error %q", err)
-	}
-
-	err = tmpl.Execute(envFile, data)
-	if err != nil {
-		return errors.Errorf("Failed to write values to env file with error %q", err)
-	}
 
 	// Ensure /etc/default exists
 	cmd := exec.Command("mkdir", []string{"-p", envFileBasePath}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return errors.Errorf("failed to find %s directory with err %q \n", envFileBasePath, err)
+		return errors.Wrapf(err, "failed to create %s directory\n", envFileBasePath)
 	}
 
-	// move the file to /etc/default
-	cmd = exec.Command("mv", []string{"env-postman-lc-agent", envFilePath}...)
-	_, err = cmd.CombinedOutput()
+	envFile, err := os.Create(envFilePath)
 	if err != nil {
-		return errors.Errorf("failed to create postman-lc-agent env file in /etc/default directory with err %q \n", err)
+		printer.Errorf("Failed to create systemd env file")
+		return err
+	}
+
+	err = tmpl.Execute(envFile, data)
+	if err != nil {
+		printer.Errorf("Failed to write values to systemd env file")
+		return err
 	}
 
 	// Ensure /usr/lib/systemd/system exists
 	cmd = exec.Command("mkdir", []string{"-p", serviceFileBasePath}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return errors.Errorf("failed to find %s directory with err %q \n", serviceFileBasePath, err)
+		return errors.Wrapf(err, "failed to create %s directory\n", serviceFileBasePath)
 	}
 
 	err = os.WriteFile(serviceFilePath, []byte(serviceFile), 0600)
 	if err != nil {
-		return errors.Errorf("failed to create %s file in %s directory with err %q \n", serviceFileName, serviceFilePath, err)
+		printer.Errorf("failed to create %s file in %s directory with err %q \n", serviceFileName, serviceFilePath, err)
+		return err
 	}
 
 	return nil
@@ -154,19 +153,23 @@ func configureSystemdFiles(collectionId string) error {
 
 // Starts the postman LCA agent as a systemd service
 func enablePostmanAgent() error {
-	reportStep("Enabling postman-lc-agent as a service")
+	message := "Enabling postman-lc-agent as a service"
+	reportStep(message)
+	printer.Infof(message + "\n")
 
 	cmd := exec.Command("systemctl", []string{"daemon-reload"}...)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrapf(err, "failed to run systemctl daeomon-reload\n")
+		return err
 	}
 	// systemctl start postman-lc-service
-	cmd = exec.Command("systemctl", []string{"start", serviceFileName}...)
+	cmd = exec.Command("systemctl", []string{"enable", "--now", serviceFileName}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrapf(err, "failed to run systemctl daeomon-reload\n")
+		return err
 	}
+	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using \n")
+	printer.Infof("journalctl -fu postman-lc-agent")
 
 	return nil
 }
