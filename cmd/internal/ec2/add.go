@@ -88,7 +88,7 @@ func checkSystemdExists() error {
 	printer.Infof(message + "\n")
 	reportStep(message)
 
-	_, serr := exec.LookPath("systemd")
+	_, serr := exec.LookPath("systemctl")
 	if serr != nil {
 		printer.Errorf("We don't have support for non-systemd OS as of now.\n For more information please contact observability-support@postman.com.\n")
 		return errors.Errorf("Could not find systemd binary in your OS.")
@@ -168,8 +168,8 @@ func enablePostmanAgent() error {
 	if err != nil {
 		return err
 	}
-	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using \n")
-	printer.Infof("journalctl -fu postman-lc-agent")
+	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using the below command \n")
+	printer.Infof("journalctl -fu postman-lc-agent \n")
 
 	return nil
 }
