@@ -77,7 +77,7 @@ func checkUserPermissions() error {
 		return errors.Wrapf(err, "could not get current user\n")
 	}
 	if !strings.EqualFold(cu.Name, "root") {
-		printer.Errorf("root user is required to setup systemd service and edit related files")
+		printer.Errorf("root user is required to setup systemd service and edit related files.\n")
 		return errors.Errorf("Please run the command again with root user")
 	}
 	return nil
