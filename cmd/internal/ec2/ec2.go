@@ -14,9 +14,6 @@ import (
 var (
 	// Mandatory flag: Postman collection id
 	collectionId string
-
-	// Print out the steps that would be taken, but do not do them
-	dryRunFlag bool
 )
 
 var Cmd = &cobra.Command{
@@ -41,12 +38,6 @@ var RemoveFromEC2Cmd = &cobra.Command{
 func init() {
 	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your Postman collection ID")
 	Cmd.MarkPersistentFlagRequired("collection")
-	Cmd.PersistentFlags().BoolVar(
-		&dryRunFlag,
-		"dry-run",
-		false,
-		"Perform a dry run: show what will be done, but do not modify systemd services.",
-	)
 
 	Cmd.AddCommand(RemoveFromEC2Cmd)
 }
@@ -68,7 +59,7 @@ func addAgentToEC2(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return setupAgentForServer(collectionId )
+	return setupAgentForServer(collectionId)
 }
 
 func removeAgentFromEC2(cmd *cobra.Command, args []string) error {
