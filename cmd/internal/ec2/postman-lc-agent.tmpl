@@ -20,12 +20,20 @@ COLLECTION_ID={{.CollectionId}}
 # network interfaces.
 #
 # FILTER is optional. If left blank, no packet-capture filter will be applied.
-
-INTERFACES=
-FILTER=
-
 # For example
 #   INTERFACES=lo,eth0,eth1
 #   FILTER="port 80 or port 8080"
 #
+
+INTERFACES=
+FILTER=
+
+
+# Configure any extra arguments you wish to provide to the
+# 'postman-lc-agent apidump' command. For example,
 #
+#   EXTRA_APIDUMP_ARGS="--rate-limit 100"
+#
+# This is optional and can be left blank.
+
+EXTRA_APIDUMP_ARGS=
