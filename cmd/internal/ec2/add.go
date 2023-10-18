@@ -139,7 +139,7 @@ func configureSystemdFiles(collectionId string) error {
 	cmd = exec.Command("mkdir", []string{"-p", serviceFileBasePath}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create %s directory\n", serviceFileBasePath)
+		return errors.Wrapf(err, "failed to create %s directory", serviceFileBasePath)
 	}
 
 	err = os.WriteFile(serviceFilePath, []byte(serviceFile), 0600)
