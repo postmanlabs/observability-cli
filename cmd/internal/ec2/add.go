@@ -160,13 +160,13 @@ func enablePostmanAgent() error {
 	cmd := exec.Command("systemctl", []string{"daemon-reload"}...)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to run systemctl daemon-reload")
 	}
 	// systemctl start postman-lc-service
 	cmd = exec.Command("systemctl", []string{"enable", "--now", serviceFileName}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "faild to run systemctl enable --now")
 	}
 	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using the below command \n")
 	printer.Infof("journalctl -fu postman-lc-agent \n")
