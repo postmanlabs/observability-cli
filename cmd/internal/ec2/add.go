@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/pkg/errors"
@@ -22,6 +23,12 @@ const (
 	serviceFileName     = "postman-lc-agent.service"
 	serviceFileBasePath = "/usr/lib/systemd/system/"
 	serviceFilePath     = serviceFileBasePath + serviceFileName
+
+	// Output of command: systemctl is-enabled postman-lc-agent
+	// Refer: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#Exit%20status
+	enabled     = "enabled"                                                                               // exit code: 0
+	disabled    = "disabled"                                                                              // exit code: 1
+	nonExisting = "Failed to get unit file state for postman-lc-agent.service: No such file or directory" // exit code: 1
 )
 
 // Embed files inside the binary. Requires Go >=1.16
@@ -33,6 +40,8 @@ var serviceFile string
 
 //go:embed postman-lc-agent.tmpl
 var envFileFS embed.FS
+
+var isReconfigure string = "n"
 
 // Helper function for reporting telemetry
 func reportStep(stepName string) {
@@ -61,6 +70,54 @@ func setupAgentForServer(collectionId string) error {
 	}
 
 	return nil
+}
+
+func askToReconfigure() error {
+	printer.Infof("postman-lc-agent is already present as a systemd service\n")
+	printer.Infof("Helpful commands \n Check status: systemctl status postman-lc-agent \n Disable agent: systemctl disable --now postman-lc-agent \n Check Logs: journalctl -fu postman-lc-agent\n Check env file: cat %s \n Check systemd service file: cat %s \n", envFilePath, serviceFilePath)
+	err := survey.AskOne(
+		&survey.Input{
+			Message: "Over-write old apiKey and collectionId with current values ? (y/n)",
+			Help:    "Enter y(default) or n.",
+			// Use the existing value as the default in case we repeat this step
+			Default: "y",
+		},
+		&isReconfigure,
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to run reconfiguration prompt")
+	}
+	if isReconfigure != "y" {
+		return errors.New("Exiting process because you didn't enter y")
+	}
+	return nil
+}
+
+// Check is systemd service already exists
+func checkReconfiguration() error {
+
+	cmd := exec.Command("systemctl", []string{"is-enabled", "postman-lc-agent"}...)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode := exitError.ExitCode()
+			if exitCode != 1 {
+				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled")
+			}
+			if strings.Contains(string(out), disabled) {
+				return askToReconfigure()
+			} else if strings.Contains(string(out), nonExisting) {
+				return nil
+			}
+		}
+		return errors.Wrapf(err, "failed to run systemctl is-enabled posman-lc-agent")
+	}
+	if strings.Contains(string(out), enabled) {
+		return askToReconfigure()
+	}
+
+	return errors.Errorf("systemctl is-enabled gave un-supported output:%s", string(out))
 }
 
 func checkUserPermissions() error {
@@ -100,6 +157,11 @@ func configureSystemdFiles(collectionId string) error {
 	message := "Configuring systemd files"
 	printer.Infof(message + "\n")
 	reportStep(message)
+
+	err := checkReconfiguration()
+	if err != nil {
+		return err
+	}
 
 	// Write collectionId and postman-api-key to go template file
 
