@@ -86,6 +86,7 @@ func askToReconfigure() error {
 	)
 	if !isReconfigure {
 		printer.Infof("Exiting setup")
+		os.Exit(0)
 		return nil
 	}
 	if err != nil {
