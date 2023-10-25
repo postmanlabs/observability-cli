@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/pkg/errors"
@@ -22,6 +23,12 @@ const (
 	serviceFileName     = "postman-lc-agent.service"
 	serviceFileBasePath = "/usr/lib/systemd/system/"
 	serviceFilePath     = serviceFileBasePath + serviceFileName
+
+	// Output of command: systemctl is-enabled postman-lc-agent
+	// Refer: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#Exit%20status
+	enabled     = "enabled"                                                                               // exit code: 0
+	disabled    = "disabled"                                                                              // exit code: 1
+	nonExisting = "Failed to get unit file state for postman-lc-agent.service: No such file or directory" // exit code: 1
 )
 
 // Embed files inside the binary. Requires Go >=1.16
@@ -63,8 +70,59 @@ func setupAgentForServer(collectionId string) error {
 	return nil
 }
 
+func askToReconfigure() error {
+	var isReconfigure bool
+
+	printer.Infof("postman-lc-agent is already present as a systemd service\n")
+	printer.Infof("Helpful commands \n Check status: systemctl status postman-lc-agent \n Disable agent: systemctl disable --now postman-lc-agent \n Check Logs: journalctl -fu postman-lc-agent\n Check env file: cat %s \n Check systemd service file: cat %s \n", envFilePath, serviceFilePath)
+
+	err := survey.AskOne(
+		&survey.Confirm{
+			Message: "Overwrite old API key and Collection ID values in systemd configuration file with current values?",
+			Default: true,
+			Help:    "Any edits made to systemd configuration files will be over-written.",
+		},
+		&isReconfigure,
+	)
+	if !isReconfigure {
+		printer.Infof("Exiting setup \n")
+		os.Exit(0)
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to run reconfiguration prompt")
+	}
+	return nil
+}
+
+// Check is systemd service already exists
+func checkReconfiguration() error {
+
+	cmd := exec.Command("systemctl", []string{"is-enabled", "postman-lc-agent"}...)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode := exitError.ExitCode()
+			if exitCode != 1 {
+				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled. \n Command output:%s \n Please send this log message to observability-support@postman.com for assistance\n", out)
+			}
+			if strings.Contains(string(out), disabled) {
+				return askToReconfigure()
+			} else if strings.Contains(string(out), nonExisting) {
+				return nil
+			}
+		}
+		return errors.Wrapf(err, "failed to run systemctl is-enabled posman-lc-agent")
+	}
+	if strings.Contains(string(out), enabled) {
+		return askToReconfigure()
+	}
+	return errors.Errorf("The systemctl is-enabled command produced output this tool doesn't recognize: %q. \n Please send this log message to observability-support@postman.com for assistance\n", string(out))
+
+}
+
 func checkUserPermissions() error {
-	// TODO: Make this work without root
 
 	// Exact permissions required are
 	// read/write permissions on /etc/default/postman-lc-agent
@@ -100,6 +158,11 @@ func configureSystemdFiles(collectionId string) error {
 	message := "Configuring systemd files"
 	printer.Infof(message + "\n")
 	reportStep(message)
+
+	err := checkReconfiguration()
+	if err != nil {
+		return err
+	}
 
 	// Write collectionId and postman-api-key to go template file
 
@@ -171,13 +234,5 @@ func enablePostmanAgent() error {
 	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using the below command \n")
 	printer.Infof("journalctl -fu postman-lc-agent \n")
 
-	return nil
-}
-
-// Run post-checks
-func postChecks() error {
-	reportStep("EC2:Running post checks")
-
-	// TODO: How to Verify if traffic is being captured ?
 	return nil
 }
