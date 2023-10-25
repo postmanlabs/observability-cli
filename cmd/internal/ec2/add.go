@@ -118,7 +118,7 @@ func checkReconfiguration() error {
 	if strings.Contains(string(out), enabled) {
 		return askToReconfigure()
 	}
-	return errors.Errorf("The systemctl is-enabled command produced output this tool doesnt' recognize: %q. \n Please send this log message to observability-support@postman.com for assistance\n", string(out))
+	return errors.Errorf("The systemctl is-enabled command produced output this tool doesn't recognize: %q. \n Please send this log message to observability-support@postman.com for assistance\n", string(out))
 
 }
 
