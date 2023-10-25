@@ -105,7 +105,7 @@ func checkReconfiguration() error {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode := exitError.ExitCode()
 			if exitCode != 1 {
-				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled.\n Please send this log message to observability-support@postman.com for assistance\n")
+				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled. \n Command output:%s \n Please send this log message to observability-support@postman.com for assistance\n", out)
 			}
 			if strings.Contains(string(out), disabled) {
 				return askToReconfigure()
