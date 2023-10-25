@@ -41,8 +41,6 @@ var serviceFile string
 //go:embed postman-lc-agent.tmpl
 var envFileFS embed.FS
 
-var isReconfigure string = "n"
-
 // Helper function for reporting telemetry
 func reportStep(stepName string) {
 	telemetry.WorkflowStep("Starting systemd conguration", stepName)
@@ -73,22 +71,21 @@ func setupAgentForServer(collectionId string) error {
 }
 
 func askToReconfigure() error {
+	var isReconfigure bool
+
 	printer.Infof("postman-lc-agent is already present as a systemd service\n")
 	printer.Infof("Helpful commands \n Check status: systemctl status postman-lc-agent \n Disable agent: systemctl disable --now postman-lc-agent \n Check Logs: journalctl -fu postman-lc-agent\n Check env file: cat %s \n Check systemd service file: cat %s \n", envFilePath, serviceFilePath)
+
 	err := survey.AskOne(
-		&survey.Input{
-			Message: "Over-write old apiKey and collectionId with current values ? (y/n)",
-			Help:    "Enter y(default) or n.",
-			// Use the existing value as the default in case we repeat this step
-			Default: "y",
+		&survey.Confirm{
+			Message: "Overwrite old API key and Collection ID values in systemd configuration file with current values?",
+			Default: true,
+			Help:    "Any edits made to systemd configuration files will be over-written.",
 		},
 		&isReconfigure,
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to run reconfiguration prompt")
-	}
-	if isReconfigure != "y" {
-		return errors.New("Exiting process because you didn't enter y")
 	}
 	return nil
 }
@@ -103,7 +100,7 @@ func checkReconfiguration() error {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode := exitError.ExitCode()
 			if exitCode != 1 {
-				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled")
+				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled.\n Please send this log message to observability-support@postman.com for assistance\n")
 			}
 			if strings.Contains(string(out), disabled) {
 				return askToReconfigure()
@@ -116,12 +113,11 @@ func checkReconfiguration() error {
 	if strings.Contains(string(out), enabled) {
 		return askToReconfigure()
 	}
+	return errors.Errorf("The systemctl is-enabled command produced output this tool doesnt' recognize: %q. \n Please send this log message to observability-support@postman.com for assistance\n", string(out))
 
-	return errors.Errorf("systemctl is-enabled gave un-supported output:%s", string(out))
 }
 
 func checkUserPermissions() error {
-	// TODO: Make this work without root
 
 	// Exact permissions required are
 	// read/write permissions on /etc/default/postman-lc-agent
@@ -233,13 +229,5 @@ func enablePostmanAgent() error {
 	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using the below command \n")
 	printer.Infof("journalctl -fu postman-lc-agent \n")
 
-	return nil
-}
-
-// Run post-checks
-func postChecks() error {
-	reportStep("EC2:Running post checks")
-
-	// TODO: How to Verify if traffic is being captured ?
 	return nil
 }
