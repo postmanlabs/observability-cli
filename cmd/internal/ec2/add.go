@@ -84,6 +84,10 @@ func askToReconfigure() error {
 		},
 		&isReconfigure,
 	)
+	if !isReconfigure {
+		printer.Infof("Exiting setup")
+		return nil
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to run reconfiguration prompt")
 	}
