@@ -55,6 +55,9 @@ type tcpFlow struct {
 	// Context for the FIRST packet that currentParser is processing.
 	currentParserCtx *assemblerCtxWithSeq
 
+	// Indicates if this flow has seen any packet
+	firstPacketSeen bool
+
 	// Data that was left unused when determining parser, awaiting for more data.
 	// This is a hack to flush data when the flow terminates before a parser has
 	// been selected since reassembled does not get invoked on stream end even if
@@ -71,6 +74,7 @@ func newTCPFlow(clock clockWrapper, bidiID akinet.TCPBidiID, nf, tf gopacket.Flo
 		bidiID:          bidiID,
 		outChan:         outChan,
 		factorySelector: fs,
+		firstPacketSeen: false,
 	}
 }
 
@@ -93,6 +97,12 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 	pktData := memview.New(sg.Fetch(bytesAvailable)[ignoreCount:])
 
 	printer.V(6).Infof("reassembled with %d bytes, isEnd=%v\n", bytesAvailable-ignoreCount, isEnd)
+
+	// since we are ending this flow, mark the firstPacketSeen as false for the current flow for the new request/response pair
+	// Is there a race condition here where Accept and reassembledWithIgnore will be called together for the same flow?
+	if isEnd {
+		f.firstPacketSeen = false
+	}
 
 	if f.currentParser == nil {
 		// Try to create a new parser.
@@ -209,6 +219,7 @@ func (f *tcpFlow) reassemblyComplete() {
 		}
 		f.currentParser = nil
 		f.currentParserCtx = nil
+		f.firstPacketSeen = false
 	} else if f.unusedAcceptBuf.Len() > 0 {
 		// The flow terminated before a parser has been selected, flush any bytes
 		// that were buffered waiting for more data to determine parse.
@@ -294,6 +305,14 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 		}
 	}
 
+	currFlow := c.flows[dir]
+	revFlow := c.flows[dir.Reverse()]
+
+	// Mark the firstPacketSeen as true for the current flow
+	if !currFlow.firstPacketSeen {
+		currFlow.firstPacketSeen = true
+	}
+
 	// Output some metadata for the current packet.
 	{
 		srcE, dstE := c.netFlow.Endpoints()
@@ -311,6 +330,32 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 				PayloadLength_bytes: len(tcp.LayerPayload()),
 			},
 			ObservationTime: ac.GetCaptureInfo().Timestamp,
+		}
+	}
+
+	// One of the flows initiated a connection close request
+	if tcp.FIN {
+		// Confirm with mark if we need this new variable or we can achieve the same
+		// using revFlow.currentParser and revFlow.currentParserCtx
+		if !revFlow.firstPacketSeen {
+			currFlowParser := currFlow.currentParser
+
+			// The current flow is the one that initiated the connection close request
+			// and no packets are yet arrived on the reverse flow
+			// this would indicate a timeout on the current side
+			if currFlowParser != nil {
+				if currFlowParser.Name() == "HTTP/1.x Request Parser Factory" {
+					c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ClientTimeoutMetadata{
+						StreamID: uuid.UUID(currFlow.bidiID),
+						Seq:      int(tcp.Seq),
+					})
+				} else if currFlowParser.Name() == "HTTP/1.x Response Parser Factory" {
+					c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ServerTimeoutMetadata{
+						StreamID: uuid.UUID(currFlow.bidiID),
+						Seq:      int(tcp.Seq),
+					})
+				}
+			}
 		}
 	}
 

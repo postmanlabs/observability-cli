@@ -179,6 +179,10 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		partial, parseHTTPErr = learn.ParseHTTP(content)
 	case akinet.HTTPResponse:
 		partial, parseHTTPErr = learn.ParseHTTP(content)
+	case akinet.ClientTimeoutMetadata:
+		return c.processClientTimeout(t, content)
+	case akinet.ServerTimeoutMetadata:
+		return c.processServerTimeout(t, content)
 	case akinet.TCPConnectionMetadata:
 		return c.processTCPConnection(t, content)
 	case akinet.TLSHandshakeMetadata:
@@ -269,6 +273,64 @@ func (c *BackendCollector) processTLSHandshake(tls akinet.TLSHandshakeMetadata) 
 			SubjectAlternativeNames: tls.SubjectAlternativeNames,
 		},
 	})
+	return nil
+}
+
+func (c *BackendCollector) processClientTimeout(packet akinet.ParsedNetworkTraffic, content akinet.ClientTimeoutMetadata) error {
+	witnessID := learn.ToWitnessID(content.StreamID, content.Seq)
+	val, ok := c.pairCache.LoadAndDelete(witnessID)
+
+	if !ok {
+		// this should not have happened,a partial witness should have existed for the timeout data passed to us
+		return errors.Errorf("no partial witness found for client timeout %v", witnessID)
+	}
+
+	pair := val.(*witnessWithInfo)
+	if pair.witness.Method.GetMeta() != nil {
+		meta := pair.witness.Method.GetMeta()
+		if meta != nil {
+			error := pb.HTTPMethodError{
+				Type:    pb.HTTPMethodError_CLIENT_CLOSED,
+				Message: "Client closed the connection",
+			}
+
+			if meta.Errors == nil {
+				meta.Errors = []*pb.HTTPMethodError{&error}
+			} else {
+				meta.Errors = append(meta.Errors, &error)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *BackendCollector) processServerTimeout(packet akinet.ParsedNetworkTraffic, content akinet.ServerTimeoutMetadata) error {
+	witnessID := learn.ToWitnessID(content.StreamID, content.Seq)
+	val, ok := c.pairCache.LoadAndDelete(witnessID)
+
+	if !ok {
+		// this should not have happened,a partial witness should have existed for the timeout data passed to us
+		return errors.Errorf("no partial witness found for server timeout %v", witnessID)
+	}
+
+	pair := val.(*witnessWithInfo)
+	if pair.witness.Method.GetMeta() != nil {
+		meta := pair.witness.Method.GetMeta()
+		if meta != nil {
+			error := pb.HTTPMethodError{
+				Type:    pb.HTTPMethodError_SERVER_CLOSED,
+				Message: "Server closed the connection",
+			}
+
+			if meta.Errors == nil {
+				meta.Errors = []*pb.HTTPMethodError{&error}
+			} else {
+				meta.Errors = append(meta.Errors, &error)
+			}
+		}
+	}
+
 	return nil
 }
 
