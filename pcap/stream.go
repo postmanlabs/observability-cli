@@ -36,6 +36,14 @@ var CountBadAssemblerContextType uint64
 // bidirectional ID that identifies the tcpFlow in the opposite direction.
 // Writes come from TCP assembler via tcpStream, while reads come from users
 // of this struct.
+
+type tcpFlowInitiator string
+
+const (
+	TCP_FLOW_INITIATOR_CLIENT tcpFlowInitiator = "CLIENT"
+	TCP_FLOW_INITIATOR_SERVER tcpFlowInitiator = "SERVER"
+)
+
 type tcpFlow struct {
 	clock clockWrapper // constant
 
@@ -57,6 +65,9 @@ type tcpFlow struct {
 
 	// Indicates if this flow has seen any packet
 	firstPacketSeen bool
+
+	// Indicates who initiated this flow (client or server)
+	initiator *tcpFlowInitiator
 
 	// Data that was left unused when determining parser, awaiting for more data.
 	// This is a hack to flush data when the flow terminates before a parser has
@@ -80,6 +91,10 @@ func newTCPFlow(clock clockWrapper, bidiID akinet.TCPBidiID, nf, tf gopacket.Flo
 
 func (f *tcpFlow) FirstPacketSeen() bool {
 	return f.firstPacketSeen
+}
+
+func (f *tcpFlow) TcpFlowInitiator() tcpFlowInitiator {
+	return *f.initiator
 }
 
 func (f *tcpFlow) handleUnparseable(t time.Time, size int64) {
@@ -150,6 +165,14 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			}
 			f.currentParser = fact.CreateParser(f.bidiID, ctx.seq, ctx.ack)
 			f.currentParserCtx = ctx
+
+			connectionType := f.currentParser.ConnectionType()
+			if connectionType == akinet.CONNECTION_TYPE_HTTP_CLIENT {
+				*f.initiator = TCP_FLOW_INITIATOR_CLIENT
+			} else if connectionType == akinet.CONNECTION_TYPE_HTTP_SERVER {
+				*f.initiator = TCP_FLOW_INITIATOR_SERVER
+			}
+
 		default:
 			printer.Errorf("unsupported decision type %s, treating data as raw bytes\n", decision)
 			f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData.Len())
@@ -339,23 +362,19 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 	// One of the flows initiated a connection close request
 	if tcp.FIN {
 		if !revFlow.FirstPacketSeen() {
-			currFlowParser := currFlow.currentParser
-
 			// The current flow is the one that initiated the connection close request
-			// and no packets are yet arrived on the reverse flow
+			// and no packets have yet arrived on the reverse flow
 			// this would indicate a timeout on the current side
-			if currFlowParser != nil {
-				if currFlowParser.Name() == "HTTP/1.x Request Parser Factory" {
-					c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ClientTimeoutMetadata{
-						StreamID: uuid.UUID(currFlow.bidiID),
-						Seq:      int(tcp.Seq),
-					})
-				} else if currFlowParser.Name() == "HTTP/1.x Response Parser Factory" {
-					c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ServerTimeoutMetadata{
-						StreamID: uuid.UUID(currFlow.bidiID),
-						Seq:      int(tcp.Seq),
-					})
-				}
+			if currFlow.TcpFlowInitiator() == TCP_FLOW_INITIATOR_CLIENT {
+				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ClientTimeoutMetadata{
+					StreamID: uuid.UUID(currFlow.bidiID),
+					Seq:      int(tcp.Seq),
+				})
+			} else if currFlow.TcpFlowInitiator() == TCP_FLOW_INITIATOR_SERVER {
+				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ServerTimeoutMetadata{
+					StreamID: uuid.UUID(currFlow.bidiID),
+					Seq:      int(tcp.Seq),
+				})
 			}
 		}
 	}

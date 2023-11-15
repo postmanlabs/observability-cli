@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20231103112405-e2221503d639 // todo: update this to match the commit on master once akita-ir#10 is merged
-	github.com/akitasoftware/akita-libs v0.0.0-20231110062924-14f503bf0c85 // todo: update this to match the commit on master once akita-libs#201 is merged
+	github.com/akitasoftware/akita-libs v0.0.0-20231115160054-fd5262bf403b // todo: update this to match the commit on master once akita-libs#201 is merged
 	github.com/akitasoftware/go-utils v0.0.0-20221207014235-6f4c9079488d
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
