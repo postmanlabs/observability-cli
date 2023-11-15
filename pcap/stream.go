@@ -366,12 +366,12 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 			// and no packets have yet arrived on the reverse flow
 			// this would indicate a timeout on the current side
 			if currFlow.TcpFlowInitiator() == TCP_FLOW_INITIATOR_CLIENT {
-				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ClientTimeoutMetadata{
+				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ClientShutdowntMetadata{
 					StreamID: uuid.UUID(currFlow.bidiID),
 					Seq:      int(tcp.Seq),
 				})
 			} else if currFlow.TcpFlowInitiator() == TCP_FLOW_INITIATOR_SERVER {
-				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ServerTimeoutMetadata{
+				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ServerShutdownMetadata{
 					StreamID: uuid.UUID(currFlow.bidiID),
 					Seq:      int(tcp.Seq),
 				})

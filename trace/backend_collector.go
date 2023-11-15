@@ -179,10 +179,10 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		partial, parseHTTPErr = learn.ParseHTTP(content)
 	case akinet.HTTPResponse:
 		partial, parseHTTPErr = learn.ParseHTTP(content)
-	case akinet.ClientTimeoutMetadata:
-		return c.processClientTimeout(t, content)
-	case akinet.ServerTimeoutMetadata:
-		return c.processServerTimeout(t, content)
+	case akinet.ClientShutdowntMetadata:
+		return c.processClientShutdown(t, content)
+	case akinet.ServerShutdownMetadata:
+		return c.processServerShutdown(t, content)
 	case akinet.TCPConnectionMetadata:
 		return c.processTCPConnection(t, content)
 	case akinet.TLSHandshakeMetadata:
@@ -276,13 +276,13 @@ func (c *BackendCollector) processTLSHandshake(tls akinet.TLSHandshakeMetadata) 
 	return nil
 }
 
-func (c *BackendCollector) processClientTimeout(packet akinet.ParsedNetworkTraffic, content akinet.ClientTimeoutMetadata) error {
+func (c *BackendCollector) processClientShutdown(packet akinet.ParsedNetworkTraffic, content akinet.ClientShutdowntMetadata) error {
 	witnessID := learn.ToWitnessID(content.StreamID, content.Seq)
 	val, ok := c.pairCache.LoadAndDelete(witnessID)
 
 	if !ok {
-		// this is probably the case where the partial witness got flushed out before we could process the timeout event
-		printer.Debugf("no partial witness found for client timeout event with witness id: %v\n", witnessID)
+		// this is probably the case where the partial witness got flushed out before we could process the shutdown event
+		printer.Debugf("no partial witness found for client shutdown event with witness id: %v\n", witnessID)
 		return nil
 	}
 
@@ -298,13 +298,13 @@ func (c *BackendCollector) processClientTimeout(packet akinet.ParsedNetworkTraff
 	return nil
 }
 
-func (c *BackendCollector) processServerTimeout(packet akinet.ParsedNetworkTraffic, content akinet.ServerTimeoutMetadata) error {
+func (c *BackendCollector) processServerShutdown(packet akinet.ParsedNetworkTraffic, content akinet.ServerShutdownMetadata) error {
 	witnessID := learn.ToWitnessID(content.StreamID, content.Seq)
 	val, ok := c.pairCache.LoadAndDelete(witnessID)
 
 	if !ok {
-		// this is probably the case where the partial witness got flushed out before we could process the timeout event
-		printer.Debugf("no partial witness found for server timeout event with witness id: %v\n", witnessID)
+		// this is probably the case where the partial witness got flushed out before we could process the shutdown event
+		printer.Debugf("no partial witness found for server shutdown event with witness id: %v\n", witnessID)
 		return nil
 	}
 
