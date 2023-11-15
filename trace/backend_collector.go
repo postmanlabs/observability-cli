@@ -286,20 +286,13 @@ func (c *BackendCollector) processClientTimeout(packet akinet.ParsedNetworkTraff
 	}
 
 	pair := val.(*witnessWithInfo)
-	if pair.witness.Method.GetMeta() != nil {
-		meta := pair.witness.Method.GetMeta()
-		if meta != nil {
-			error := pb.HTTPMethodError{
-				Type:    pb.HTTPMethodError_CLIENT_CLOSED,
-				Message: "Client closed the connection",
-			}
-
-			if meta.Errors == nil {
-				meta.Errors = []*pb.HTTPMethodError{&error}
-			} else {
-				meta.Errors = append(meta.Errors, &error)
-			}
+	if meta := pair.witness.Method.GetMeta(); meta != nil {
+		error := pb.HTTPMethodError{
+			Type:    pb.HTTPMethodError_CLIENT_CLOSED,
+			Message: "Client closed the connection",
 		}
+
+		meta.Errors = append(meta.Errors, &error)
 	}
 
 	return nil
@@ -315,20 +308,13 @@ func (c *BackendCollector) processServerTimeout(packet akinet.ParsedNetworkTraff
 	}
 
 	pair := val.(*witnessWithInfo)
-	if pair.witness.Method.GetMeta() != nil {
-		meta := pair.witness.Method.GetMeta()
-		if meta != nil {
-			error := pb.HTTPMethodError{
-				Type:    pb.HTTPMethodError_SERVER_CLOSED,
-				Message: "Server closed the connection",
-			}
-
-			if meta.Errors == nil {
-				meta.Errors = []*pb.HTTPMethodError{&error}
-			} else {
-				meta.Errors = append(meta.Errors, &error)
-			}
+	if meta := pair.witness.Method.GetMeta(); meta != nil {
+		error := pb.HTTPMethodError{
+			Type:    pb.HTTPMethodError_SERVER_CLOSED,
+			Message: "Server closed the connection",
 		}
+
+		meta.Errors = append(meta.Errors, &error)
 	}
 
 	return nil

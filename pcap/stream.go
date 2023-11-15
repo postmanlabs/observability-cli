@@ -78,6 +78,10 @@ func newTCPFlow(clock clockWrapper, bidiID akinet.TCPBidiID, nf, tf gopacket.Flo
 	}
 }
 
+func (f *tcpFlow) FirstPacketSeen() bool {
+	return f.firstPacketSeen
+}
+
 func (f *tcpFlow) handleUnparseable(t time.Time, size int64) {
 	if size > 0 {
 		f.outChan <- f.toPNT(t, t, akinet.DroppedBytes(size))
@@ -99,7 +103,6 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 	printer.V(6).Infof("reassembled with %d bytes, isEnd=%v\n", bytesAvailable-ignoreCount, isEnd)
 
 	// since we are ending this flow, mark the firstPacketSeen as false for the current flow for the new request/response pair
-	// Is there a race condition here where Accept and reassembledWithIgnore will be called together for the same flow?
 	if isEnd {
 		f.firstPacketSeen = false
 	}
@@ -309,7 +312,7 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 	revFlow := c.flows[dir.Reverse()]
 
 	// Mark the firstPacketSeen as true for the current flow
-	if !currFlow.firstPacketSeen {
+	if !currFlow.FirstPacketSeen() {
 		currFlow.firstPacketSeen = true
 	}
 
@@ -335,9 +338,7 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 
 	// One of the flows initiated a connection close request
 	if tcp.FIN {
-		// Confirm with mark if we need this new variable or we can achieve the same
-		// using revFlow.currentParser and revFlow.currentParserCtx
-		if !revFlow.firstPacketSeen {
+		if !revFlow.FirstPacketSeen() {
 			currFlowParser := currFlow.currentParser
 
 			// The current flow is the one that initiated the connection close request

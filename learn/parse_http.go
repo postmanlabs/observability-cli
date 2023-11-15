@@ -824,9 +824,5 @@ func addAgentParsingErrorToMethodMeta(meta *pb.MethodMeta, errMsg string) {
 		Message: errMsg,
 	}
 
-	if meta.Errors == nil {
-		meta.Errors = []*pb.HTTPMethodError{&error}
-	} else {
-		meta.Errors = append(meta.Errors, &error)
-	}
+	meta.Errors = append(meta.Errors, &error)
 }
