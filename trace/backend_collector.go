@@ -281,15 +281,15 @@ func (c *BackendCollector) processClientTimeout(packet akinet.ParsedNetworkTraff
 	val, ok := c.pairCache.LoadAndDelete(witnessID)
 
 	if !ok {
-		// this should not have happened,a partial witness should have existed for the timeout data passed to us
-		return errors.Errorf("no partial witness found for client timeout %v", witnessID)
+		// this is probably the case where the partial witness got flushed out before we could process the timeout event
+		printer.Debugf("no partial witness found for client timeout event with witness id: %v\n", witnessID)
+		return nil
 	}
 
 	pair := val.(*witnessWithInfo)
 	if meta := pair.witness.Method.GetMeta(); meta != nil {
 		error := pb.HTTPMethodError{
-			Type:    pb.HTTPMethodError_CLIENT_CLOSED,
-			Message: "Client closed the connection",
+			Type: pb.HTTPMethodError_CLIENT_CLOSED,
 		}
 
 		meta.Errors = append(meta.Errors, &error)
@@ -303,15 +303,15 @@ func (c *BackendCollector) processServerTimeout(packet akinet.ParsedNetworkTraff
 	val, ok := c.pairCache.LoadAndDelete(witnessID)
 
 	if !ok {
-		// this should not have happened,a partial witness should have existed for the timeout data passed to us
-		return errors.Errorf("no partial witness found for server timeout %v", witnessID)
+		// this is probably the case where the partial witness got flushed out before we could process the timeout event
+		printer.Debugf("no partial witness found for server timeout event with witness id: %v\n", witnessID)
+		return nil
 	}
 
 	pair := val.(*witnessWithInfo)
 	if meta := pair.witness.Method.GetMeta(); meta != nil {
 		error := pb.HTTPMethodError{
-			Type:    pb.HTTPMethodError_SERVER_CLOSED,
-			Message: "Server closed the connection",
+			Type: pb.HTTPMethodError_SERVER_CLOSED,
 		}
 
 		meta.Errors = append(meta.Errors, &error)
