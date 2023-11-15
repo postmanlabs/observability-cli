@@ -36,6 +36,14 @@ var CountBadAssemblerContextType uint64
 // bidirectional ID that identifies the tcpFlow in the opposite direction.
 // Writes come from TCP assembler via tcpStream, while reads come from users
 // of this struct.
+
+type tcpFlowInitiator string
+
+const (
+	TCP_FLOW_INITIATOR_CLIENT tcpFlowInitiator = "CLIENT"
+	TCP_FLOW_INITIATOR_SERVER tcpFlowInitiator = "SERVER"
+)
+
 type tcpFlow struct {
 	clock clockWrapper // constant
 
@@ -55,6 +63,12 @@ type tcpFlow struct {
 	// Context for the FIRST packet that currentParser is processing.
 	currentParserCtx *assemblerCtxWithSeq
 
+	// Indicates if this flow has seen any packet
+	firstPacketSeen bool
+
+	// Indicates who initiated this flow (client or server)
+	initiator *tcpFlowInitiator
+
 	// Data that was left unused when determining parser, awaiting for more data.
 	// This is a hack to flush data when the flow terminates before a parser has
 	// been selected since reassembled does not get invoked on stream end even if
@@ -71,7 +85,16 @@ func newTCPFlow(clock clockWrapper, bidiID akinet.TCPBidiID, nf, tf gopacket.Flo
 		bidiID:          bidiID,
 		outChan:         outChan,
 		factorySelector: fs,
+		firstPacketSeen: false,
 	}
+}
+
+func (f *tcpFlow) FirstPacketSeen() bool {
+	return f.firstPacketSeen
+}
+
+func (f *tcpFlow) TcpFlowInitiator() tcpFlowInitiator {
+	return *f.initiator
 }
 
 func (f *tcpFlow) handleUnparseable(t time.Time, size int64) {
@@ -93,6 +116,11 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 	pktData := memview.New(sg.Fetch(bytesAvailable)[ignoreCount:])
 
 	printer.V(6).Infof("reassembled with %d bytes, isEnd=%v\n", bytesAvailable-ignoreCount, isEnd)
+
+	// since we are ending this flow, mark the firstPacketSeen as false for the current flow for the new request/response pair
+	if isEnd {
+		f.firstPacketSeen = false
+	}
 
 	if f.currentParser == nil {
 		// Try to create a new parser.
@@ -137,6 +165,14 @@ func (f *tcpFlow) reassembledWithIgnore(ignoreCount int, sg reassembly.ScatterGa
 			}
 			f.currentParser = fact.CreateParser(f.bidiID, ctx.seq, ctx.ack)
 			f.currentParserCtx = ctx
+
+			connectionType := f.currentParser.ConnectionType()
+			if connectionType == akinet.CONNECTION_TYPE_HTTP_CLIENT {
+				*f.initiator = TCP_FLOW_INITIATOR_CLIENT
+			} else if connectionType == akinet.CONNECTION_TYPE_HTTP_SERVER {
+				*f.initiator = TCP_FLOW_INITIATOR_SERVER
+			}
+
 		default:
 			printer.Errorf("unsupported decision type %s, treating data as raw bytes\n", decision)
 			f.handleUnparseable(sg.CaptureInfo(ignoreCount).Timestamp, pktData.Len())
@@ -209,6 +245,7 @@ func (f *tcpFlow) reassemblyComplete() {
 		}
 		f.currentParser = nil
 		f.currentParserCtx = nil
+		f.firstPacketSeen = false
 	} else if f.unusedAcceptBuf.Len() > 0 {
 		// The flow terminated before a parser has been selected, flush any bytes
 		// that were buffered waiting for more data to determine parse.
@@ -294,6 +331,14 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 		}
 	}
 
+	currFlow := c.flows[dir]
+	revFlow := c.flows[dir.Reverse()]
+
+	// Mark the firstPacketSeen as true for the current flow
+	if !currFlow.FirstPacketSeen() {
+		currFlow.firstPacketSeen = true
+	}
+
 	// Output some metadata for the current packet.
 	{
 		srcE, dstE := c.netFlow.Endpoints()
@@ -311,6 +356,26 @@ func (c *tcpStream) Accept(tcp *layers.TCP, _ gopacket.CaptureInfo, dir reassemb
 				PayloadLength_bytes: len(tcp.LayerPayload()),
 			},
 			ObservationTime: ac.GetCaptureInfo().Timestamp,
+		}
+	}
+
+	// One of the flows initiated a connection close request
+	if tcp.FIN {
+		if !revFlow.FirstPacketSeen() {
+			// The current flow is the one that initiated the connection close request
+			// and no packets have yet arrived on the reverse flow
+			// this would indicate a timeout on the current side
+			if currFlow.TcpFlowInitiator() == TCP_FLOW_INITIATOR_CLIENT {
+				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ClientShutdowntMetadata{
+					StreamID: uuid.UUID(currFlow.bidiID),
+					Seq:      int(tcp.Seq),
+				})
+			} else if currFlow.TcpFlowInitiator() == TCP_FLOW_INITIATOR_SERVER {
+				c.outChan <- currFlow.toPNT(ac.GetCaptureInfo().Timestamp, ac.GetCaptureInfo().Timestamp, akinet.ServerShutdownMetadata{
+					StreamID: uuid.UUID(currFlow.bidiID),
+					Seq:      int(tcp.Seq),
+				})
+			}
 		}
 	}
 

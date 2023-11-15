@@ -179,6 +179,10 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		partial, parseHTTPErr = learn.ParseHTTP(content)
 	case akinet.HTTPResponse:
 		partial, parseHTTPErr = learn.ParseHTTP(content)
+	case akinet.ClientShutdowntMetadata:
+		return c.processClientShutdown(t, content)
+	case akinet.ServerShutdownMetadata:
+		return c.processServerShutdown(t, content)
 	case akinet.TCPConnectionMetadata:
 		return c.processTCPConnection(t, content)
 	case akinet.TLSHandshakeMetadata:
@@ -269,6 +273,50 @@ func (c *BackendCollector) processTLSHandshake(tls akinet.TLSHandshakeMetadata) 
 			SubjectAlternativeNames: tls.SubjectAlternativeNames,
 		},
 	})
+	return nil
+}
+
+func (c *BackendCollector) processClientShutdown(packet akinet.ParsedNetworkTraffic, content akinet.ClientShutdowntMetadata) error {
+	witnessID := learn.ToWitnessID(content.StreamID, content.Seq)
+	val, ok := c.pairCache.LoadAndDelete(witnessID)
+
+	if !ok {
+		// this is probably the case where the partial witness got flushed out before we could process the shutdown event
+		printer.Debugf("no partial witness found for client shutdown event with witness id: %v\n", witnessID)
+		return nil
+	}
+
+	pair := val.(*witnessWithInfo)
+	if meta := pair.witness.Method.GetMeta(); meta != nil {
+		error := pb.HTTPMethodError{
+			Type: pb.HTTPMethodError_CLIENT_CLOSED,
+		}
+
+		meta.Errors = append(meta.Errors, &error)
+	}
+
+	return nil
+}
+
+func (c *BackendCollector) processServerShutdown(packet akinet.ParsedNetworkTraffic, content akinet.ServerShutdownMetadata) error {
+	witnessID := learn.ToWitnessID(content.StreamID, content.Seq)
+	val, ok := c.pairCache.LoadAndDelete(witnessID)
+
+	if !ok {
+		// this is probably the case where the partial witness got flushed out before we could process the shutdown event
+		printer.Debugf("no partial witness found for server shutdown event with witness id: %v\n", witnessID)
+		return nil
+	}
+
+	pair := val.(*witnessWithInfo)
+	if meta := pair.witness.Method.GetMeta(); meta != nil {
+		error := pb.HTTPMethodError{
+			Type: pb.HTTPMethodError_SERVER_CLOSED,
+		}
+
+		meta.Errors = append(meta.Errors, &error)
+	}
+
 	return nil
 }
 

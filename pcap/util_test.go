@@ -151,6 +151,10 @@ func (*princeParser) Name() string {
 	return "prince!"
 }
 
+func (*princeParser) ConnectionType() string {
+	return "prince!"
+}
+
 // Assumes input starts with the right header.
 func (p *princeParser) Parse(input memview.MemView, isEnd bool) (akinet.ParsedNetworkContent, memview.MemView, int64, error) {
 	p.all.Append(input)
@@ -214,6 +218,10 @@ func (pineappleParserFactory) CreateParser(id akinet.TCPBidiID, seq, ack reassem
 type pineappleParser struct{}
 
 func (pineappleParser) Name() string {
+	return "pineapple!"
+}
+
+func (pineappleParser) ConnectionType() string {
 	return "pineapple!"
 }
 

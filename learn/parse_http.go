@@ -130,6 +130,7 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 		bodyStream := rawBody.CreateReader()
 		decodeStream, err := decodeBody(headers, bodyStream, bodyDecompressed)
 		if err != nil {
+			addAgentParsingErrorToMethodMeta(methodMeta, fmt.Sprintf("Failed to decode body: %v", err))
 			return nil, errors.Wrap(err, "failed to decode body")
 		}
 
@@ -153,6 +154,7 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 			// https://app.clubhouse.io/akita-software/story/1898/juan-s-payload-problem
 			telemetry.RateLimitError("unparsable body", err)
 			printer.Debugf("skipping unparsable body: %v\n", err)
+			addAgentParsingErrorToMethodMeta(methodMeta, fmt.Sprintf("Failed to parse body: %v", err))
 		} else if bodyData != nil {
 			datas = append(datas, bodyData)
 		}
@@ -814,4 +816,13 @@ func newDataMetaCookie(cookie *pb.HTTPCookie, responseCode int) *pb.DataMeta {
 		ResponseCode: int32(responseCode),
 	}
 	return newDataMetaHTTPMeta(m)
+}
+
+func addAgentParsingErrorToMethodMeta(meta *pb.MethodMeta, errMsg string) {
+	error := pb.HTTPMethodError{
+		Type:    pb.HTTPMethodError_AGENT_PARSING_ERROR,
+		Message: errMsg,
+	}
+
+	meta.Errors = append(meta.Errors, &error)
 }
