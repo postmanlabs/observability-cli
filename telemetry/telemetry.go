@@ -24,7 +24,7 @@ var (
 	analyticsEnabled bool
 
 	// Client key; set at link-time with -X flag
-	defaultSegmentKey = ""
+	defaultAmplitudeKey = ""
 
 	// Store the distinct ID; run through the process
 	// of getting it only once.
@@ -64,14 +64,14 @@ func Init(isLoggingEnabled bool) {
 	}
 
 	// If unset, will be "" and we'll use the default
-	segmentEndpoint := os.Getenv("AKITA_SEGMENT_ENDPOINT")
+	amplitudeEndpoint := os.Getenv("POSTMAN_LC_AGENT_AMPLITUDE_ENDPOINT")
 
 	// If unset, will use this hard-coded value.
-	segmentKey := os.Getenv("AKITA_SEGMENT_WRITE_KEY")
-	if segmentKey == "" {
-		segmentKey = defaultSegmentKey
+	amplitudeKey := os.Getenv("POSTMAN_LC_AGENT_AMPLITUDE_WRITE_KEY")
+	if amplitudeKey == "" {
+		amplitudeKey = defaultAmplitudeKey
 	}
-	if segmentKey == "" {
+	if amplitudeKey == "" {
 		if isLoggingEnabled {
 			printer.Infof("Telemetry unavailable; no Segment key configured.\n")
 			printer.Infof("This is caused by building from source rather than using an official build.\n")
@@ -83,8 +83,8 @@ func Init(isLoggingEnabled bool) {
 	var err error
 	analyticsClient, err = analytics.NewClient(
 		analytics.Config{
-			WriteKey:        segmentKey,
-			SegmentEndpoint: segmentEndpoint,
+			AmplitudeAPIKey:   amplitudeKey,
+			AmplitudeEndpoint: amplitudeEndpoint,
 			App: analytics.AppInfo{
 				Name:      "akita-cli",
 				Version:   version.ReleaseVersion().String(),
@@ -93,8 +93,6 @@ func Init(isLoggingEnabled bool) {
 			},
 			// No output from the Segment library
 			IsLoggingEnabled: false,
-			// IsMixpanelEnabled: false,  -- irrelevant for us, leaving at default value
-			BatchSize: 1, // disable batching
 		},
 	)
 	if err != nil {
