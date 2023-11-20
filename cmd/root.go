@@ -77,7 +77,7 @@ func preRun(cmd *cobra.Command, args []string) {
 		rest.Domain = rest.DefaultDomain()
 	}
 
-	// Initialize Segment-based telemetry of usage information and CLI errors.
+	// Initialize Amplitude-based telemetry of usage information and CLI errors.
 	telemetry.Init(true)
 
 	switch logFormatFlag {
