@@ -7,7 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20220630210013-8926783978fe
-	github.com/akitasoftware/akita-libs v0.0.0-20230708003852-6c8da9931921
+	github.com/akitasoftware/akita-libs v0.0.0-20231122174952-2d3c6eb83b3f
 	github.com/akitasoftware/go-utils v0.0.0-20221207014235-6f4c9079488d
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
@@ -38,7 +38,7 @@ require (
 	github.com/spf13/cobra v1.6.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/yudai/gojsondiff v1.0.0
 	golang.org/x/exp v0.0.0-20220428152302-39d4317da171
 	golang.org/x/term v0.5.0
@@ -51,6 +51,7 @@ require (
 
 require (
 	github.com/akitasoftware/objecthash-proto v0.0.0-20211020162104-173a34b1afb0 // indirect
+	github.com/amplitude/analytics-go v1.0.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.23 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.25 // indirect
