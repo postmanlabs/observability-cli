@@ -8,7 +8,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/akitasoftware/akita-ir v0.0.0-20220630210013-8926783978fe
 	github.com/akitasoftware/akita-libs v0.0.0-20230708003852-6c8da9931921
-	github.com/akitasoftware/go-utils v0.0.0-20221207014235-6f4c9079488d
+	github.com/akitasoftware/go-utils v0.0.0-20230830224334-10303ee41265
 	github.com/akitasoftware/plugin-flickr v0.2.0
 	github.com/andybalholm/brotli v1.0.1
 	github.com/aws/aws-sdk-go-v2 v1.17.1
