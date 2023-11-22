@@ -83,18 +83,20 @@ func Init(isLoggingEnabled bool) {
 	var err error
 	analyticsClient, err = analytics.NewClient(
 		analytics.Config{
-			AmplitudeAPIKey:   amplitudeKey,
-			AmplitudeEndpoint: amplitudeEndpoint,
+			// Enable analytics for Amplitude only
+			IsAmplitudeEnabled: true,
+			AmplitudeConfig: analytics.AmplitudeConfig{
+				AmplitudeAPIKey:   amplitudeKey,
+				AmplitudeEndpoint: amplitudeEndpoint,
+				// No output from the Amplitude library
+				IsLoggingEnabled: false,
+			},
 			App: analytics.AppInfo{
 				Name:      "akita-cli",
 				Version:   version.ReleaseVersion().String(),
 				Build:     version.GitVersion(),
 				Namespace: "",
 			},
-			// No output from the Amplitude library
-			IsLoggingEnabled: false,
-			// Add agent prefix to events before sending to Amplitude
-			IsAgent: true,
 		},
 	)
 	if err != nil {
