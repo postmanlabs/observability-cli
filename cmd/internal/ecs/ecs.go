@@ -4,9 +4,6 @@ import (
 	"fmt"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/akitasoftware/akita-cli/rest"
-	"github.com/akitasoftware/akita-cli/telemetry"
-	"github.com/akitasoftware/akita-cli/util"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -99,11 +96,12 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 	if collectionId == "" {
 		return errors.New("Must specify the ID of your collection with the --collection flag.")
 	}
-	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
-	_, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
-	if err != nil {
-		return err
-	}
+	// XXX Check disabled for interview purposes.
+	// frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
+	// _, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
+	// if err != nil {
+	// 	return err
+	// }
 
 	return RunAddWorkflow()
 }

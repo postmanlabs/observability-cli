@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -298,14 +299,55 @@ func (wf *AddWorkflow) listECSTaskDefinitionFamilies() ([]string, error) {
 
 // Look up the most recent version of a task definition
 func (wf *AddWorkflow) getLatestECSTaskDefinition(family string) (*types.TaskDefinition, []types.Tag, error) {
-	input := &ecs.DescribeTaskDefinitionInput{
-		TaskDefinition: aws.String(family),
-	}
+	// XXX Disabled for interview purposes.
+	// input := &ecs.DescribeTaskDefinitionInput{
+	// 	TaskDefinition: aws.String(family),
+	// }
 
-	output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
-	if err != nil {
-		telemetry.Error("AWS ECS DescribeTaskDefinition", err)
-		return nil, nil, wrapUnauthorized(err)
+	// output, err := wf.ecsClient.DescribeTaskDefinition(wf.ctx, input)
+	// if err != nil {
+	// 	telemetry.Error("AWS ECS DescribeTaskDefinition", err)
+	// 	return nil, nil, wrapUnauthorized(err)
+	// }
+	output := &ecs.DescribeTaskDefinitionOutput{
+		TaskDefinition: &types.TaskDefinition{
+			Compatibilities: []types.Compatibility{
+				types.CompatibilityEc2,
+				types.CompatibilityFargate,
+			},
+			ContainerDefinitions: []types.ContainerDefinition{
+				{
+					Environment: []types.KeyValuePair{},
+					Essential:   aws.Bool(true),
+					Image:       aws.String("akitasoftware/akibox:noagent"),
+					MountPoints: []types.MountPoint{},
+					Name:        aws.String("akibox"),
+					PortMappings: []types.PortMapping{
+						{
+							ContainerPort: aws.Int32(80),
+							HostPort:      aws.Int32(80),
+							Protocol:      types.TransportProtocolTcp,
+						},
+					},
+					VolumesFrom: []types.VolumeFrom{},
+				},
+			},
+			Cpu:                  aws.String("512"),
+			Family:               aws.String("akibox"),
+			Memory:               aws.String("1024"),
+			NetworkMode:          types.NetworkModeAwsvpc,
+			PlacementConstraints: []types.TaskDefinitionPlacementConstraint{},
+			RegisteredAt:         aws.Time(time.Now()),
+			RegisteredBy:         aws.String("arn:aws:iam:12345:user/aws-user"),
+			RequiresAttributes:   []types.Attribute{},
+			RequiresCompatibilities: []types.Compatibility{
+				types.CompatibilityFargate,
+			},
+			Revision:          2,
+			Status:            types.TaskDefinitionStatusActive,
+			TaskDefinitionArn: aws.String("arn:aws:ecs:my-region-1:12345:task-definition/akibox:2"),
+			Volumes:           []types.Volume{},
+		},
 	}
 	return output.TaskDefinition, output.Tags, nil
 }

@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -201,12 +202,13 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 
 	if awsProfileFlag != "" {
 		wf.awsProfile = awsProfileFlag
-		if err = wf.createConfig(); err != nil {
-			if errors.Is(err, NoSuchProfileError) {
-				printer.Errorf("The AWS credentials file does not have profile %q. The error from the AWS library is shown below.\n")
-			}
-			return awf_error(errors.Wrap(err, "Error loading AWS credentials"))
-		}
+		// XXX Disabled for interview purposes.
+		// if err = wf.createConfig(); err != nil {
+		// 	if errors.Is(err, NoSuchProfileError) {
+		// 		printer.Errorf("The AWS credentials file does not have profile %q. The error from the AWS library is shown below.\n")
+		// 	}
+		// 	return awf_error(errors.Wrap(err, "Error loading AWS credentials"))
+		// }
 
 		return awf_next(getRegionState)
 	}
@@ -248,7 +250,8 @@ func getRegionState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 
 	if awsRegionFlag != "" {
 		wf.awsRegion = awsRegionFlag
-		wf.createClient(wf.awsRegion)
+		// XXX Disabled for interview purposes.
+		// wf.createClient(wf.awsRegion)
 		return awf_next(getClusterState)
 	}
 
@@ -342,30 +345,36 @@ func findClusterAndRegionState(wf *AddWorkflow) (nextState optionals.Optional[Ad
 
 func (wf *AddWorkflow) loadClusterFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
 	if strings.HasPrefix(ecsClusterFlag, "arn:") {
-		clusterName, err := wf.getClusterName(arn(ecsClusterFlag))
-		if err != nil {
-			if errors.Is(err, NoSuchClusterError) {
-				return awf_error(fmt.Errorf("Could not find cluster with ARN %q in region %s", ecsClusterFlag, wf.awsRegion))
-			}
-			return awf_error(errors.Wrap(err, "Error accessing cluster"))
-		}
+		// XXX Disabled for interview purposes.
+		// clusterName, err := wf.getClusterName(arn(ecsClusterFlag))
+		// if err != nil {
+		// 	if errors.Is(err, NoSuchClusterError) {
+		// 		return awf_error(fmt.Errorf("Could not find cluster with ARN %q in region %s", ecsClusterFlag, wf.awsRegion))
+		// 	}
+		// 	return awf_error(errors.Wrap(err, "Error accessing cluster"))
+		// }
 		wf.ecsClusterARN = arn(ecsClusterFlag)
-		wf.ecsCluster = clusterName
+		// wf.ecsCluster = clusterName
+		wf.ecsCluster = "cluster-name"
 		return awf_next(getTaskState)
 	} else {
-		clusters, listErr := wf.listECSClusters()
-		if listErr != nil {
-			return awf_error(errors.Wrap(err, "Error listing clusters"))
-		}
-		for a, name := range clusters {
-			if name == ecsClusterFlag {
-				printer.Infof("Found cluster %q matching name %q.\n", a, name)
-				wf.ecsClusterARN = a
-				wf.ecsCluster = name
-				return awf_next(getTaskState)
-			}
-		}
-		return awf_error(fmt.Errorf("No cluster found with name %q", ecsClusterFlag))
+		// XXX Disabled for interview purposes.
+		// clusters, listErr := wf.listECSClusters()
+		// if listErr != nil {
+		// 	return awf_error(errors.Wrap(err, "Error listing clusters"))
+		// }
+		// for a, name := range clusters {
+		// 	if name == ecsClusterFlag {
+		// 		printer.Infof("Found cluster %q matching name %q.\n", a, name)
+		// 		wf.ecsClusterARN = a
+		// 		wf.ecsCluster = name
+		// 		return awf_next(getTaskState)
+		// 	}
+		// }
+		// return awf_error(fmt.Errorf("No cluster found with name %q", ecsClusterFlag))
+		wf.ecsClusterARN = "arn:cluster1234"
+		wf.ecsCluster = ecsClusterFlag
+		return awf_next(getTaskState)
 	}
 }
 
@@ -549,28 +558,33 @@ func matchesImage(imageName, baseName string) bool {
 
 func (wf *AddWorkflow) loadServiceFromFlag() (nextState optionals.Optional[AddWorkflowState], err error) {
 	if strings.HasPrefix(ecsServiceFlag, "arn:") {
-		service, err := wf.getServiceWithMatchingTask(arn(ecsServiceFlag))
-		if err != nil {
-			return awf_error(errors.Wrap(err, "Error accessing service"))
-		}
-		wf.ecsService = aws.ToString(service.ServiceName)
+		// XXX Disabled for interview purposes.
+		// service, err := wf.getServiceWithMatchingTask(arn(ecsServiceFlag))
+		// if err != nil {
+		// 	return awf_error(errors.Wrap(err, "Error accessing service"))
+		// }
+		wf.ecsService = "service-name"
 		wf.ecsServiceARN = arn(ecsServiceFlag)
 		return awf_next(confirmState)
 	}
 
-	services, listErr := wf.listECSServices()
-	if listErr != nil {
-		return awf_error(errors.Wrap(err, "Error listing services"))
-	}
-	for a, name := range services {
-		if name == ecsServiceFlag {
-			printer.Infof("Found service %q matching name %q.\n", a, name)
-			wf.ecsServiceARN = a
-			wf.ecsService = name
-			return awf_next(confirmState)
-		}
-	}
-	return awf_error(fmt.Errorf("No service found with name %q that uses task definition %q", ecsServiceFlag, wf.ecsTaskDefinitionFamily))
+	// XXX Disabled for interview purposes.
+	// services, listErr := wf.listECSServices()
+	// if listErr != nil {
+	// 	return awf_error(errors.Wrap(err, "Error listing services"))
+	// }
+	// for a, name := range services {
+	// 	if name == ecsServiceFlag {
+	// 		printer.Infof("Found service %q matching name %q.\n", a, name)
+	// 		wf.ecsServiceARN = a
+	// 		wf.ecsService = name
+	// 		return awf_next(confirmState)
+	// 	}
+	// }
+	// return awf_error(fmt.Errorf("No service found with name %q that uses task definition %q", ecsServiceFlag, wf.ecsTaskDefinitionFamily))
+	wf.ecsServiceARN = "arn:service1234"
+	wf.ecsService = ecsServiceFlag
+	return awf_next(confirmState)
 }
 
 // Find all services in the cluster that match the task definition.
@@ -854,9 +868,10 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Environment: append(envs, []types.KeyValuePair{
 			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
 			// Setting these environment variables will cause the traces to be tagged.
-			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
-			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
-			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
+			// XXX Disable for interview purposes.
+			// {Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
+			// {Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
+			// {Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
 		}...),
 		Essential: aws.Bool(false),
 		Image:     aws.String(postmanECRImage),
@@ -877,27 +892,34 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 
 	input.ContainerDefinitions = append(input.ContainerDefinitions, agentContainer)
 
-	output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
-	if err != nil {
-		if uoe, unauth := isUnauthorized(err); unauth {
-			printer.Errorf("The provided credentials do not have permission to register an ECS task definition (operation %s).\n",
-				uoe.OperationName)
-			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
-			return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
-		}
-		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", err)
-		return awf_error(errors.Wrap(err, "Error registering task definition"))
-	}
-	printer.Infof("Registered task definition %q revision %d.\n",
-		aws.ToString(output.TaskDefinition.Family),
-		output.TaskDefinition.Revision)
+	// XXX Disabled for interview purposes.
+	// output, err := wf.ecsClient.RegisterTaskDefinition(wf.ctx, input)
+	// if err != nil {
+	// 	if uoe, unauth := isUnauthorized(err); unauth {
+	// 		printer.Errorf("The provided credentials do not have permission to register an ECS task definition (operation %s).\n",
+	// 			uoe.OperationName)
+	// 		printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
+	// 		return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
+	// 	}
+	// 	printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", err)
+	// 	return awf_error(errors.Wrap(err, "Error registering task definition"))
+	// }
+	// printer.Infof("Registered task definition %q revision %d.\n",
+	// 	aws.ToString(output.TaskDefinition.Family),
+	// 	output.TaskDefinition.Revision)
+	//
+	// // Update the workflow state with the new task definition
+	// wf.ecsTaskDefinition = output.TaskDefinition
+	// wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinition.TaskDefinitionArn))
+	// wf.ecsTaskDefinitionTags = output.Tags
+	//
+	// return awf_next(updateServiceState)
 
-	// Update the workflow state with the new task definition
-	wf.ecsTaskDefinition = output.TaskDefinition
-	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinition.TaskDefinitionArn))
-	wf.ecsTaskDefinitionTags = output.Tags
-
-	return awf_next(updateServiceState)
+	fmt.Println("At this point, the agent would modify AWS to update the ECS task definition to match the following.")
+	fmt.Println()
+	b, _ := json.MarshalIndent(input, "", "  ")
+	fmt.Println(string(b))
+	return awf_done()
 }
 
 // Update a service with the newly created task definition
