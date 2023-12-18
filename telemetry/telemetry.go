@@ -24,7 +24,7 @@ var (
 	analyticsEnabled bool
 
 	// Client key; set at link-time with -X flag
-	defaultSegmentKey = ""
+	defaultAmplitudeKey = ""
 
 	// Store the distinct ID; run through the process
 	// of getting it only once.
@@ -64,16 +64,16 @@ func Init(isLoggingEnabled bool) {
 	}
 
 	// If unset, will be "" and we'll use the default
-	segmentEndpoint := os.Getenv("AKITA_SEGMENT_ENDPOINT")
+	amplitudeEndpoint := os.Getenv("POSTMAN_LC_AGENT_AMPLITUDE_ENDPOINT")
 
 	// If unset, will use this hard-coded value.
-	segmentKey := os.Getenv("AKITA_SEGMENT_WRITE_KEY")
-	if segmentKey == "" {
-		segmentKey = defaultSegmentKey
+	amplitudeKey := os.Getenv("POSTMAN_LC_AGENT_AMPLITUDE_WRITE_KEY")
+	if amplitudeKey == "" {
+		amplitudeKey = defaultAmplitudeKey
 	}
-	if segmentKey == "" {
+	if amplitudeKey == "" {
 		if isLoggingEnabled {
-			printer.Infof("Telemetry unavailable; no Segment key configured.\n")
+			printer.Infof("Telemetry unavailable; no Amplitude key configured.\n")
 			printer.Infof("This is caused by building from source rather than using an official build.\n")
 		}
 		analyticsClient = nullClient{}
@@ -83,23 +83,25 @@ func Init(isLoggingEnabled bool) {
 	var err error
 	analyticsClient, err = analytics.NewClient(
 		analytics.Config{
-			WriteKey:        segmentKey,
-			SegmentEndpoint: segmentEndpoint,
+			// Enable analytics for Amplitude only
+			IsAmplitudeEnabled: true,
+			AmplitudeConfig: analytics.AmplitudeConfig{
+				AmplitudeAPIKey:   amplitudeKey,
+				AmplitudeEndpoint: amplitudeEndpoint,
+				// No output from the Amplitude library
+				IsLoggingEnabled: false,
+			},
 			App: analytics.AppInfo{
 				Name:      "akita-cli",
 				Version:   version.ReleaseVersion().String(),
 				Build:     version.GitVersion(),
 				Namespace: "",
 			},
-			// No output from the Segment library
-			IsLoggingEnabled: false,
-			// IsMixpanelEnabled: false,  -- irrelevant for us, leaving at default value
-			BatchSize: 1, // disable batching
 		},
 	)
 	if err != nil {
 		if isLoggingEnabled {
-			printer.Infof("Telemetry unavailable; error setting up Segment client: %v\n", err)
+			printer.Infof("Telemetry unavailable; error setting up Analytics(Amplitude) client: %v\n", err)
 			printer.Infof("Postman support will not be able to see any errors you encounter.\n")
 			printer.Infof("Please send this log message to observability-support@postman.com.\n")
 		}
@@ -114,7 +116,7 @@ func getDistinctID() string {
 	// Otherwise use the configured API Key.
 	// Failing that, try to use the user name and host name?
 
-	id := os.Getenv("AKITA_SEGMENT_DISTINCT_ID")
+	id := os.Getenv("POSTMAN_ANALYTICS_DISTINCT_ID")
 	if id != "" {
 		return id
 	}
@@ -245,7 +247,7 @@ func RateLimitError(inContext string, e error) {
 // Report an error in a particular API, including the text of the error.
 func APIError(method string, path string, e error) {
 	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Error calling API"),
+		"Error calling API",
 		map[string]any{
 			"method": method,
 			"path":   path,
@@ -255,10 +257,10 @@ func APIError(method string, path string, e error) {
 	)
 }
 
-// Report a failure withoout a specific error object
+// Report a failure without a specific error object
 func Failure(message string) {
 	analyticsClient.Track(distinctID(),
-		message,
+		fmt.Sprintf("Unknown Error: %s", message),
 		map[string]any{
 			"type": "error",
 		},
@@ -268,7 +270,7 @@ func Failure(message string) {
 // Report success of an operation
 func Success(message string) {
 	analyticsClient.Track(distinctID(),
-		message,
+		fmt.Sprintf("Success in %s", message),
 		map[string]any{
 			"type": "success",
 		},
@@ -278,7 +280,7 @@ func Success(message string) {
 // Report a step in a multi-part workflow.
 func WorkflowStep(workflow string, message string) {
 	analyticsClient.Track(distinctID(),
-		message,
+		fmt.Sprintf("Executing Step: %s", message),
 		map[string]any{
 			"type":     "workflow",
 			"workflow": workflow,

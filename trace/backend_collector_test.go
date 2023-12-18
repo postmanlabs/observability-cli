@@ -105,24 +105,16 @@ func TestObfuscate(t *testing.T) {
 				},
 				Args: map[string]*pb.Data{
 					"nxnOc5Qy3D4=": newTestBodySpecFromStruct(0, pb.HTTPBody_JSON, "application/json", map[string]*pb.Data{
-						"name": dataFromPrimitive(spec_util.NewPrimitiveString(
-							"lgkXNsG1k7-cxarrFoo-MmhjoRP3YOXV3C0k6rrKy2A="),
-						),
-						"number": dataFromPrimitive(spec_util.NewPrimitiveInt64(8191886688482385179)),
+						"name":   dataFromPrimitive(spec_util.NewPrimitiveString("")),
+						"number": dataFromPrimitive(spec_util.NewPrimitiveInt64(0)),
 					}),
 				},
 				Responses: map[string]*pb.Data{
 					"AyBUQkT0SHU=": newTestBodySpecFromStruct(200, pb.HTTPBody_JSON, "application/json", map[string]*pb.Data{
 						"homes": dataFromList(
-							dataFromPrimitive(spec_util.NewPrimitiveString(
-								"hZwXhGMIxoOotCt-Cu4toMf9g8CpZnOdUe3bPxEn_Sg="),
-							),
-							dataFromPrimitive(spec_util.NewPrimitiveString(
-								"ESrSgUKxboEvBrJrfm6z9xQKnegYZ_YUcOaZ4il3ytY="),
-							),
-							dataFromPrimitive(spec_util.NewPrimitiveString(
-								"M7hhiIKycdahIkwhrHNl9gDQSxzbbcElQMyvDOPiJhI="),
-							),
+							dataFromPrimitive(spec_util.NewPrimitiveString("")),
+							dataFromPrimitive(spec_util.NewPrimitiveString("")),
+							dataFromPrimitive(spec_util.NewPrimitiveString("")),
 						),
 					}),
 				},
