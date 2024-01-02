@@ -132,6 +132,11 @@ func getDistinctID() string {
 		frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
 		userResponse, err := frontClient.GetUser(ctx)
 		if err == nil {
+			// If we have Postman's user's data use that, otherwise fallback to akita's user email.
+			if userResponse.PostmanUser != nil && userResponse.PostmanUser.UserID != "" {
+				return userResponse.PostmanUser.UserID
+			}
+
 			if userResponse.Email != "" {
 				return userResponse.Email
 			}
