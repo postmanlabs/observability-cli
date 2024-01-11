@@ -101,14 +101,14 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 
 	var streamID uuid.UUID
 	var seq int
+	xForwardedFor := optionals.None[string]()
 
 	switch t := elem.(type) {
 	case akinet.HTTPRequest:
 		streamID = t.StreamID
 		seq = t.Seq
-
 		isRequest = true
-		methodMeta, datas = parseRequest(&t)
+		methodMeta, datas, xForwardedFor = parseRequest(&t)
 		rawBody = t.Body
 		bodyDecompressed = t.BodyDecompressed
 		headers = t.Header
@@ -187,8 +187,9 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 	}
 
 	return &PartialWitness{
-		Witness: &pb.Witness{Method: method},
-		PairKey: toWitnessID(streamID, seq),
+		Witness:       &pb.Witness{Method: method},
+		PairKey:       toWitnessID(streamID, seq),
+		XForwardedFor: xForwardedFor,
 	}, nil
 }
 
@@ -487,14 +488,14 @@ func parseMultipartBody(multipartType string, boundary string, bodyStream io.Rea
 	}, nil
 }
 
-func parseRequest(req *akinet.HTTPRequest) (*pb.MethodMeta, []*pb.Data) {
+func parseRequest(req *akinet.HTTPRequest) (*pb.MethodMeta, []*pb.Data, optionals.Optional[string]) {
 	datas := []*pb.Data{}
 	noStatusCode := optionals.None[int]()
 	datas = append(datas, parseQuery(req.URL)...)
 	datas = append(datas, parseHeader(req.Header, noStatusCode)...)
 	datas = append(datas, parseCookies(req.Cookies, noStatusCode)...)
 
-	return parseMethodMeta(req), datas
+	return parseMethodMeta(req), datas, parseLoadBalancer(req.Header)
 }
 
 func parseResponse(resp *akinet.HTTPResponse) []*pb.Data {
@@ -521,6 +522,19 @@ func parseCookies(cs []*http.Cookie, responseCodeOpt optionals.Optional[int]) []
 		datas = append(datas, d)
 	}
 	return datas
+}
+
+// Extract the X-Forwarded-For header, if present
+func parseLoadBalancer(header http.Header) optionals.Optional[string] {
+	for k, vs := range header {
+		switch strings.ToLower(k) {
+		case "x-forwarded-for":
+			if len(vs) > 0 {
+				return optionals.Some(vs[0])
+			}
+		}
+	}
+	return optionals.None[string]()
 }
 
 // Translate headers to data objects.  optionals.None indicates that the header
@@ -551,10 +565,13 @@ func parseHeader(header http.Header, responseCodeOpt optionals.Optional[int]) []
 
 		switch strings.ToLower(k) {
 		case "cookie", "set-cookie":
-			// Cookies are parsed by parseHeader.
+			// Cookies are parsed by parseCookies.
 			continue
 		case "content-type":
 			// Handled by parseBody.
+			continue
+		case "x-forwarded-for":
+			// Handled by parseLoadBalancer
 			continue
 		case "authorization":
 			// If the authorization header is in the request, create an

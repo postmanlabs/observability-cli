@@ -5,8 +5,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/akitasoftware/akita-libs/akid"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
+	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/go-utils/optionals"
 )
 
 var (
@@ -22,6 +23,9 @@ type PartialWitness struct {
 
 	// Key used to pair this PartialWitness up with its counterpart.
 	PairKey akid.WitnessID
+
+	// Request header's X-forwarded-for header, the real client address
+	XForwardedFor optionals.Optional[string]
 }
 
 // Generates a v5 UUID as witness ID based on stream ID and seq.
