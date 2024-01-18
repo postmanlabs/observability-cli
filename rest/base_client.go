@@ -106,7 +106,7 @@ func (c BaseClient) GetWithQuery(ctx context.Context, path string, query url.Val
 func (c BaseClient) Post(ctx context.Context, path string, body interface{}, resp interface{}) (e error) {
 	defer func() {
 		if e != nil {
-			reportError(http.MethodGet, path, e)
+			reportError(http.MethodPost, path, e)
 		}
 	}()
 
