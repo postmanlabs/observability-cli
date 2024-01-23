@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -12,20 +13,16 @@ import (
 )
 
 var (
-	// Mandatory flag: Postman collection id
-	collectionId string
+	// Mandatory flags
+	collectionId   string
+	awsRegionFlag  string
+	ecsClusterFlag string
+	ecsServiceFlag string
 
-	// Any of these will be interactively prompted if not given on the command line.
-	// On the other hand, to run non-interactively then all of them *must* be given.
-	awsProfileFlag        string
-	awsRegionFlag         string
-	ecsClusterFlag        string
-	ecsServiceFlag        string
-	ecsTaskDefinitionFlag string
-
+	// Optional Flags 
+	awsProfileFlag string
 	// Location of credentials file.
 	awsCredentialsFlag string
-
 	// Print out the steps that would be taken, but do not do them
 	dryRunFlag bool
 )
@@ -63,16 +60,14 @@ var RemoveFromECSCmd = &cobra.Command{
 func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
 	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your Postman collection ID")
+	Cmd.MarkPersistentFlagRequired("collection")
 	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
-	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
-	Cmd.PersistentFlags().StringVar(&ecsServiceFlag, "service", "", "The name or ARN of your ECS service.")
-	Cmd.PersistentFlags().StringVar(
-		&ecsTaskDefinitionFlag,
-		"task",
-		"",
-		"The name of your ECS task definition to modify.",
-	)
+	Cmd.MarkPersistentFlagRequired("region")
+	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The ARN of your ECS cluster.")
+	Cmd.MarkPersistentFlagRequired("cluster")
+	Cmd.PersistentFlags().StringVar(&ecsServiceFlag, "service", "", "The ARN of your ECS service.")
+	Cmd.MarkPersistentFlagRequired("service")
 	Cmd.PersistentFlags().BoolVar(
 		&dryRunFlag,
 		"dry-run",
@@ -95,10 +90,16 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Check collecton Id's existence
-	if collectionId == "" {
-		return errors.New("Must specify the ID of your collection with the --collection flag.")
+	// Check if cluster and service flags specify ARN
+	if !strings.HasPrefix(ecsClusterFlag, "arn:") {
+		return errors.New("Please copy the full ARN of your ECS cluster from the AWS console")
 	}
+
+	// Check if cluster and service flags specify ARN
+	if !strings.HasPrefix(ecsServiceFlag, "arn:") {
+		return errors.New("Please copy the full ARN of your ECS service from the AWS console")
+	}
+
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
 	_, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
 	if err != nil {
