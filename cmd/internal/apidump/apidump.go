@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/akitasoftware/akita-libs/akiuri"
+	"github.com/akitasoftware/akita-libs/akid"
 
 	"github.com/akitasoftware/akita-cli/apidump"
 	"github.com/akitasoftware/akita-cli/apispec"
@@ -25,6 +25,7 @@ var (
 	outFlag                 location.Location
 	serviceFlag             string
 	postmanCollectionID     string
+	serviceID               akid.ServiceID
 	interfacesFlag          []string
 	filterFlag              string
 	sampleRateFlag          float64
@@ -67,18 +68,18 @@ var Cmd = &cobra.Command{
 			return errors.Wrap(err, "failed to load plugins")
 		}
 
-		// Check that exactly one of --out or --project is specified.
+		// Check that exactly one of --out, --project or --collection is specified.
 		if !outFlag.IsSet() && serviceFlag == "" && postmanCollectionID == "" {
 			return errors.New("exactly one of --out, --project or --collection must be specified")
 		}
 
-		// If --project was given, convert it to an equivalent --out.
+		// If --project was given, convert serviceFlag to serviceID.
 		if serviceFlag != "" {
-			uri, err := akiuri.Parse(akiuri.Scheme + serviceFlag)
+			parsedID, err := akid.ParseID(serviceFlag)
 			if err != nil {
-				return errors.Wrap(err, "bad project name")
+				return errors.Wrap(err, "failed to parse service ID")
 			}
-			outFlag.AkitaURI = &uri
+			serviceID = parsedID.(akid.ServiceID)
 		}
 
 		// Look up existing trace by tags
@@ -161,6 +162,7 @@ var Cmd = &cobra.Command{
 			Domain:                  rest.Domain,
 			Out:                     outFlag,
 			PostmanCollectionID:     postmanCollectionID,
+			ServiceID:               serviceID,
 			Tags:                    traceTags,
 			SampleRate:              sampleRateFlag,
 			WitnessesPerMinute:      rateLimitFlag,
@@ -202,14 +204,14 @@ func init() {
 		&serviceFlag,
 		"project",
 		"",
-		"Your Akita project. Exactly one of --out or --project must be specified.")
-	Cmd.Flags().MarkDeprecated("project", "For use by Akita users")
+		"Your Postman Insights serviceID. Exactly one of --out, --project, --collection must be specified.")
 
 	Cmd.Flags().StringVar(
 		&postmanCollectionID,
 		"collection",
 		"",
-		"Your Postman collectionID.")
+		"Your Postman collectionID. Exactly one of --out, --project, --collection must be specified.")
+	Cmd.Flags().MarkDeprecated("collection", "Use --project instead.")
 
 	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
 

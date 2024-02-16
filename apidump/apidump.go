@@ -88,6 +88,9 @@ type Args struct {
 	// Args used to using agent with Postman
 	PostmanCollectionID string
 
+	// ServiceID passed as serviceFlag
+	ServiceID akid.ServiceID
+
 	Interfaces     []string
 	Filter         string
 	Tags           map[tags.Key]string
@@ -184,12 +187,12 @@ func (a *apidump) LookupService() error {
 
 		a.backendSvc = backendSvc
 	} else {
-		backendSvc, err := util.GetServiceIDByName(frontClient, a.Out.AkitaURI.ServiceName)
+		err := util.VerifyServiceByServiceID(frontClient, a.ServiceID)
 		if err != nil {
 			return err
 		}
 
-		a.backendSvc = backendSvc
+		a.backendSvc = a.ServiceID
 	}
 
 	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, a.backendSvc)
