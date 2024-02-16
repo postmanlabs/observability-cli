@@ -138,7 +138,7 @@ func getDistinctID() string {
 
 			// Use the user ID if no email is present;
 			// this should be fixed in the current backend.
-			return userResponse.ID.String()
+			return fmt.Sprint(userResponse.ID)
 		}
 
 		printer.Infof("Telemetry using temporary ID; /v1/user API call failed: %v\n", err)
