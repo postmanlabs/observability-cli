@@ -125,9 +125,11 @@ func VerifyServiceByServiceID(c rest.FrontClient, serviceID akid.ServiceID) erro
 		}
 
 		if httpErr.StatusCode == 404 {
-			return fmt.Errorf("there is not service with given ID %s. Ensure that your service ID is correct", serviceID)
+			//lint:ignore ST1005 This is a user-facing error message
+			return fmt.Errorf("There is no service with given ID %s. Ensure that your service ID is correct", serviceID)
 		} else if httpErr.StatusCode == 403 {
-			return fmt.Errorf("you cannot send traffic to the service with ID %s. "+
+			//lint:ignore ST1005 This is a user-facing error message
+			return fmt.Errorf("You cannot send traffic to the service with ID %s. "+
 				"Ensure that your service ID is correct and that you have required permissions. "+
 				"If you do not have required permissions, please contact the workspace administrator", serviceID)
 		}
