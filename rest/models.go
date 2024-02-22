@@ -24,8 +24,19 @@ type CreateServiceResponse struct {
 	ResourceID akid.ServiceID `json:"resource_id"`
 }
 
-type CreateServiceErrorResponse struct {
+type ErrorResponse struct {
 	RequestID  akid.RequestID `json:"request_id"`
 	Message    string         `json:"message"`
 	ResourceID string         `json:"resource_id"`
+}
+
+type InsightsService struct {
+	ID   akid.ServiceID `json:"service_id"`
+	Name string         `json:"service_name"`
+}
+
+type PostmanUser struct {
+	ID     int    `json:"id"`
+	Email  string `json:"email"`
+	TeamID int    `json:"team_id"`
 }

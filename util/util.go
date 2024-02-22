@@ -35,6 +35,8 @@ var (
 	// Maps postmanCollectionID to ID
 	postmanCollectionIDCache = cache.New(30*time.Second, 5*time.Minute)
 
+	serviceIDCache = cache.New(30*time.Second, 5*time.Minute)
+
 	// API timeout
 	apiTimeout = 20 * time.Second
 )
@@ -92,6 +94,52 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 	}
 	telemetry.Failure("Unknown project ID")
 	return akid.ServiceID{}, errors.Errorf("cannot determine project ID for %s", name)
+}
+
+func VerifyServiceByServiceID(c rest.FrontClient, serviceID akid.ServiceID) error {
+	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
+		"Please contact Postman support (observability-support@postman.com) with the error details"
+	failedToVerifyServiceErrMsg := "Failed to verify service for given serviceID: %s\n"
+
+	// Check if service is already verified and cached
+	if service, found := serviceIDCache.Get(serviceID.String()); found {
+		printer.Stderr.Debugf("Cached service %v for serviceID %s\n", service, akid.String(serviceID))
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), apiTimeout)
+	defer cancel()
+
+	service, err := c.GetService(ctx, serviceID)
+	if err != nil {
+		httpErr, ok := err.(rest.HTTPError)
+		if !ok {
+			printer.Stderr.Debugf(failedToVerifyServiceErrMsg, err)
+			return errors.Wrap(err, unexpectedErrMsg)
+		}
+
+		var errorResponse rest.ErrorResponse
+		if err := json.Unmarshal(httpErr.Body, &errorResponse); err != nil {
+			printer.Stderr.Debugf(failedToVerifyServiceErrMsg, err)
+			return errors.Wrap(err, unexpectedErrMsg)
+		}
+
+		if httpErr.StatusCode == 404 {
+			//lint:ignore ST1005 This is a user-facing error message
+			return fmt.Errorf("There is no service with given ID %s. Ensure that your service ID is correct", serviceID)
+		} else if httpErr.StatusCode == 403 {
+			//lint:ignore ST1005 This is a user-facing error message
+			return fmt.Errorf("You cannot send traffic to the service with ID %s. "+
+				"Ensure that your service ID is correct and that you have required permissions. "+
+				"If you do not have required permissions, please contact the workspace administrator", serviceID)
+		}
+
+		return errors.Wrap(err, unexpectedErrMsg)
+	}
+
+	serviceIDCache.Set(serviceID.String(), service, cache.DefaultExpiration)
+
+	return nil
 }
 
 func GetServiceIDByPostmanCollectionID(c rest.FrontClient, ctx context.Context, collectionID string) (akid.ServiceID, error) {
@@ -160,7 +208,7 @@ func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID 
 			return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 		}
 
-		var errorResponse rest.CreateServiceErrorResponse
+		var errorResponse rest.ErrorResponse
 		if err := json.Unmarshal(httpErr.Body, &errorResponse); err != nil {
 			printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
 			return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
