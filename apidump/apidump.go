@@ -151,8 +151,9 @@ type Args struct {
 type apidump struct {
 	*Args
 
-	backendSvc  akid.ServiceID
-	learnClient rest.LearnClient
+	backendSvc     akid.ServiceID
+	backendSvcName string
+	learnClient    rest.LearnClient
 
 	startTime   time.Time
 	dumpSummary *Summary
@@ -169,7 +170,7 @@ func newSession(args *Args) *apidump {
 
 // Is the target the Akita backend as expected, or a local HAR file?
 func (a *apidump) TargetIsRemote() bool {
-	return a.Out.AkitaURI != nil || a.PostmanCollectionID != ""
+	return a.Out.AkitaURI != nil || a.PostmanCollectionID != "" || a.ServiceID != akid.ServiceID{}
 }
 
 // Lookup the service and create a learn client targeting it.
@@ -186,13 +187,15 @@ func (a *apidump) LookupService() error {
 		}
 
 		a.backendSvc = backendSvc
+		a.backendSvcName = "Postman_Collection_" + a.PostmanCollectionID
 	} else {
-		err := util.VerifyServiceByServiceID(frontClient, a.ServiceID)
+		serviceName, err := util.GetServiceNameByServiceID(frontClient, a.ServiceID)
 		if err != nil {
 			return err
 		}
 
 		a.backendSvc = a.ServiceID
+		a.backendSvcName = serviceName
 	}
 
 	a.learnClient = rest.NewLearnClient(a.Domain, a.ClientID, a.backendSvc)
@@ -556,11 +559,10 @@ func (a *apidump) Run() error {
 				return errors.Errorf("Cannot automatically rotate sessions when a session name is provided.")
 			}
 		}
-	} else if args.PostmanCollectionID != "" {
+	} else if (args.PostmanCollectionID != "" || args.ServiceID != akid.ServiceID{}) {
 		args.Out.AkitaURI = &akiuri.URI{
-			ObjectType: akiuri.TRACE.Ptr(),
-			// Placeholder name for postman collectionIds
-			ServiceName: "Postman_" + args.PostmanCollectionID,
+			ObjectType:  akiuri.TRACE.Ptr(),
+			ServiceName: a.backendSvcName,
 			ObjectName:  util.RandomLearnSessionName(),
 		}
 	}

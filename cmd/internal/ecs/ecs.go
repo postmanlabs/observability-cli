@@ -121,7 +121,7 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 			return errors.Wrap(err, "failed to parse service ID")
 		}
 
-		err = util.VerifyServiceByServiceID(frontClient, serviceID)
+		_, err = util.GetServiceNameByServiceID(frontClient, serviceID)
 		if err != nil {
 			return err
 		}

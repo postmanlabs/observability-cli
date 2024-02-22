@@ -23,9 +23,8 @@ import (
 var (
 	// Optional flags
 	outFlag                 location.Location
-	serviceFlag             string
+	projectID               string
 	postmanCollectionID     string
-	serviceID               akid.ServiceID
 	interfacesFlag          []string
 	filterFlag              string
 	sampleRateFlag          float64
@@ -68,17 +67,18 @@ var Cmd = &cobra.Command{
 			return errors.Wrap(err, "failed to load plugins")
 		}
 
-		// Check that exactly one of --out, --project or --collection is specified.
-		if !outFlag.IsSet() && serviceFlag == "" && postmanCollectionID == "" {
-			return errors.New("exactly one of --out, --project or --collection must be specified")
+		// Check that exactly one of --project or --collection is specified.
+		if projectID == "" && postmanCollectionID == "" {
+			return errors.New("exactly one of --project or --collection must be specified")
 		}
 
-		// If --project was given, convert serviceFlag to serviceID.
-		if serviceFlag != "" {
+		// If --project was given, convert projectID to serviceID.
+		var serviceID akid.ServiceID
+		if projectID != "" {
 			var serviceID akid.ServiceID
-			err := akid.ParseIDAs(serviceFlag, serviceID)
+			err := akid.ParseIDAs(projectID, serviceID)
 			if err != nil {
-				return errors.Wrap(err, "failed to parse service ID")
+				return errors.Wrap(err, "failed to parse project ID")
 			}
 		}
 
@@ -107,22 +107,18 @@ var Cmd = &cobra.Command{
 		}
 
 		// Allow specification of an alternate rotation time, default 1h.
+		// We can rotate the trace if we're sending the output to a cloud-based trace.
 		// But, if the trace name is explicitly given, or selected by tag,
 		// or we're sending the output to a local file, then we cannot rotate.
 		traceRotateInterval := time.Duration(0)
-		if outFlag.AkitaURI != nil {
+		if (outFlag.AkitaURI != nil && outFlag.AkitaURI.ObjectName == "") || projectID != "" || postmanCollectionID != "" {
 			if traceRotateFlag != "" {
-				if outFlag.AkitaURI.ObjectName != "" {
-					return errors.New("Cannot specify trace rotation along with a specific trace.")
-				}
 				traceRotateInterval, err = time.ParseDuration(traceRotateFlag)
 				if err != nil {
 					return errors.Wrap(err, "Failed to parse trace rotation interval.")
 				}
 			} else {
-				if outFlag.AkitaURI.ObjectName == "" {
-					traceRotateInterval = apispec.DefaultTraceRotateInterval
-				}
+				traceRotateInterval = apispec.DefaultTraceRotateInterval
 			}
 		}
 
@@ -194,40 +190,20 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.Flags().Var(
-		&outFlag,
-		"out",
-		"The location to store the trace. Can be an AkitaURI or a local directory. Defaults to a trace on the Akita Cloud. Exactly one of --out or --project must be specified.")
-	Cmd.Flags().MarkDeprecated("out", "For use by Akita users")
-
 	Cmd.Flags().StringVar(
-		&serviceFlag,
+		&projectID,
 		"project",
 		"",
-		"Your Postman Insights serviceID. Exactly one of --out, --project, --collection must be specified.")
+		"Your Postman Insights projectID.")
 
 	Cmd.Flags().StringVar(
 		&postmanCollectionID,
 		"collection",
 		"",
-		"Your Postman collectionID. Exactly one of --out, --project, --collection must be specified.")
+		"Your Postman collectionID. Exactly one of --project, --collection must be specified.")
 	Cmd.Flags().MarkDeprecated("collection", "Use --project instead.")
 
-	Cmd.MarkFlagsMutuallyExclusive("out", "project", "collection")
-
-	Cmd.Flags().StringVar(
-		&serviceFlag,
-		"service",
-		"",
-		"Your Akita project.")
-	Cmd.Flags().MarkDeprecated("service", "use --project instead.")
-
-	Cmd.Flags().StringVar(
-		&serviceFlag,
-		"cluster",
-		"",
-		"Your Akita project.")
-	Cmd.Flags().MarkDeprecated("cluster", "use --project instead.")
+	Cmd.MarkFlagsMutuallyExclusive("project", "collection")
 
 	Cmd.Flags().StringVar(
 		&filterFlag,
