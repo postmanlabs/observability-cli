@@ -75,11 +75,11 @@ var Cmd = &cobra.Command{
 
 		// If --project was given, convert serviceFlag to serviceID.
 		if serviceFlag != "" {
-			parsedID, err := akid.ParseID(serviceFlag)
+			var serviceID akid.ServiceID
+			err := akid.ParseIDAs(serviceFlag, serviceID)
 			if err != nil {
 				return errors.Wrap(err, "failed to parse service ID")
 			}
-			serviceID = parsedID.(akid.ServiceID)
 		}
 
 		// Look up existing trace by tags
