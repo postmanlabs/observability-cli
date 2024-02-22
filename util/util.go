@@ -102,7 +102,7 @@ func VerifyServiceByServiceID(c rest.FrontClient, serviceID akid.ServiceID) erro
 	failedToVerifyServiceErrMsg := "Failed to verify service for given serviceID: %s\n"
 
 	// Check if service is already verified and cached
-	if service, found := serviceIDCache.Get(akid.String(serviceID)); found {
+	if service, found := serviceIDCache.Get(serviceID.String()); found {
 		printer.Stderr.Debugf("Cached service %v for serviceID %s\n", service, akid.String(serviceID))
 		return nil
 	}
@@ -137,7 +137,7 @@ func VerifyServiceByServiceID(c rest.FrontClient, serviceID akid.ServiceID) erro
 		return errors.Wrap(err, unexpectedErrMsg)
 	}
 
-	serviceIDCache.Set(akid.String(serviceID), service, cache.DefaultExpiration)
+	serviceIDCache.Set(serviceID.String(), service, cache.DefaultExpiration)
 
 	return nil
 }
