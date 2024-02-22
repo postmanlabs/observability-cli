@@ -88,7 +88,7 @@ type Args struct {
 	// Args used to using agent with Postman
 	PostmanCollectionID string
 
-	// ServiceID passed as serviceFlag
+	// ServiceID parsed from projectID
 	ServiceID akid.ServiceID
 
 	Interfaces     []string
