@@ -59,7 +59,7 @@ func init() {
 		&tagsFlag,
 		"tags",
 		nil,
-		`Adds tags to the uploaded object. Specified as a comma-seprated list of "key=value" pairs.`,
+		`Adds tags to the uploaded object. Specified as a comma-separated list of "key=value" pairs.`,
 	)
 
 	Cmd.Flags().BoolVar(

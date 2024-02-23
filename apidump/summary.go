@@ -51,7 +51,7 @@ func NewSummary(
 }
 
 // Dumps packet counters for packets captured and sent to the Akita backend.
-// If the debug flag is set, also prints packets taht were captured but not
+// If the debug flag is set, also prints packets that were captured but not
 // sent to the backend.
 func (s *Summary) PrintPacketCounts() {
 	s.PrintPacketCountHighlights()

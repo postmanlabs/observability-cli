@@ -86,7 +86,7 @@ func runLearnMode() error {
 // trace is captured (e.g., whether the capture was user-initiated or is from
 // CI, and any applicable information from CI).
 func runAPIDump(clientID akid.ClientID, projectName string, tagsMap map[tags.Key]string, plugins []plugin.AkitaPlugin) (*akiuri.URI, error) {
-	// Determing packet filter.
+	// Determine packet filter.
 	var packetFilter string
 	{
 		// Translate --port and --bpf-filter flags

@@ -47,7 +47,7 @@ var (
 )
 
 const (
-	// The fallback to trying compression algorithms is more exprensive because there doesn't seem to be a
+	// The fallback to trying compression algorithms is more expensive because there doesn't seem to be a
 	// good way of interrogating the algorithms about whether the stream is OK. So we limit the amount of
 	// data is may consume or produce.
 	MaxFallbackInput  = 1 * 1024 * 1024
@@ -193,10 +193,10 @@ func ParseHTTP(elem akinet.ParsedNetworkContent) (*PartialWitness, error) {
 }
 
 // Today body has been completely assembled, but we accept a Reader to allow us to
-// stream throught he decompression later, if it becomes feasible.
+// stream through the decompression later, if it becomes feasible.
 //
 // TODO: some of the compression algorithms return a ReadCloser, but it
-// doesn't look like there's a good standard library way to propogate closes
+// doesn't look like there's a good standard library way to propagate closes
 // all the way back.  So they'd all have to be deferred here?
 func decompress(compression string, body io.Reader) (io.Reader, error) {
 	printer.Debugf("Decompressing body using %s\n", compression)
@@ -662,7 +662,7 @@ func parseHTTPBodyJSON(stream io.Reader) (*pb.Data, error) {
 		return nil, errors.Wrapf(err, "couldn't parse JSON")
 	}
 
-	// JSON already distingishes string values from non-string values, so don't
+	// JSON already distinguishes string values from non-string values, so don't
 	// interpret strings.
 	return parseElem(top, spec_util.NO_INTERPRET_STRINGS), nil
 }
