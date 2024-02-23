@@ -75,8 +75,7 @@ var Cmd = &cobra.Command{
 		// If --project was given, convert projectID to serviceID.
 		var serviceID akid.ServiceID
 		if projectID != "" {
-			var serviceID akid.ServiceID
-			err := akid.ParseIDAs(projectID, serviceID)
+			err := akid.ParseIDAs(projectID, &serviceID)
 			if err != nil {
 				return errors.Wrap(err, "failed to parse project ID")
 			}

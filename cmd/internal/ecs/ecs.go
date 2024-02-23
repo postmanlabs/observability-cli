@@ -116,7 +116,7 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 		}
 	} else {
 		var serviceID akid.ServiceID
-		err := akid.ParseIDAs(projectId, serviceID)
+		err := akid.ParseIDAs(projectId, &serviceID)
 		if err != nil {
 			return errors.Wrap(err, "failed to parse service ID")
 		}
