@@ -29,6 +29,7 @@ var (
 )
 
 var Cmd = &cobra.Command{
+	Deprecated:   "This is no longer supported and will be removed in a future release.",
 	Use:          "nginx",
 	Short:        "Install or use Akita's NGINX module to collect API traffic.",
 	SilenceUsage: true,
