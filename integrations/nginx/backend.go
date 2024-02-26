@@ -68,7 +68,7 @@ func (b *NginxBackend) SendInitialTelemetry() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
 	defer cancel()
-	err := b.learnClient.PostInitialClientTelemetry(ctx, b.backendSvc, b.deployment, req)
+	err := b.learnClient.PostInitialClientTelemetry(ctx, b.backendSvc, req)
 	if err != nil {
 		// Log an error and continue.
 		printer.Stderr.Errorf("Failed to send initial telemetry statistics: %s\n", err)
@@ -83,7 +83,7 @@ func (b *NginxBackend) SendTelemetry(req *kgxapi.PostClientPacketCaptureStatsReq
 
 	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
 	defer cancel()
-	err := b.learnClient.PostClientPacketCaptureStats(ctx, b.backendSvc, b.deployment, *req)
+	err := b.learnClient.PostClientPacketCaptureStats(ctx, b.backendSvc, *req)
 	if err != nil {
 		// Log an error and continue.
 		printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
