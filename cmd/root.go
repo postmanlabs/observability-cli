@@ -13,22 +13,12 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"github.com/akitasoftware/akita-cli/cmd/internal/apidiff"
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
-	"github.com/akitasoftware/akita-cli/cmd/internal/apispec"
-	"github.com/akitasoftware/akita-cli/cmd/internal/ascii"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
-	"github.com/akitasoftware/akita-cli/cmd/internal/daemon"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ec2"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ecs"
-	"github.com/akitasoftware/akita-cli/cmd/internal/get"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube"
-	"github.com/akitasoftware/akita-cli/cmd/internal/learn"
-	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
-	"github.com/akitasoftware/akita-cli/cmd/internal/login"
-	"github.com/akitasoftware/akita-cli/cmd/internal/nginx"
-	"github.com/akitasoftware/akita-cli/cmd/internal/setversion"
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -270,33 +260,9 @@ func init() {
 
 	// Register subcommands. Most commands that interact with Akita Cloud should
 	// be guarded by ci_guard.
-	rootCmd.AddCommand(ci_guard.GuardCommand(apidiff.Cmd))
 	rootCmd.AddCommand(ci_guard.GuardCommand(apidump.Cmd))
-	rootCmd.AddCommand(ci_guard.GuardCommand(apispec.Cmd))
-	daemon.Cmd.Hidden = true
-	rootCmd.AddCommand(daemon.Cmd)
-	rootCmd.AddCommand(ci_guard.GuardCommand(learn.Cmd))
-	login.Cmd.Hidden = true
-	rootCmd.AddCommand(login.Cmd)
-	rootCmd.AddCommand(ci_guard.GuardCommand(setversion.Cmd))
 
-	// The upload command is disabled until the back end can support it properly.
-	// Keeping its code around until we can resurrect this feature.
-	//
-	// rootCmd.AddCommand(ci_guard.GuardCommand(upload.Cmd))
-
-	rootCmd.AddCommand(ci_guard.GuardCommand(get.Cmd))
 	rootCmd.AddCommand(ecs.Cmd)
-	rootCmd.AddCommand(nginx.Cmd)
 	rootCmd.AddCommand(kube.Cmd)
 	rootCmd.AddCommand(ec2.Cmd)
-
-	// Legacy commands, included for backward compatibility but are hidden.
-	legacy.SessionsCmd.Hidden = true
-	rootCmd.AddCommand(legacy.SessionsCmd)
-	legacy.SpecsCmd.Hidden = true
-	rootCmd.AddCommand(legacy.SpecsCmd)
-
-	// Special hidden comands
-	rootCmd.AddCommand(ascii.Cmd)
 }

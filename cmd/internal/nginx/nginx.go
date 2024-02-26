@@ -33,7 +33,6 @@ var Cmd = &cobra.Command{
 	Use:          "nginx",
 	Short:        "Install or use Akita's NGINX module to collect API traffic.",
 	SilenceUsage: true,
-	Hidden:       false,
 }
 
 var CaptureCmd = &cobra.Command{
