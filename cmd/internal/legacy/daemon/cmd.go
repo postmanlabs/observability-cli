@@ -24,6 +24,7 @@ var (
 )
 
 var Cmd = &cobra.Command{
+	Deprecated:   "This is no longer supported and will be removed in a future release.",
 	Use:          "daemon",
 	Short:        "Run the Akita client daemon.",
 	SilenceUsage: true,
