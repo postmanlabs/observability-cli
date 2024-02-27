@@ -17,6 +17,7 @@ var (
 )
 
 var Cmd = &cobra.Command{
+	Deprecated:   "This is no longer supported and might be removed in a future release.",
 	Use:          "setup",
 	Short:        "Add the Postman Live Collections Agent to the current server.",
 	Long:         "The CLI will add the Postman Live Collections Agent as a systemd service to your current server.",
