@@ -7,13 +7,17 @@ import (
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
+	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 var (
-	// Mandatory flag: Postman collection id
+	// Postman collection id
 	collectionId string
+
+	// Live Insights project id
+	projectId string
 
 	// Any of these will be interactively prompted if not given on the command line.
 	// On the other hand, to run non-interactively then all of them *must* be given.
@@ -62,7 +66,11 @@ var RemoveFromECSCmd = &cobra.Command{
 
 func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
+	Cmd.PersistentFlags().StringVar(&projectId, "project", "", "Your Insights Project ID")
+
 	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your Postman collection ID")
+	Cmd.Flags().MarkDeprecated("collection", "Use --project instead.")
+
 	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
@@ -96,13 +104,27 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check collecton Id's existence
-	if collectionId == "" {
-		return errors.New("Must specify the ID of your collection with the --collection flag.")
+	if collectionId == "" && projectId == "" {
+		return errors.New("exactly one of --project or --collection must be specified")
 	}
+
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
-	_, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
-	if err != nil {
-		return err
+	if collectionId != "" {
+		_, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
+		if err != nil {
+			return err
+		}
+	} else {
+		var serviceID akid.ServiceID
+		err := akid.ParseIDAs(projectId, &serviceID)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse service ID")
+		}
+
+		_, err = util.GetServiceNameByServiceID(frontClient, serviceID)
+		if err != nil {
+			return err
+		}
 	}
 
 	return RunAddWorkflow()

@@ -141,7 +141,7 @@ func getDistinctID() string {
 			return fmt.Sprint(userResponse.ID)
 		}
 
-		printer.Infof("Telemetry using temporary ID; /v1/user API call failed: %v\n", err)
+		printer.Infof("Telemetry using temporary ID; GetUser API call failed: %v\n", err)
 		printer.Infof("This error may indicate a problem communicating with the Postman servers,\n")
 		printer.Infof("but the agent will still attempt to send telemetry to Postman support.\n")
 	}

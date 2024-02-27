@@ -848,9 +848,17 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		}...)
 	}
 
+	var entryPoint []string
+
+	if collectionId != "" {
+		entryPoint = []string{"/postman-lc-agent", "apidump", "--collection", collectionId}
+	} else {
+		entryPoint = []string{"/postman-lc-agent", "apidump", "--project", projectId}
+	}
+
 	agentContainer := types.ContainerDefinition{
 		Name:       aws.String("postman-lc-agent"),
-		EntryPoint: []string{"/postman-lc-agent", "apidump", "--collection", collectionId},
+		EntryPoint: entryPoint,
 		Environment: append(envs, []types.KeyValuePair{
 			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
 			// Setting these environment variables will cause the traces to be tagged.
