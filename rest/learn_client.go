@@ -127,13 +127,13 @@ func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []ak
 	return resp.ID, err
 }
 
-// Deprecated: Used in legacy and get command which is deprecated.
+// Used only for integration tests
 func (c *learnClientImpl) GetSpec(ctx context.Context, api akid.APISpecID, opts GetSpecOptions) (kgxapi.GetSpecResponse, error) {
 	qs := make(url.Values)
 	if !opts.EnableRelatedTypes {
 		qs.Add("strip_related_annotations", "true")
 	}
-	p := path.Join("/v1/services", akid.String(c.serviceID), "specs", akid.String(api))
+	p := path.Join("/v2/agent/services", akid.String(c.serviceID), "specs", akid.String(api))
 
 	var resp kgxapi.GetSpecResponse
 	err := c.GetWithQuery(ctx, p, qs, &resp)
@@ -155,10 +155,10 @@ func (c *learnClientImpl) ListSpecs(ctx context.Context) ([]kgxapi.SpecInfo, err
 	return resp.Specs, err
 }
 
-// Deprecated: Used in legacy commands which are deprecated.
+// Used only for integration tests
 func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (kgxapi.APISpecVersion, error) {
 	var resp kgxapi.APISpecVersion
-	p := path.Join("/v1/services", akid.String(c.serviceID), "spec-versions", version)
+	p := path.Join("/v2/agent/services", akid.String(c.serviceID), "spec-versions", version)
 	err := c.Get(ctx, p, &resp)
 	if err != nil {
 		return kgxapi.APISpecVersion{}, err
