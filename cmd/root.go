@@ -19,6 +19,7 @@ import (
 	"github.com/akitasoftware/akita-cli/cmd/internal/ec2"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ecs"
 	"github.com/akitasoftware/akita-cli/cmd/internal/kube"
+	"github.com/akitasoftware/akita-cli/cmd/internal/legacy"
 	"github.com/akitasoftware/akita-cli/pcap"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -265,4 +266,8 @@ func init() {
 	rootCmd.AddCommand(ecs.Cmd)
 	rootCmd.AddCommand(kube.Cmd)
 	rootCmd.AddCommand(ec2.Cmd)
+
+	// Legacy command, included for integration tests but is hidden.
+	legacy.SpecsCmd.Hidden = true
+	rootCmd.AddCommand(legacy.SpecsCmd)
 }
