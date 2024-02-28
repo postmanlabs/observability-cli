@@ -13,7 +13,6 @@ import (
 	kgxapi "github.com/akitasoftware/akita-libs/api_schema"
 	"github.com/akitasoftware/akita-libs/path_trie"
 	"github.com/akitasoftware/akita-libs/tags"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -37,7 +36,7 @@ func NewLearnClient(host string, cli akid.ClientID, svc akid.ServiceID) *learnCl
 }
 
 func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.ServiceID, tags map[tags.Key]string, limit int, offset int) ([]*kgxapi.ListedLearnSession, error) {
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
+	p := path.Join("/v2/agent/services", akid.String(c.serviceID), "learn")
 	q := url.Values{}
 	q.Add("limit", strconv.Itoa(limit))
 	q.Add("offset", strconv.Itoa(offset))
@@ -54,7 +53,7 @@ func (c *learnClientImpl) ListLearnSessions(ctx context.Context, svc akid.Servic
 }
 
 func (c *learnClientImpl) ListLearnSessionsWithStats(ctx context.Context, svc akid.ServiceID, limit int) ([]*kgxapi.ListedLearnSession, error) {
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
+	p := path.Join("/v2/agent/services", akid.String(c.serviceID), "learn")
 	q := url.Values{}
 	q.Add("limit", fmt.Sprintf("%d", limit))
 	q.Add("get_stats", "true")
@@ -67,6 +66,7 @@ func (c *learnClientImpl) ListLearnSessionsWithStats(ctx context.Context, svc ak
 	return resp.Sessions, nil
 }
 
+// Deprecated: Only used in learn command which is deprecated.
 func (c *learnClientImpl) GetLearnSession(ctx context.Context, svc akid.ServiceID, lrn akid.LearnSessionID) (*kgxapi.LearnSession, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn))
 	var resp kgxapi.LearnSession
@@ -80,7 +80,7 @@ func (c *learnClientImpl) GetLearnSession(ctx context.Context, svc akid.ServiceI
 func (c *learnClientImpl) CreateLearnSession(ctx context.Context, baseSpecRef *kgxapi.APISpecReference, name string, tags map[tags.Key]string) (akid.LearnSessionID, error) {
 	req := kgxapi.CreateLearnSessionRequest{BaseAPISpecRef: baseSpecRef, Tags: tags, Name: name}
 	var resp kgxapi.LearnSession
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn")
+	p := path.Join("/v2/agent/services", akid.String(c.serviceID), "learn")
 	err := c.Post(ctx, p, req, &resp)
 	if err != nil {
 		return akid.LearnSessionID{}, err
@@ -92,10 +92,11 @@ func (c *learnClientImpl) AsyncReportsUpload(ctx context.Context, lrn akid.Learn
 	req.ClientID = c.clientID
 	resp := map[string]interface{}{}
 
-	p := path.Join("/v1/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_reports")
+	p := path.Join("/v2/agent/services", akid.String(c.serviceID), "learn", akid.String(lrn), "async_reports")
 	return c.Post(ctx, p, req, &resp)
 }
 
+// Deprecated: Function not used anywhere.
 func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []akid.LearnSessionID, opts CreateSpecOptions) (akid.APISpecID, error) {
 	// Go cannot marshal regexp into JSON unfortunately.
 	pathExclusions := make([]string, len(opts.PathExclusions))
@@ -126,6 +127,7 @@ func (c *learnClientImpl) CreateSpec(ctx context.Context, name string, lrns []ak
 	return resp.ID, err
 }
 
+// Deprecated: Used in legacy and get command which is deprecated.
 func (c *learnClientImpl) GetSpec(ctx context.Context, api akid.APISpecID, opts GetSpecOptions) (kgxapi.GetSpecResponse, error) {
 	qs := make(url.Values)
 	if !opts.EnableRelatedTypes {
@@ -138,6 +140,7 @@ func (c *learnClientImpl) GetSpec(ctx context.Context, api akid.APISpecID, opts 
 	return resp, err
 }
 
+// Deprecated: Used only in get command which is deprecated.
 func (c *learnClientImpl) ListSpecs(ctx context.Context) ([]kgxapi.SpecInfo, error) {
 	qs := make(url.Values)
 
@@ -152,6 +155,7 @@ func (c *learnClientImpl) ListSpecs(ctx context.Context) ([]kgxapi.SpecInfo, err
 	return resp.Specs, err
 }
 
+// Deprecated: Used in legacy commands which are deprecated.
 func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (kgxapi.APISpecVersion, error) {
 	var resp kgxapi.APISpecVersion
 	p := path.Join("/v1/services", akid.String(c.serviceID), "spec-versions", version)
@@ -162,6 +166,7 @@ func (c *learnClientImpl) GetSpecVersion(ctx context.Context, version string) (k
 	return resp, nil
 }
 
+// Deprecated: Used in upload command which is deprecated.
 func (c *learnClientImpl) UploadSpec(ctx context.Context, req kgxapi.UploadSpecRequest) (*kgxapi.UploadSpecResponse, error) {
 	p := path.Join("/v1/services", akid.String(c.serviceID), "upload-spec")
 	var resp kgxapi.UploadSpecResponse
@@ -169,6 +174,7 @@ func (c *learnClientImpl) UploadSpec(ctx context.Context, req kgxapi.UploadSpecR
 	return &resp, err
 }
 
+// Deprecated: Used in apidiff, get and set command which are deprecated.
 func (c *learnClientImpl) GetAPISpecIDByName(ctx context.Context, n string) (akid.APISpecID, error) {
 	resp := struct {
 		ID akid.APISpecID `json:"id"`
@@ -187,6 +193,7 @@ func (c *learnClientImpl) GetLearnSessionIDByName(ctx context.Context, n string)
 	return resp.ID, err
 }
 
+// Deprecated: Used in apidiff command which is deprecated.
 func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID akid.APISpecID) (*path_trie.PathTrie, error) {
 	var resp path_trie.PathTrie
 	path := fmt.Sprintf("/v1/services/%s/specs/%s/diff/%s/trie",
@@ -195,26 +202,19 @@ func (c *learnClientImpl) GetSpecDiffTrie(ctx context.Context, baseID, newID aki
 	return &resp, err
 }
 
-func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostClientPacketCaptureStatsRequest) error {
-	if deployment == "" {
-		return errors.Errorf("missing deployment tag")
-	}
-
-	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s", serviceID, deployment)
+func (c *learnClientImpl) PostClientPacketCaptureStats(ctx context.Context, serviceID akid.ServiceID, req kgxapi.PostClientPacketCaptureStatsRequest) error {
+	path := fmt.Sprintf("/v2/agent/services/%s/telemetry/client/deployment", serviceID)
 	var resp struct{}
 	return c.Post(ctx, path, req, &resp)
 }
 
-func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, serviceID akid.ServiceID, deployment string, req kgxapi.PostInitialClientTelemetryRequest) error {
-	if deployment == "" {
-		return errors.Errorf("missing deployment tag")
-	}
-
-	path := fmt.Sprintf("/v1/services/%s/telemetry/client/deployment/%s/start", serviceID, deployment)
+func (c *learnClientImpl) PostInitialClientTelemetry(ctx context.Context, serviceID akid.ServiceID, req kgxapi.PostInitialClientTelemetryRequest) error {
+	path := fmt.Sprintf("/v2/agent/services/%s/telemetry/client/deployment/start", serviceID)
 	var resp struct{}
 	return c.Post(ctx, path, req, &resp)
 }
 
+// Deprecated: Used in setversion command which is deprecated.
 func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpecID, versionName string) error {
 	resp := struct {
 	}{}
@@ -228,6 +228,7 @@ func (c *learnClientImpl) SetSpecVersion(ctx context.Context, specID akid.APISpe
 }
 
 // Returns events aggregated in 1-minute intervals.
+// Deprecated: Used in get command which is deprecated.
 func (c *learnClientImpl) GetTimeline(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, limit int) (kgxapi.TimelineResponse, error) {
 	path := fmt.Sprintf("/v1/services/%s/timeline/%s/query",
 		akid.String(serviceID), deployment)
@@ -249,6 +250,7 @@ func (c *learnClientImpl) GetTimeline(ctx context.Context, serviceID akid.Servic
 }
 
 // Return the edges of the service graph in the specified time window
+// Deprecated: Used in get command which is deprecated.
 func (c *learnClientImpl) GetGraphEdges(ctx context.Context, serviceID akid.ServiceID, deployment string, start time.Time, end time.Time, graphType string) (kgxapi.GraphResponse, error) {
 	path := fmt.Sprintf("/v1/services/%s/servicegraph/%s/query",
 		akid.String(serviceID), deployment)

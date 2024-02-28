@@ -224,7 +224,7 @@ func (a *apidump) SendInitialTelemetry() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
 	defer cancel()
-	err := a.learnClient.PostInitialClientTelemetry(ctx, a.backendSvc, a.Deployment, req)
+	err := a.learnClient.PostInitialClientTelemetry(ctx, a.backendSvc, req)
 	if err != nil {
 		// Log an error and continue.
 		printer.Stderr.Errorf("Failed to send initial telemetry statistics: %s\n", err)
@@ -273,7 +273,7 @@ func (a *apidump) SendTelemetry(req *kgxapi.PostClientPacketCaptureStatsRequest)
 
 	ctx, cancel := context.WithTimeout(context.Background(), telemetryTimeout)
 	defer cancel()
-	err := a.learnClient.PostClientPacketCaptureStats(ctx, a.backendSvc, a.Deployment, *req)
+	err := a.learnClient.PostClientPacketCaptureStats(ctx, a.backendSvc, *req)
 	if err != nil {
 		// Log an error and continue.
 		printer.Stderr.Errorf("Failed to send telemetry statistics: %s\n", err)
