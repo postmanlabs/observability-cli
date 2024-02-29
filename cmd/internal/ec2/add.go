@@ -113,7 +113,7 @@ func checkReconfiguration() error {
 				return nil
 			}
 		}
-		return errors.Wrapf(err, "failed to run systemctl is-enabled posman-lc-agent")
+		return errors.Wrapf(err, "failed to run systemctl is-enabled postman-insights-agent")
 	}
 	if strings.Contains(string(out), enabled) {
 		return askToReconfigure()
@@ -225,13 +225,13 @@ func enablePostmanAgent() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to run systemctl daemon-reload")
 	}
-	// systemctl start postman-lc-service
+	// systemctl start postman-insights-agent.service
 	cmd = exec.Command("systemctl", []string{"enable", "--now", serviceFileName}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "faild to run systemctl enable --now")
 	}
-	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using the below command \n")
+	printer.Infof("Postman Insights Agent enabled as a systemd service. Please check logs using the below command \n")
 	printer.Infof("journalctl -fu postman-insights-agent \n")
 
 	return nil
