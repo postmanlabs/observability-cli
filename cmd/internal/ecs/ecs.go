@@ -16,7 +16,7 @@ var (
 	// Postman collection id
 	collectionId string
 
-	// Live Insights project id
+	// Postman Insights project id
 	projectId string
 
 	// Any of these will be interactively prompted if not given on the command line.

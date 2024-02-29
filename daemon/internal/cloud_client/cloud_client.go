@@ -197,7 +197,7 @@ func collectTraces(traceEventChannel <-chan *TraceEvent, learnClient rest.LearnC
 		for _, e := range sampledErrs.Samples {
 			sampledErrsStr = fmt.Sprintf("%s\t- %s\n", sampledErrsStr, e)
 		}
-		printer.Stderr.Warningf("Encountered errors with %d entries for trace %s.\nPostman Live Insights will ignore entries with errors and proceed with the %d entries successfully processed.\nSample errors: %s\n", sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
+		printer.Stderr.Warningf("Encountered errors with %d entries for trace %s.\nPostman Insights will ignore entries with errors and proceed with the %d entries successfully processed.\nSample errors: %s\n", sampledErrs.TotalCount, loggingOptions.TraceID, successfulEntries, sampledErrsStr)
 	}
 }
 
