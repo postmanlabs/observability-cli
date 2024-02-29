@@ -1029,6 +1029,6 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 	}
 
 	reportStep("ECS Service Updated")
-	printer.Infof("Deployment successful! Please return to the Postman Insights you created.\n")
+	printer.Infof("Deployment successful! Please return to the Postman Insights project that you created.\n")
 	return awf_done()
 }
