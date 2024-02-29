@@ -301,7 +301,7 @@ func (s *Summary) PrintWarnings() {
 				s.PrefilterSummary.Total().HTTPRequests)
 		}
 		if env.InDocker() && env.HasDockerInternalHostAddress() {
-			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Postman Live Collections Agent with `brew install postman-lc-agent`.\n")
+			printer.Stderr.Infof("If you're using macOS and your service is not running in a Docker container, try using the native Postman Insights Agent with `brew install postman-insights-agent`.\n")
 		}
 		printer.Stderr.Errorf("%s 🛑\n\n", printer.Color.Red("No HTTP calls captured!"))
 		return

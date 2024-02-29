@@ -6,8 +6,8 @@ import (
 	"github.com/akitasoftware/go-utils/optionals"
 )
 
-/* Rest API schema objects for the communcation between
-   the NGINX module and the Postman Live Collections Agent */
+/* Rest API schema objects for the communication between
+   the NGINX module and the Postman Insights Agent */
 
 // An incoming request to Nginx.
 type MirroredRequest struct {

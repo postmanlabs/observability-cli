@@ -57,7 +57,7 @@ var (
 	isPollingMutex sync.Mutex
 )
 
-// Returns a 1-hour sliding window reflecting this Postman Live Collections Agent's CPU and
+// Returns a 1-hour sliding window reflecting this Postman Insights Agent's CPU and
 // memory usage, updated every pollingInterval minutes, or nil if resource
 // usage is unavailable.
 //
