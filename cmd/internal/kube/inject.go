@@ -38,8 +38,8 @@ var (
 
 var injectCmd = &cobra.Command{
 	Use:   "inject",
-	Short: "Inject the Postman Live Collections Agent into a Kubernetes deployment",
-	Long:  "Inject the Postman Live Collections Agent into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
+	Short: "Inject the Postman Insights Agent into a Kubernetes deployment",
+	Long:  "Inject the Postman Insights Agent into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
 	RunE: func(_ *cobra.Command, args []string) error {
 		if projectNameFlag == "" && postmanCollectionID == "" {
 			return cmderr.AkitaErr{
@@ -60,7 +60,7 @@ var injectCmd = &cobra.Command{
 		// their dependent Secrets, require that the user explicitly specify an output file.
 		if secretOpts.ShouldInject && secretOpts.Filepath.IsSome() && injectOutputFlag == "" {
 			printer.Errorln("Cannot specify a Secret file path without an output file (using --output or -o)")
-			printer.Infoln("To generate a Secret file on its own, use `postman-lc-agent kube secret`")
+			printer.Infoln("To generate a Secret file on its own, use `postman-insights-agent kube secret`")
 			return cmderr.AkitaErr{
 				Err: errors.New("invalid flag usage"),
 			}
@@ -186,8 +186,8 @@ type secretGenerationOptions struct {
 	Filepath optionals.Optional[string]
 }
 
-// The image to use for the Postman LCA sidecar
-const akitaImage = "docker.postman.com/postman-lc-agent:latest"
+// The image to use for the Postman Insights Agent sidecar
+const akitaImage = "docker.postman.com/postman-insights-agent:latest"
 
 func createAkitaSidecar(projectName string) v1.Container {
 	args := []string{"apidump", "--project", projectName}
@@ -275,7 +275,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 	}
 
 	sidecar := v1.Container{
-		Name:  "postman-lc-agent",
+		Name:  "postman-insights-agent",
 		Image: akitaImage,
 		Env:   envs,
 		Lifecycle: &v1.Lifecycle{

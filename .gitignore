@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-postman-lc-agent
+postman-insights-agent
 bin/
 
 # Test binary, built with `go test -c`

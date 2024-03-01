@@ -1,14 +1,14 @@
 [Unit]
-Description=Postman Live Collections Agent
+Description=Postman Insights Agent
 Wants=network-online.target
 After=network-online.target NetworkManager.service systemd-resolved.service
 
 [Service]
-EnvironmentFile=/etc/default/postman-lc-agent
+EnvironmentFile=/etc/default/postman-insights-agent
 # DO NOT CHANGE
 # "${FOO}" uses the arguement as is, while "$FOO" splits the string on white space 
 # Reference: https://www.freedesktop.org/software/systemd/man/systemd.service.html#Command%20lines
-ExecStart=/usr/bin/postman-lc-agent apidump --collection "${COLLECTION_ID}" --interfaces "${INTERFACES}" --filter "${FILTER}" "$EXTRA_APIDUMP_ARGS"
+ExecStart=/usr/bin/postman-insights-agent apidump --collection "${COLLECTION_ID}" --interfaces "${INTERFACES}" --filter "${FILTER}" "$EXTRA_APIDUMP_ARGS"
 
 [Install]
 WantedBy=multi-user.target

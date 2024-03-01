@@ -15,30 +15,30 @@ import (
 )
 
 const (
-	envFileName         = "postman-lc-agent"
-	envFileTemplateName = "postman-lc-agent.tmpl"
+	envFileName         = "postman-insights-agent"
+	envFileTemplateName = "postman-insights-agent.tmpl"
 	envFileBasePath     = "/etc/default/"
 	envFilePath         = envFileBasePath + envFileName
 
-	serviceFileName     = "postman-lc-agent.service"
+	serviceFileName     = "postman-insights-agent.service"
 	serviceFileBasePath = "/usr/lib/systemd/system/"
 	serviceFilePath     = serviceFileBasePath + serviceFileName
 
-	// Output of command: systemctl is-enabled postman-lc-agent
+	// Output of command: systemctl is-enabled postman-insights-agent
 	// Refer: https://www.freedesktop.org/software/systemd/man/latest/systemctl.html#Exit%20status
-	enabled     = "enabled"                                                                               // exit code: 0
-	disabled    = "disabled"                                                                              // exit code: 1
-	nonExisting = "Failed to get unit file state for postman-lc-agent.service: No such file or directory" // exit code: 1
+	enabled     = "enabled"                                                                                     // exit code: 0
+	disabled    = "disabled"                                                                                    // exit code: 1
+	nonExisting = "Failed to get unit file state for postman-insights-agent.service: No such file or directory" // exit code: 1
 )
 
 // Embed files inside the binary. Requires Go >=1.16
 
-//go:embed postman-lc-agent.service
+//go:embed postman-insights-agent.service
 var serviceFile string
 
 // FS is used for easier template parsing
 
-//go:embed postman-lc-agent.tmpl
+//go:embed postman-insights-agent.tmpl
 var envFileFS embed.FS
 
 // Helper function for reporting telemetry
@@ -73,8 +73,8 @@ func setupAgentForServer(collectionId string) error {
 func askToReconfigure() error {
 	var isReconfigure bool
 
-	printer.Infof("postman-lc-agent is already present as a systemd service\n")
-	printer.Infof("Helpful commands \n Check status: systemctl status postman-lc-agent \n Disable agent: systemctl disable --now postman-lc-agent \n Check Logs: journalctl -fu postman-lc-agent\n Check env file: cat %s \n Check systemd service file: cat %s \n", envFilePath, serviceFilePath)
+	printer.Infof("postman-insights-agent is already present as a systemd service\n")
+	printer.Infof("Helpful commands \n Check status: systemctl status postman-insights-agent \n Disable agent: systemctl disable --now postman-insights-agent \n Check Logs: journalctl -fu postman-insights-agent\n Check env file: cat %s \n Check systemd service file: cat %s \n", envFilePath, serviceFilePath)
 
 	err := survey.AskOne(
 		&survey.Confirm{
@@ -98,7 +98,7 @@ func askToReconfigure() error {
 // Check is systemd service already exists
 func checkReconfiguration() error {
 
-	cmd := exec.Command("systemctl", []string{"is-enabled", "postman-lc-agent"}...)
+	cmd := exec.Command("systemctl", []string{"is-enabled", "postman-insights-agent"}...)
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -113,7 +113,7 @@ func checkReconfiguration() error {
 				return nil
 			}
 		}
-		return errors.Wrapf(err, "failed to run systemctl is-enabled posman-lc-agent")
+		return errors.Wrapf(err, "failed to run systemctl is-enabled postman-insights-agent")
 	}
 	if strings.Contains(string(out), enabled) {
 		return askToReconfigure()
@@ -125,7 +125,7 @@ func checkReconfiguration() error {
 func checkUserPermissions() error {
 
 	// Exact permissions required are
-	// read/write permissions on /etc/default/postman-lc-agent
+	// read/write permissions on /etc/default/postman-insights-agent
 	// read/write permission on /usr/lib/system/systemd
 	// enable, daemon-reload, start, stop permission for systemctl
 
@@ -214,9 +214,9 @@ func configureSystemdFiles(collectionId string) error {
 	return nil
 }
 
-// Starts the postman LCA agent as a systemd service
+// Starts the Postman Insights Agent as a systemd service
 func enablePostmanAgent() error {
-	message := "Enabling postman-lc-agent as a service"
+	message := "Enabling postman-insights-agent as a service"
 	reportStep(message)
 	printer.Infof(message + "\n")
 
@@ -225,14 +225,14 @@ func enablePostmanAgent() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to run systemctl daemon-reload")
 	}
-	// systemctl start postman-lc-service
+	// systemctl start postman-insights-agent.service
 	cmd = exec.Command("systemctl", []string{"enable", "--now", serviceFileName}...)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "faild to run systemctl enable --now")
 	}
-	printer.Infof("Postman LC Agent enabled as a systemd service. Please check logs using the below command \n")
-	printer.Infof("journalctl -fu postman-lc-agent \n")
+	printer.Infof("Postman Insights Agent enabled as a systemd service. Please check logs using the below command \n")
+	printer.Infof("journalctl -fu postman-insights-agent \n")
 
 	return nil
 }

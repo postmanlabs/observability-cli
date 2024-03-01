@@ -96,7 +96,7 @@ func (buf *reportBuffer) Flush() error {
 			if e.StatusCode == http.StatusTooManyRequests {
 				// XXX Not all commands that call into this code have a --rate-limit
 				// option.
-				err = errors.Wrap(err, "your witness uploads are being throttled. Postman Live Insights will generate partial results. Try reducing the --rate-limit value to avoid this.")
+				err = errors.Wrap(err, "your witness uploads are being throttled. Postman Insights will generate partial results. Try reducing the --rate-limit value to avoid this.")
 			}
 		}
 

@@ -19,16 +19,16 @@ var (
 var Cmd = &cobra.Command{
 	Deprecated:   "This is no longer supported and might be removed in a future release.",
 	Use:          "setup",
-	Short:        "Add the Postman Live Collections Agent to the current server.",
-	Long:         "The CLI will add the Postman Live Collections Agent as a systemd service to your current server.",
+	Short:        "Add the Postman Insights Agent to the current server.",
+	Long:         "The CLI will add the Postman Insights Agent as a systemd service to your current server.",
 	SilenceUsage: true,
 	RunE:         addAgentToEC2,
 }
 
 var RemoveFromEC2Cmd = &cobra.Command{
 	Use:          "remove",
-	Short:        "Remove the Postman Live Collections Agent from EC2.",
-	Long:         "Remove a previously installed Postman agent from an EC2 server.",
+	Short:        "Remove the Postman Insights Agent from EC2.",
+	Long:         "Remove a previously installed Postman Insights agent from an EC2 server.",
 	SilenceUsage: true,
 	RunE:         removeAgentFromEC2,
 
@@ -45,7 +45,7 @@ func init() {
 
 func addAgentToEC2(cmd *cobra.Command, args []string) error {
 	// Check for API key
-	_, err := cmderr.RequirePostmanAPICredentials("The Postman Live Collections Agent must have an API key in order to capture traces.")
+	_, err := cmderr.RequirePostmanAPICredentials("The Postman Insights Agent must have an API key in order to capture traces.")
 	if err != nil {
 		return err
 	}

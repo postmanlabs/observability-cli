@@ -3,7 +3,7 @@
 export GO111MODULE = on
 
 build: clean
-	go build -o bin/postman-lc-agent .
+	go build -o bin/postman-insights-agent .
 
 clean:
 	go clean

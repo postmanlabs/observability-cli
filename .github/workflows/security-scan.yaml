@@ -11,6 +11,5 @@ jobs:
    name: Security Scan Job
    uses: postmanlabs/gh-security-scan-workflow/.github/workflows/security.yml@v1.0
    with: 
-     imagename: postman-lc-agent
+     imagename: postman-insights-agent
      language: "['go']"
-  

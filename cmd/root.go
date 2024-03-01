@@ -45,9 +45,9 @@ var (
 
 var (
 	rootCmd = &cobra.Command{
-		Use:           "postman-lc-agent",
-		Short:         "The Postman Live Collections Agent",
-		Long:          "Documentation is available at https://voyager.postman.com/pdf/live-insights-documentation-postman.pdf",
+		Use:           "postman-insights-agent",
+		Short:         "The Postman Insights Agent",
+		Long:          "Documentation is available at https://learning.postman.com/docs/insights/insights-early-access/",
 		Version:       version.CLIDisplayString(),
 		SilenceErrors: true, // We print our own errors from subcommands in Execute function
 		// Don't print usage after error, we only print help if we cannot parse
@@ -93,7 +93,7 @@ func preRun(cmd *cobra.Command, args []string) {
 	// Somehow, this doesn't appear before "akita --version" (good) or
 	// "akita --help" (less good), only before commands or the usage
 	// information if no command is given.
-	printer.Stdout.Infof("Postman Live Collections Agent %s\n", version.ReleaseVersion())
+	printer.Stdout.Infof("Postman Insights Agent %s\n", version.ReleaseVersion())
 
 	// This is after argument parsing so that rest.Domain is correct,
 	// but won't be called if there is an error parsing the flags.
