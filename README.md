@@ -35,7 +35,7 @@ Running the following commands will generate the `akita-cli` binary:
 
 ### How to test
 
-1. Install [gomock](https://github.com/golang/mock): `go get github.com/golang/mock/mockgen`
+1. Install [gomock](https://github.com/uber-go/mock): `go get go.uber.org/mock/gomock`
 2. `make test`
 
 ### How to use

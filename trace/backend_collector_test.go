@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	mockrest "github.com/akitasoftware/akita-cli/rest/mock"
 	pb "github.com/akitasoftware/akita-ir/go/api_spec"
@@ -33,8 +33,8 @@ type witnessRecorder struct {
 }
 
 // Record a call to LearnClient.AsyncReportsUpload
-func (wr *witnessRecorder) recordAsyncReportsUpload(args ...interface{}) {
-	reports := args[2].(*kgxapi.UploadReportsRequest)
+func (wr *witnessRecorder) recordAsyncReportsUpload(arg0, arg1, arg2 interface{}) {
+	reports := arg2.(*kgxapi.UploadReportsRequest)
 	for _, r := range reports.Witnesses {
 		bs, err := base64.URLEncoding.DecodeString(r.WitnessProto)
 		if err != nil {
