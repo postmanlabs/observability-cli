@@ -78,12 +78,6 @@ func preRun(cmd *cobra.Command, args []string) {
 		printer.SwitchToPlain()
 	case "color":
 		// No change needed
-	case "":
-		// default value, we'll be context-sensitive.  If in AKITA_DEPLOYMENT, use JSON, otherwise
-		// color.
-		if os.Getenv("AKITA_DEPLOYMENT") != "" {
-			printer.SwitchToJSON()
-		}
 	default:
 		// Use color
 		printer.Warningln("Unknown log format, using `color`.")
