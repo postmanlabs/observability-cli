@@ -284,7 +284,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 					Command: []string{
 						"/bin/sh",
 						"-c",
-						"AKITA_PID=$(pgrep akita) && kill -2 $AKITA_PID && tail -f /proc/$AKITA_PID/fd/1",
+						"POSTMAN_INSIGHTS_AGENT_PID=$(pgrep postman-insights-agent) && kill -2 $POSTMAN_INSIGHTS_AGENT_PID && tail -f /proc/$POSTMAN_INSIGHTS_AGENT_PID/fd/1",
 					},
 				},
 			},
