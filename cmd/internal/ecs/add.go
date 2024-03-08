@@ -12,6 +12,7 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/go-utils/optionals"
@@ -231,7 +232,7 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			wf.awsProfile = "default"
 			return awf_next(getProfileState)
 		}
-		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", err)
+		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to %s for assistance.\n%v\n", consts.SupportEmail, err)
 		return awf_error(errors.Wrapf(err, "Error loading AWS credentials"))
 	}
 
@@ -512,7 +513,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 			return awf_next(getTaskState)
 		}
 		printer.Errorf("Could not load ECS task definition: %v\n", describeErr)
-		return awf_error(errors.New("Error while loading ECS task definition; please contact observability-support@postman.com for assistance."))
+		return awf_error(errors.Errorf("Error while loading ECS task definition; please contact %s for assistance.", consts.SupportEmail))
 	}
 
 	wf.ecsTaskDefinition = output
@@ -900,7 +901,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
 			return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
 		}
-		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", err)
+		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to %s for assistance.\n%v\n", consts.SupportEmail, err)
 		return awf_error(errors.Wrap(err, "Error registering task definition"))
 	}
 	printer.Infof("Registered task definition %q revision %d.\n",
@@ -943,7 +944,7 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 				wf.ecsServiceARN, uoe.OperationName)
 			return awf_error(errors.New("Failed to update the ECS service due to insufficient permissions."))
 		}
-		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", wf.ecsServiceARN, err)
+		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to %s for assistance.\n%v\n", wf.ecsServiceARN, consts.SupportEmail, err)
 		return awf_error(errors.Wrapf(err, "Error updating ECS service %q", wf.ecsServiceARN))
 	}
 	printer.Infof("Updated service %q with new version of task definition.\n", wf.ecsService)
@@ -1031,7 +1032,7 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 		// TODO: guide the user through this?
 		printer.Infof("You can use the AWS web console to delete the task definition \"%s:%s\". The previous task definition should still be in use.\n",
 			wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
-		return awf_error(errors.New("The modified task failed to deploy. Please contact observability-support@postman.com for assistance."))
+		return awf_error(errors.Errorf("The modified task failed to deploy. Please contact %s for assistance.", consts.SupportEmail))
 	}
 
 	reportStep("ECS Service Updated")

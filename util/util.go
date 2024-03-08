@@ -13,6 +13,7 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
 
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -98,7 +99,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 
 func GetServiceNameByServiceID(c rest.FrontClient, serviceID akid.ServiceID) (string, error) {
 	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
-		"Please contact Postman support (observability-support@postman.com) with the error details"
+		"Please contact Postman support (" + consts.SupportEmail + ") with the error details"
 	failedToVerifyServiceErrMsg := "Failed to verify service for given serviceID: %s\n"
 
 	// Check if service is already verified and cached
@@ -173,7 +174,7 @@ func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID 
 	// Normalize the collectionID.
 	collectionID = strings.ToLower(collectionID)
 	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
-		"Please contact Postman support (observability-support@postman.com) with the error details"
+		"Please contact Postman support (" + consts.SupportEmail + ") with the error details"
 	failedToCreateServiceErrMsg := "Failed to create service for given collectionID: %s\n"
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {

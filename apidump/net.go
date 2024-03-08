@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-cli/architecture"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/env"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
@@ -89,7 +90,7 @@ func showPermissionErrors(sampleError error) error {
 	// TODO: Known errors without error-specific help:
 	//   * "The device is not up"
 	printer.Warningf("The agent could not access any network interfaces. Please contact\n")
-	printer.Warningf("observability-support@postman.com with the log messages above.\n")
+	printer.Warningf("%s with the log messages above.\n", consts.SupportEmail)
 	return NewApidumpError(api_schema.ApidumpError_PCAPInterfaceOther, "Error while checking permissions.")
 }
 
