@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ascii"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ec2"
@@ -266,6 +267,9 @@ func init() {
 	rootCmd.AddCommand(ecs.Cmd)
 	rootCmd.AddCommand(kube.Cmd)
 	rootCmd.AddCommand(ec2.Cmd)
+
+	// Easter egg.
+	rootCmd.AddCommand(ascii.Cmd)
 
 	// Legacy command, included for integration tests but is hidden.
 	legacy.SpecsCmd.Hidden = true
