@@ -96,9 +96,6 @@ const (
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
-	// Akita CLI image location
-	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
-	akitaDockerImage = "akitasoftware/cli"
 	// Postman Insights Agent image location
 	postmanECRImage = "docker.postman.com/postman-insights-agent"
 )
@@ -533,7 +530,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	// Check that the postman-insights-agent is not already present
 	for _, container := range output.ContainerDefinitions {
 		image := aws.ToString(container.Image)
-		if matchesImage(image, postmanECRImage) || matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
+		if matchesImage(image, postmanECRImage) {
 			printer.Errorf("The selected task definition already has the image %q; postman-insights-agent is already installed.\n", image)
 			printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
 			return awf_next(getTaskState)
