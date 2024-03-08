@@ -426,7 +426,7 @@ func ParseTagsAndWarn(tagsArg []string) (map[tags.Key]string, error) {
 func WarnOnReservedTags(tagSet map[tags.Key]string) {
 	for t, _ := range tagSet {
 		if tags.IsReservedKey(t) {
-			printer.Warningf("%s is an Akita-reserved key. Its value may be overwritten internally\n", t)
+			printer.Warningf("%s is a Postman-reserved key. Its value may be overwritten internally\n", t)
 		}
 	}
 }

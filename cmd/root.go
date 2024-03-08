@@ -84,9 +84,9 @@ func preRun(cmd *cobra.Command, args []string) {
 	}
 
 	// Emit the version (without hash) at the start of every command.
-	// Somehow, this doesn't appear before "akita --version" (good) or
-	// "akita --help" (less good), only before commands or the usage
-	// information if no command is given.
+	// Somehow, this doesn't appear before "postman-insights-agent --version"
+	// (good) or "postman-insights-agent --help" (less good), only before
+	// commands or the usage information if no command is given.
 	printer.Stdout.Infof("Postman Insights Agent %s\n", version.ReleaseVersion())
 
 	// This is after argument parsing so that rest.Domain is correct,
@@ -167,7 +167,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", "", "The domain name of Akita cloud instance to use.")
+	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", "", "The domain name of the back-end instance to use.")
 	rootCmd.PersistentFlags().MarkHidden("domain")
 
 	// Use a proxy or permit a mismatched certificate.
@@ -204,7 +204,7 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("test_only_disable_https")
 	viper.BindPFlag("test_only_disable_https", rootCmd.PersistentFlags().Lookup("test_only_disable_https"))
 
-	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "Capture HTTP traffic to Akita services that would ordinarily be filtered, and enable assertions")
+	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "Capture HTTP traffic to Postman services that would ordinarily be filtered, and enable assertions")
 	rootCmd.PersistentFlags().MarkHidden("dogfood")
 	viper.BindPFlag("dogfood", rootCmd.PersistentFlags().Lookup("dogfood"))
 

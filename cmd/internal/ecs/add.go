@@ -77,6 +77,9 @@ type AddWorkflow struct {
 	ecsServiceARN arn
 
 	// TODO: provide a flag that re-enables use of secrets
+	//
+	// XXX The code enabled by this variable needs to be updated for Postman.
+	//
 	// The problem is that the container's assumed role needs permission to
 	// read the configured secrets, which seems difficult to set up here.
 	secretsEnabled bool
@@ -212,7 +215,7 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	err = survey.AskOne(
 		&survey.Input{
 			Message: "Which of your AWS profiles should be used to configure ECS?",
-			Help:    "Enter the name of the AWS profile you use for configuring ECS, or leave blank to try the default profile. Akita needs this information to identify which AWS credentials to use.",
+			Help:    "Enter the name of the AWS profile you use for configuring ECS, or leave blank to try the default profile. This information is needed to identify which AWS credentials to use.",
 			// Use the existing value as the default in case we repeat this step
 			Default: wf.awsProfile,
 		},
@@ -632,6 +635,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	return awf_next(confirmState)
 }
 
+// XXX Unused. Needs to be updated for Postman.
 func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get Akita Secrets")
 
@@ -657,6 +661,8 @@ func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 func (wf *AddWorkflow) showPlannedChanges() {
 	printer.Infof("--- Planned changes ---\n")
 	if wf.secretsEnabled {
+		// XXX This branch of code is disabled; needs to be updated for Postman.
+
 		if !wf.akitaSecrets.idExists {
 			printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key ID.\n",
 				defaultKeyIDName, wf.awsRegion)
@@ -760,6 +766,9 @@ func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSta
 }
 
 // Add the missing secrets.
+//
+// XXX Unused. Needs to be updated for Postman.
+//
 // (TODO: if one is absent but the other is present we really ought to update both, but that's
 // a separate AWS call so the logic is more complicated.)
 func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
