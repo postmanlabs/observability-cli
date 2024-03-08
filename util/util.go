@@ -99,11 +99,11 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 func GetServiceNameByServiceID(c rest.FrontClient, serviceID akid.ServiceID) (string, error) {
 	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
 		"Please contact Postman support (observability-support@postman.com) with the error details"
-	failedToVerifyServiceErrMsg := "Failed to verify service for given serviceID: %s\n"
+	failedToGetProjectErrMsg := "Failed to get project for given projectID: %s\n"
 
 	// Check if service is already verified and cached
 	if service, found := serviceIDCache.Get(serviceID.String()); found {
-		printer.Stderr.Debugf("Cached service %v for serviceID %s\n", service, akid.String(serviceID))
+		printer.Stderr.Debugf("Cached project %v for projectID %s\n", service, akid.String(serviceID))
 		return service.(rest.InsightsService).Name, nil
 	}
 
@@ -114,23 +114,23 @@ func GetServiceNameByServiceID(c rest.FrontClient, serviceID akid.ServiceID) (st
 	if err != nil {
 		httpErr, ok := err.(rest.HTTPError)
 		if !ok {
-			printer.Stderr.Debugf(failedToVerifyServiceErrMsg, err)
+			printer.Stderr.Debugf(failedToGetProjectErrMsg, err)
 			return "", errors.Wrap(err, unexpectedErrMsg)
 		}
 
 		var errorResponse rest.ErrorResponse
 		if err := json.Unmarshal(httpErr.Body, &errorResponse); err != nil {
-			printer.Stderr.Debugf(failedToVerifyServiceErrMsg, err)
+			printer.Stderr.Debugf(failedToGetProjectErrMsg, err)
 			return "", errors.Wrap(err, unexpectedErrMsg)
 		}
 
 		if httpErr.StatusCode == 404 {
 			//lint:ignore ST1005 This is a user-facing error message
-			return "", fmt.Errorf("There is no service with given ID %s. Ensure that your service ID is correct", serviceID)
+			return "", fmt.Errorf("There is no project with given ID %s. Ensure that your projectID is correct", serviceID)
 		} else if httpErr.StatusCode == 403 {
 			//lint:ignore ST1005 This is a user-facing error message
-			return "", fmt.Errorf("You cannot send traffic to the service with ID %s. "+
-				"Ensure that your service ID is correct and that you have required permissions. "+
+			return "", fmt.Errorf("You cannot send traffic to the project with ID %s. "+
+				"Ensure that your projectID is correct and that you have required permissions. "+
 				"If you do not have required permissions, please contact the workspace administrator", serviceID)
 		}
 
@@ -174,7 +174,7 @@ func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID 
 	collectionID = strings.ToLower(collectionID)
 	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
 		"Please contact Postman support (observability-support@postman.com) with the error details"
-	failedToCreateServiceErrMsg := "Failed to create service for given collectionID: %s\n"
+	failedToCreateProjectErrMsg := "Failed to create project for given collectionID: %s\n"
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {
 		printer.Stderr.Debugf("Cached collectionID %q is %q\n", collectionID, akid.String(id.(akid.ServiceID)))
@@ -187,47 +187,48 @@ func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID 
 
 	serviceID, err := GetServiceIDByPostmanCollectionID(c, ctx, collectionID)
 	if err != nil {
-		printer.Stderr.Debugf("Failed to get list of services associated with the API Key: %s\n", err)
+		printer.Stderr.Debugf("Failed to get list of projects associated with the API Key: %s\n", err)
 		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 	}
 
 	if (serviceID != akid.ServiceID{}) {
-		printer.Stderr.Debugf("ServiceID for Postman collectionID %q is %q\n", collectionID, serviceID)
+		printer.Stderr.Debugf("ProjectID for given Postman collectionID %q is %q\n", collectionID, serviceID)
 		postmanCollectionIDCache.Set(collectionID, serviceID, cache.DefaultExpiration)
 		return serviceID, nil
 	}
 
 	name := postmanRandomName()
-	printer.Debugf("Found no service for given collectionID: %s, creating a new service %q\n", collectionID, name)
+	printer.Debugf("Found no project for given collectionID: %s, creating a new project %q\n", collectionID, name)
 	// Create service for given postman collectionID
 	resp, err := c.CreateService(ctx, name, collectionID)
 	if err != nil {
 		httpErr, ok := err.(rest.HTTPError)
 		if !ok {
-			printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
+			printer.Stderr.Debugf(failedToCreateProjectErrMsg, err)
 			return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 		}
 
 		var errorResponse rest.ErrorResponse
 		if err := json.Unmarshal(httpErr.Body, &errorResponse); err != nil {
-			printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
+			printer.Stderr.Debugf(failedToCreateProjectErrMsg, err)
 			return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 		}
 
 		if httpErr.StatusCode == 409 && errorResponse.Message == "collection_already_mapped" {
 			serviceID, err := GetServiceIDByPostmanCollectionID(c, ctx, collectionID)
 			if err != nil {
-				printer.Stderr.Debugf(failedToCreateServiceErrMsg, err)
+				printer.Stderr.Debugf(failedToCreateProjectErrMsg, err)
 				return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 			}
 
 			if (serviceID != akid.ServiceID{}) {
-				printer.Stderr.Debugf("ServiceID for Postman collectionID %q is %q\n", collectionID, serviceID)
+				printer.Stderr.Debugf("ProjectID for Postman collectionID %q is %q\n", collectionID, serviceID)
 				postmanCollectionIDCache.Set(collectionID, serviceID, cache.DefaultExpiration)
 				return serviceID, nil
 			}
 
 		} else if httpErr.StatusCode == 403 {
+			//lint:ignore ST1005 This is a user-facing error message
 			error := fmt.Errorf("you cannot send traffic to the collection with ID %s. "+
 				"Ensure that your collection ID is correct and that you have edit permissions on the collection. "+
 				"If you do not have edit permissions, please contact the workspace administrator to add you as a collection editor.", collectionID)
@@ -237,7 +238,7 @@ func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID 
 		return akid.ServiceID{}, errors.Wrap(err, unexpectedErrMsg)
 	}
 
-	printer.Debugf("Got service ID %s\n", resp.ResourceID)
+	printer.Debugf("Got projectID %s\n", resp.ResourceID)
 	postmanCollectionIDCache.Set(collectionID, resp.ResourceID, cache.DefaultExpiration)
 
 	return resp.ResourceID, nil
