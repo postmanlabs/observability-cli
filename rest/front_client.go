@@ -3,11 +3,9 @@ package rest
 import (
 	"context"
 	"path"
-	"strconv"
 
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/daemon"
-	"github.com/akitasoftware/akita-libs/github"
 )
 
 type frontClientImpl struct {
@@ -68,17 +66,6 @@ func (c *frontClientImpl) LongPollActiveTracesForService(ctx context.Context, da
 	path := path.Join("/v1/services", akid.String(serviceID), "daemon")
 	err := c.Post(ctx, path, body, &resp)
 	return resp, err
-}
-
-func (c *frontClientImpl) GetGitHubPREnabledState(ctx context.Context, gitHubPR *github.PullRequest) (bool, error) {
-	endpoint := path.Join("/v1/integrations/github/repos", gitHubPR.Repo.Owner, gitHubPR.Repo.Name, "prs", strconv.Itoa(gitHubPR.Num), "akita-enabled")
-	response := struct {
-		AkitaEnabled bool `json:"akita_enabled"`
-	}{}
-	if err := c.Get(ctx, endpoint, &response); err != nil {
-		return false, err
-	}
-	return response.AkitaEnabled, nil
 }
 
 // Create a mirror service in the user's organization. The environment is implicit based

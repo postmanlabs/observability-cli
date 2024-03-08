@@ -15,7 +15,6 @@ import (
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ascii"
-	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ec2"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ecs"
@@ -260,9 +259,7 @@ func init() {
 		viper.BindPFlag("verbose-level", flag.CommandLine.Lookup("v"))
 	}
 
-	// Register subcommands. Most commands that interact with Akita Cloud should
-	// be guarded by ci_guard.
-	rootCmd.AddCommand(ci_guard.GuardCommand(apidump.Cmd))
+	rootCmd.AddCommand(apidump.Cmd)
 
 	rootCmd.AddCommand(ecs.Cmd)
 	rootCmd.AddCommand(kube.Cmd)
