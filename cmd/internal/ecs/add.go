@@ -860,9 +860,9 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Environment: append(envs, []types.KeyValuePair{
 			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
 			// Setting these environment variables will cause the traces to be tagged.
-			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
-			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
-			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
+			{Name: aws.String("POSTMAN_AWS_REGION"), Value: &wf.awsRegion},
+			{Name: aws.String("POSTMAN_ECS_SERVICE"), Value: &wf.ecsService},
+			{Name: aws.String("POSTMAN_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
 		}...),
 		Essential: aws.Bool(false),
 		Image:     aws.String(postmanECRImage),

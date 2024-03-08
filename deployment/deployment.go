@@ -25,23 +25,23 @@ const (
 // Map of environment variables to tags, grouped by deployment type.
 var environmentToTag map[Deployment]map[string]tags.Key = map[Deployment]map[string]tags.Key{
 	Any: {
-		"AKITA_DEPLOYMENT_COMMIT": tags.XAkitaGitCommit,
+		"POSTMAN_DEPLOYMENT_COMMIT": tags.XAkitaGitCommit,
 	},
 	AWS: {
-		"AKITA_AWS_REGION": tags.XAkitaAWSRegion,
+		"POSTMAN_AWS_REGION": tags.XAkitaAWSRegion,
 	},
 	AWS_ECS: {
-		"AKITA_AWS_REGION":  tags.XAkitaAWSRegion,
-		"AKITA_ECS_TASK":    tags.XAkitaECSTask,
-		"AKITA_ECS_SERVICE": tags.XAkitaECSService,
+		"POSTMAN_AWS_REGION":  tags.XAkitaAWSRegion,
+		"POSTMAN_ECS_TASK":    tags.XAkitaECSTask,
+		"POSTMAN_ECS_SERVICE": tags.XAkitaECSService,
 	},
 	Kubernetes: {
-		"AKITA_K8S_NAMESPACE": tags.XAkitaKubernetesNamespace,
-		"AKITA_K8S_NODE":      tags.XAkitaKubernetesNode,
-		"AKITA_K8S_HOST_IP":   tags.XAkitaKubernetesHostIP,
-		"AKITA_K8S_POD":       tags.XAkitaKubernetesPod,
-		"AKITA_K8S_POD_IP":    tags.XAkitaKubernetesPodIP,
-		"AKITA_K8S_DAEMONSET": tags.XAkitaKubernetesDaemonset,
+		"POSTMAN_K8S_NAMESPACE": tags.XAkitaKubernetesNamespace,
+		"POSTMAN_K8S_NODE":      tags.XAkitaKubernetesNode,
+		"POSTMAN_K8S_HOST_IP":   tags.XAkitaKubernetesHostIP,
+		"POSTMAN_K8S_POD":       tags.XAkitaKubernetesPod,
+		"POSTMAN_K8S_POD_IP":    tags.XAkitaKubernetesPodIP,
+		"POSTMAN_K8S_DAEMONSET": tags.XAkitaKubernetesDaemonset,
 	},
 }
 
