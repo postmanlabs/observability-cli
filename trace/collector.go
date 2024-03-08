@@ -12,6 +12,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/akita-libs/akinet"
 
+	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/util"
 )
 
@@ -106,7 +107,7 @@ type PacketCountCollector struct {
 // Don't record self-generated traffic in the breakdown by hostname,
 // unless the --dogfood flag has been set.
 func (pc *PacketCountCollector) IncludeHostName(tlsName string) bool {
-	if tlsName == "api.akita.software" {
+	if tlsName == rest.Domain {
 		return viper.GetBool("dogfood")
 	}
 	return true
