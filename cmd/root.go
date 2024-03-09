@@ -76,8 +76,10 @@ func preRun(cmd *cobra.Command, args []string) {
 		printer.SwitchToJSON()
 	case "plain":
 		printer.SwitchToPlain()
-	case "color":
+	case "color", "colour":
 		// No change needed
+	case "":
+		// Default to 'colour'.
 	default:
 		// Use color
 		printer.Warningln("Unknown log format, using `color`.")
