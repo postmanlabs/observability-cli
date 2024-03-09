@@ -12,6 +12,7 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/go-utils/optionals"
@@ -77,6 +78,9 @@ type AddWorkflow struct {
 	ecsServiceARN arn
 
 	// TODO: provide a flag that re-enables use of secrets
+	//
+	// XXX The code enabled by this variable needs to be updated for Postman.
+	//
 	// The problem is that the container's assumed role needs permission to
 	// read the configured secrets, which seems difficult to set up here.
 	secretsEnabled bool
@@ -96,9 +100,10 @@ const (
 	defaultKeyIDName     = akitaSecretPrefix + "api_key_id"
 	defaultKeySecretName = akitaSecretPrefix + "api_key_secret"
 
-	// Akita CLI image location
+	// Akita CLI image locations
 	akitaECRImage    = "public.ecr.aws/akitasoftware/akita-cli"
 	akitaDockerImage = "akitasoftware/cli"
+
 	// Postman Insights Agent image location
 	postmanECRImage = "docker.postman.com/postman-insights-agent"
 )
@@ -215,7 +220,7 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	err = survey.AskOne(
 		&survey.Input{
 			Message: "Which of your AWS profiles should be used to configure ECS?",
-			Help:    "Enter the name of the AWS profile you use for configuring ECS, or leave blank to try the default profile. Akita needs this information to identify which AWS credentials to use.",
+			Help:    "Enter the name of the AWS profile you use for configuring ECS, or leave blank to try the default profile. This information is needed to identify which AWS credentials to use.",
 			// Use the existing value as the default in case we repeat this step
 			Default: wf.awsProfile,
 		},
@@ -231,7 +236,7 @@ func getProfileState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			wf.awsProfile = "default"
 			return awf_next(getProfileState)
 		}
-		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n", err)
+		printer.Errorf("Could not load the AWS config file. The error from the AWS library is shown below. Please send this log message to %s for assistance.\n%v\n", consts.SupportEmail, err)
 		return awf_error(errors.Wrapf(err, "Error loading AWS credentials"))
 	}
 
@@ -512,7 +517,7 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 			return awf_next(getTaskState)
 		}
 		printer.Errorf("Could not load ECS task definition: %v\n", describeErr)
-		return awf_error(errors.New("Error while loading ECS task definition; please contact observability-support@postman.com for assistance."))
+		return awf_error(errors.Errorf("Error while loading ECS task definition; please contact %s for assistance.", consts.SupportEmail))
 	}
 
 	wf.ecsTaskDefinition = output
@@ -533,9 +538,18 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	// Check that the postman-insights-agent is not already present
 	for _, container := range output.ContainerDefinitions {
 		image := aws.ToString(container.Image)
-		if matchesImage(image, postmanECRImage) || matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
+		if matchesImage(image, postmanECRImage) {
 			printer.Errorf("The selected task definition already has the image %q; postman-insights-agent is already installed.\n", image)
 			printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
+			return awf_next(getTaskState)
+		}
+
+		// Also detect the Akita CLI image, to avoid having two copies of the agent
+		// running.
+		if matchesImage(image, akitaECRImage) || matchesImage(image, akitaDockerImage) {
+			printer.Errorf("The selected task definition already has the image %q, indicating that the Akita CLI is currently installed.\n", image)
+			printer.Infof("The Akita CLI is no longer supported. Please uninstall it and try again.\n")
+			printer.Infof("You can also select a different task definition, or hit Ctrl+C to exit.\n")
 			return awf_next(getTaskState)
 		}
 	}
@@ -635,6 +649,7 @@ func getServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	return awf_next(confirmState)
 }
 
+// XXX Unused. Needs to be updated for Postman.
 func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
 	reportStep("Get Akita Secrets")
 
@@ -660,6 +675,8 @@ func getSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSt
 func (wf *AddWorkflow) showPlannedChanges() {
 	printer.Infof("--- Planned changes ---\n")
 	if wf.secretsEnabled {
+		// XXX This branch of code is disabled; needs to be updated for Postman.
+
 		if !wf.akitaSecrets.idExists {
 			printer.Infof("Create an AWS secret %q in region %q to hold your Akita API key ID.\n",
 				defaultKeyIDName, wf.awsRegion)
@@ -763,6 +780,9 @@ func fillFromFlags(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowSta
 }
 
 // Add the missing secrets.
+//
+// XXX Unused. Needs to be updated for Postman.
+//
 // (TODO: if one is absent but the other is present we really ought to update both, but that's
 // a separate AWS call so the logic is more complicated.)
 func addSecretState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowState], err error) {
@@ -863,9 +883,9 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Environment: append(envs, []types.KeyValuePair{
 			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
 			// Setting these environment variables will cause the traces to be tagged.
-			{Name: aws.String("AKITA_AWS_REGION"), Value: &wf.awsRegion},
-			{Name: aws.String("AKITA_ECS_SERVICE"), Value: &wf.ecsService},
-			{Name: aws.String("AKITA_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
+			{Name: aws.String("POSTMAN_AWS_REGION"), Value: &wf.awsRegion},
+			{Name: aws.String("POSTMAN_ECS_SERVICE"), Value: &wf.ecsService},
+			{Name: aws.String("POSTMAN_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
 		}...),
 		Essential: aws.Bool(false),
 		Image:     aws.String(postmanECRImage),
@@ -894,7 +914,7 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 			printer.Infof("Please start over with a different profile, or add this permission in IAM.\n")
 			return awf_error(errors.New("Failed to update the ECS task definition due to insufficient permissions."))
 		}
-		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", err)
+		printer.Errorf("Could not register an ECS task definition. The error from the AWS library is shown below. Please send this log message to %s for assistance.\n%v\n", consts.SupportEmail, err)
 		return awf_error(errors.Wrap(err, "Error registering task definition"))
 	}
 	printer.Infof("Registered task definition %q revision %d.\n",
@@ -937,7 +957,7 @@ func updateServiceState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkfl
 				wf.ecsServiceARN, uoe.OperationName)
 			return awf_error(errors.New("Failed to update the ECS service due to insufficient permissions."))
 		}
-		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to observability-support@postman.com for assistance.\n%v\n", wf.ecsServiceARN, err)
+		printer.Errorf("Could not update the ECS service %q. The error from the AWS library is shown below. Please send this log message to %s for assistance.\n%v\n", wf.ecsServiceARN, consts.SupportEmail, err)
 		return awf_error(errors.Wrapf(err, "Error updating ECS service %q", wf.ecsServiceARN))
 	}
 	printer.Infof("Updated service %q with new version of task definition.\n", wf.ecsService)
@@ -1025,7 +1045,7 @@ func waitForRestartState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkf
 		// TODO: guide the user through this?
 		printer.Infof("You can use the AWS web console to delete the task definition \"%s:%s\". The previous task definition should still be in use.\n",
 			wf.ecsTaskDefinitionFamily, wf.ecsTaskDefinition.Revision)
-		return awf_error(errors.New("The modified task failed to deploy. Please contact observability-support@postman.com for assistance."))
+		return awf_error(errors.Errorf("The modified task failed to deploy. Please contact %s for assistance.", consts.SupportEmail))
 	}
 
 	reportStep("ECS Service Updated")

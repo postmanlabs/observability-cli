@@ -23,9 +23,6 @@ var (
 	// The output file to write the injected Yaml to
 	// If not set, injectCmd will default to printing the output to stdout
 	injectOutputFlag string
-	// The name of the project that the injected deployments should be associated with
-	// This will be used by the agent to determine which Akita service to report traffic to
-	projectNameFlag string
 	// Represents the options for generating a secret
 	// When set to "false" or left empty, injectCmd will not generate a secret
 	// When set to "true", injectCmd will prepend a secret to each injectable namespace found in the file to inject (injectFileNameFlag)
@@ -41,15 +38,15 @@ var injectCmd = &cobra.Command{
 	Short: "Inject the Postman Insights Agent into a Kubernetes deployment",
 	Long:  "Inject the Postman Insights Agent into a Kubernetes deployment or set of deployments, and output the result to stdout or a file",
 	RunE: func(_ *cobra.Command, args []string) error {
-		if projectNameFlag == "" && postmanCollectionID == "" {
+		if postmanCollectionID == "" {
 			return cmderr.AkitaErr{
-				Err: errors.New("--collection must be specified. Or, if you are an Akita user, use --project instead."),
+				Err: errors.New("--collection must be specified."),
 			}
 		}
 
 		// Lookup service *first* (if we are remote) ensuring that collectionId
 		// or projectName is correct and exists.
-		err := lookupService(postmanCollectionID, projectNameFlag)
+		err := lookupService(postmanCollectionID)
 		if err != nil {
 			return err
 		}
@@ -86,36 +83,19 @@ var injectCmd = &cobra.Command{
 				return err
 			}
 
-			if postmanCollectionID != "" {
-				key, err := cmderr.RequirePostmanAPICredentials("Postman API credentials are required to generate secret.")
+			key, err := cmderr.RequirePostmanAPICredentials("Postman API credentials are required to generate secret.")
+			if err != nil {
+				return err
+			}
+
+			for _, namespace := range namespaces {
+				r, err := handlePostmanSecretGeneration(namespace, key)
 				if err != nil {
 					return err
 				}
 
-				for _, namespace := range namespaces {
-					r, err := handlePostmanSecretGeneration(namespace, key)
-					if err != nil {
-						return err
-					}
-
-					secretBuf.WriteString("---\n")
-					secretBuf.Write(r)
-				}
-			} else {
-				key, secret, err := cmderr.RequireAkitaAPICredentials("Akita API credentials are required to generate secret.")
-				if err != nil {
-					return err
-				}
-
-				for _, namespace := range namespaces {
-					r, err := handleAkitaSecretGeneration(namespace, key, secret)
-					if err != nil {
-						return err
-					}
-
-					secretBuf.WriteString("---\n")
-					secretBuf.Write(r)
-				}
+				secretBuf.WriteString("---\n")
+				secretBuf.Write(r)
 			}
 		}
 
@@ -139,12 +119,8 @@ var injectCmd = &cobra.Command{
 		var container v1.Container
 
 		// Inject the sidecar into the input file
-		if postmanCollectionID != "" {
-			_, env := cfg.GetPostmanAPIKeyAndEnvironment()
-			container = createPostmanSidecar(postmanCollectionID, env)
-		} else {
-			container = createAkitaSidecar(projectNameFlag)
-		}
+		_, env := cfg.GetPostmanAPIKeyAndEnvironment()
+		container = createPostmanSidecar(postmanCollectionID, env)
 
 		rawInjected, err := injector.ToRawYAML(injectr, container)
 		if err != nil {
@@ -189,62 +165,6 @@ type secretGenerationOptions struct {
 // The image to use for the Postman Insights Agent sidecar
 const akitaImage = "docker.postman.com/postman-insights-agent:latest"
 
-func createAkitaSidecar(projectName string) v1.Container {
-	args := []string{"apidump", "--project", projectName}
-
-	// If a nondefault --domain flag was used in the inject command, use it
-	// for the container as well.
-	if rest.Domain != rest.DefaultDomain() {
-		args = append(args, "--domain", rest.Domain)
-	}
-
-	sidecar := v1.Container{
-		Name:  "akita",
-		Image: akitaImage,
-		Env: []v1.EnvVar{
-			{
-				Name: "AKITA_API_KEY_ID",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: "akita-secrets",
-						},
-						Key: "akita-api-key",
-					},
-				},
-			},
-			{
-				Name: "AKITA_API_KEY_SECRET",
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
-							Name: "akita-secrets",
-						},
-						Key: "akita-api-secret",
-					},
-				},
-			},
-		},
-		Lifecycle: &v1.Lifecycle{
-			PreStop: &v1.LifecycleHandler{
-				Exec: &v1.ExecAction{
-					Command: []string{
-						"/bin/sh",
-						"-c",
-						"AKITA_PID=$(pgrep akita) && kill -2 $AKITA_PID && tail -f /proc/$AKITA_PID/fd/1",
-					},
-				},
-			},
-		},
-		Args: args,
-		SecurityContext: &v1.SecurityContext{
-			Capabilities: &v1.Capabilities{Add: []v1.Capability{"NET_RAW"}},
-		},
-	}
-
-	return sidecar
-}
-
 func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string) v1.Container {
 	args := []string{"apidump", "--collection", postmanCollectionID}
 
@@ -284,7 +204,7 @@ func createPostmanSidecar(postmanCollectionID string, postmanEnvironment string)
 					Command: []string{
 						"/bin/sh",
 						"-c",
-						"AKITA_PID=$(pgrep akita) && kill -2 $AKITA_PID && tail -f /proc/$AKITA_PID/fd/1",
+						"POSTMAN_INSIGHTS_AGENT_PID=$(pgrep postman-insights-agent) && kill -2 $POSTMAN_INSIGHTS_AGENT_PID && tail -f /proc/$POSTMAN_INSIGHTS_AGENT_PID/fd/1",
 					},
 				},
 			},
@@ -320,20 +240,13 @@ func resolveSecretGenerationOptions(flagValue string) secretGenerationOptions {
 	}
 }
 
-// Check if service exists or not
-func lookupService(postmanCollectionID, serviceName string) error {
+// Check if collection exists or not
+func lookupService(postmanCollectionID string) error {
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
 
-	if postmanCollectionID != "" {
-		_, err := util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, postmanCollectionID)
-		if err != nil {
-			return err
-		}
-	} else if serviceName != "" {
-		_, err := util.GetServiceIDByName(frontClient, serviceName)
-		if err != nil {
-			return err
-		}
+	_, err := util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, postmanCollectionID)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -357,14 +270,6 @@ func init() {
 	)
 
 	injectCmd.Flags().StringVarP(
-		&projectNameFlag,
-		"project",
-		"p",
-		"",
-		"Name of the Akita project to which the traffic will be uploaded. If you are a Postman user, use --collection instead.",
-	)
-
-	injectCmd.Flags().StringVarP(
 		&secretInjectFlag,
 		"secret",
 		"s",
@@ -378,9 +283,7 @@ func init() {
 		&postmanCollectionID,
 		"collection",
 		"",
-		"Your Postman collection ID. If you are an Akita user, use --project instead.")
-
-	injectCmd.MarkFlagsMutuallyExclusive("project", "collection")
+		"Your Postman collection ID.")
 
 	Cmd.AddCommand(injectCmd)
 }

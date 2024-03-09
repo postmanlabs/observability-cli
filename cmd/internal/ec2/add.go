@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/pkg/errors"
@@ -105,7 +106,7 @@ func checkReconfiguration() error {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode := exitError.ExitCode()
 			if exitCode != 1 {
-				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled. \n Command output:%s \n Please send this log message to observability-support@postman.com for assistance\n", out)
+				return errors.Wrapf(err, "Received non 1 exitcode for systemctl is-enabled. \n Command output:%s \n Please send this log message to %s for assistance\n", out, consts.SupportEmail)
 			}
 			if strings.Contains(string(out), disabled) {
 				return askToReconfigure()
@@ -118,7 +119,7 @@ func checkReconfiguration() error {
 	if strings.Contains(string(out), enabled) {
 		return askToReconfigure()
 	}
-	return errors.Errorf("The systemctl is-enabled command produced output this tool doesn't recognize: %q. \n Please send this log message to observability-support@postman.com for assistance\n", string(out))
+	return errors.Errorf("The systemctl is-enabled command produced output this tool doesn't recognize: %q.\nPlease send this log message to %s for assistance\n", string(out), consts.SupportEmail)
 
 }
 
@@ -148,7 +149,7 @@ func checkSystemdExists() error {
 
 	_, serr := exec.LookPath("systemctl")
 	if serr != nil {
-		printer.Errorf("We don't have support for non-systemd OS as of now.\n For more information please contact observability-support@postman.com.\n")
+		printer.Errorf("We don't have support for non-systemd OS as of now.\n For more information please contact %s.\n", consts.SupportEmail)
 		return errors.Errorf("Could not find systemd binary in your OS.")
 	}
 	return nil
