@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/akitasoftware/akita-cli/cfg"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/version"
@@ -103,7 +104,7 @@ func Init(isLoggingEnabled bool) {
 		if isLoggingEnabled {
 			printer.Infof("Telemetry unavailable; error setting up Analytics(Amplitude) client: %v\n", err)
 			printer.Infof("Postman support will not be able to see any errors you encounter.\n")
-			printer.Infof("Please send this log message to observability-support@postman.com.\n")
+			printer.Infof("Please send this log message to %s.\n", consts.SupportEmail)
 		}
 		analyticsClient = nullClient{}
 	} else {
@@ -317,6 +318,6 @@ func Shutdown() {
 	if err != nil {
 		printer.Stderr.Errorf("Error flushing telemetry: %v\n", err)
 		printer.Infof("Postman support may not be able to see the last error message you received.\n")
-		printer.Infof("Please send the CLI output to observability-support@postman.com.\n")
+		printer.Infof("Please send the CLI output to %s.\n", consts.SupportEmail)
 	}
 }

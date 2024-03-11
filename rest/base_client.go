@@ -59,7 +59,7 @@ type BaseClient struct {
 func NewBaseClient(rawHost string, cli akid.ClientID) BaseClient {
 	c := BaseClient{
 		scheme:   "https",
-		host:     DomainToHost(rawHost),
+		host:     rawHost,
 		clientID: cli,
 	}
 	if viper.GetBool("test_only_disable_https") {

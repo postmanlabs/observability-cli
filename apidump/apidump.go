@@ -25,6 +25,7 @@ import (
 	"github.com/akitasoftware/akita-libs/akiuri"
 	"github.com/akitasoftware/akita-libs/tags"
 
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/architecture"
 	"github.com/akitasoftware/akita-cli/ci"
 	"github.com/akitasoftware/akita-cli/deployment"
@@ -117,9 +118,6 @@ type Args struct {
 
 	// How often to rotate learn sessions; set to zero to disable rotation.
 	LearnSessionLifetime time.Duration
-
-	// Deployment tag value; may come from an environment variable
-	Deployment string
 
 	// Print packet capture statistics after N seconds.
 	StatsLogDelay int
@@ -353,11 +351,9 @@ func collectTraceTags(args *Args) map[tags.Key]string {
 		traceTags[tags.XAkitaSource] = tags.CISource
 	}
 
-	// Import information about production or staging environment
-	if args.Deployment != "" {
-		traceTags[tags.XAkitaDeployment] = args.Deployment
-		traceTags[tags.XAkitaSource] = tags.DeploymentSource
-	}
+	// Set legacy deployment tags.
+	traceTags[tags.XAkitaDeployment] = apispec.DefaultDeployment
+	traceTags[tags.XAkitaSource] = tags.DeploymentSource
 	deployment.UpdateTags(traceTags)
 
 	// Set source to user by default (if not CI or deployment)

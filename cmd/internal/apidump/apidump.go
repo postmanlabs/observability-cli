@@ -1,7 +1,6 @@
 package apidump
 
 import (
-	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -39,7 +38,6 @@ var (
 	execCommandUserFlag     string
 	pluginsFlag             []string
 	traceRotateFlag         string
-	deploymentFlag          string
 	statsLogDelay           int
 	telemetryInterval       int
 	procFSPollingInterval   int
@@ -121,24 +119,6 @@ var Cmd = &cobra.Command{
 			}
 		}
 
-		if deploymentFlag == "" {
-			deploymentFlag = apispec.DefaultDeployment
-			if os.Getenv("AKITA_DEPLOYMENT") != "" {
-				deploymentFlag = os.Getenv("AKITA_DEPLOYMENT")
-			}
-		} else if deploymentFlag == "-" {
-			// Undocumented feature to disable setting the flag, since
-			// we can't re-use "" for this.
-			deploymentFlag = ""
-		} else {
-			if os.Getenv("AKITA_DEPLOYMENT") != "" && os.Getenv("AKITA_DEPLOYMENT") != deploymentFlag {
-				printer.Stderr.Warningf("Deployment in environment variable %q overridden by the command line value %q.\n",
-					os.Getenv("AKITA_DEPLOYMENT"),
-					deploymentFlag,
-				)
-			}
-		}
-
 		// Rate limit must be greater than zero.
 		if rateLimitFlag <= 0.0 {
 			rateLimitFlag = 1000.0
@@ -171,7 +151,6 @@ var Cmd = &cobra.Command{
 			ExecCommandUser:         execCommandUserFlag,
 			Plugins:                 plugins,
 			LearnSessionLifetime:    traceRotateInterval,
-			Deployment:              deploymentFlag,
 			StatsLogDelay:           statsLogDelay,
 			TelemetryInterval:       telemetryInterval,
 			ProcFSPollingInterval:   procFSPollingInterval,
@@ -304,14 +283,6 @@ func init() {
 		"Interval at which the trace will be rotated to a new learn session.",
 	)
 	Cmd.Flags().MarkHidden("trace-rotate")
-
-	Cmd.Flags().StringVar(
-		&deploymentFlag,
-		"deployment",
-		"",
-		"Deployment name to use.",
-	)
-	Cmd.Flags().MarkDeprecated("deployment", "create separate projects for different deployment environments instead. For example, 'my-project-prod' and 'my-project-staging'.")
 
 	Cmd.Flags().IntVar(
 		&statsLogDelay,

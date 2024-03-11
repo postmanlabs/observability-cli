@@ -38,7 +38,7 @@ type HTTPError struct {
 
 func (he HTTPError) Error() string {
 	if he.StatusCode == 401 {
-		return `Invalid credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman. If using with Akita, run "login" or use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables.`
+		return `Invalid credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman.`
 	}
 	return fmt.Sprintf("received status code %d, body: %s", he.StatusCode, string(he.Body))
 }
@@ -120,10 +120,11 @@ func sendRequest(ctx context.Context, req *http.Request) ([]byte, error) {
 	postmanAPIKey, postmanEnv := cfg.GetPostmanAPIKeyAndEnvironment()
 
 	if postmanAPIKey == "" {
+		// XXX Integration tests still use Akita API keys.
 		apiKeyID, apiKeySecret := cfg.GetAPIKeyAndSecret()
 
 		if apiKeyID == "" {
-			return nil, errors.New(`Missing or incomplete credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman. If using with Akita, run "login" or use the AKITA_API_KEY_ID and AKITA_API_KEY_SECRET environment variables.`)
+			return nil, errors.New(`Missing or incomplete credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman.`)
 		}
 
 		if apiKeySecret == "" {

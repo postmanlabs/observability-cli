@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/pluginloader"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/integrations/nginx"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/rest"
@@ -108,7 +109,7 @@ func installNginxModule(cmd *cobra.Command, args []string) error {
 			printer.Infof("%v\n", installError.Remedy)
 		default:
 			printer.Errorf("Could not determine which NGINX platform and version to support: %v\n", err)
-			printer.Infof("Please contact observability-support@postman.com for assistance, or follow the instructions at https://github.com/akitasoftware/akita-nginx-module to install the module by hand.\n")
+			printer.Infof("Please contact %s for assistance, or follow the instructions at https://github.com/akitasoftware/akita-nginx-module to install the module by hand.\n", consts.SupportEmail)
 		}
 
 		// Report the error here because we don't report it to the root command

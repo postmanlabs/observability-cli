@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/apidump"
-	"github.com/akitasoftware/akita-cli/cmd/internal/ci_guard"
+	"github.com/akitasoftware/akita-cli/cmd/internal/ascii"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ec2"
 	"github.com/akitasoftware/akita-cli/cmd/internal/ecs"
@@ -76,23 +76,19 @@ func preRun(cmd *cobra.Command, args []string) {
 		printer.SwitchToJSON()
 	case "plain":
 		printer.SwitchToPlain()
-	case "color":
+	case "color", "colour":
 		// No change needed
 	case "":
-		// default value, we'll be context-sensitive.  If in AKITA_DEPLOYMENT, use JSON, otherwise
-		// color.
-		if os.Getenv("AKITA_DEPLOYMENT") != "" {
-			printer.SwitchToJSON()
-		}
+		// Default to 'colour'.
 	default:
 		// Use color
 		printer.Warningln("Unknown log format, using `color`.")
 	}
 
 	// Emit the version (without hash) at the start of every command.
-	// Somehow, this doesn't appear before "akita --version" (good) or
-	// "akita --help" (less good), only before commands or the usage
-	// information if no command is given.
+	// Somehow, this doesn't appear before "postman-insights-agent --version"
+	// (good) or "postman-insights-agent --help" (less good), only before
+	// commands or the usage information if no command is given.
 	printer.Stdout.Infof("Postman Insights Agent %s\n", version.ReleaseVersion())
 
 	// This is after argument parsing so that rest.Domain is correct,
@@ -173,7 +169,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", "", "The domain name of Akita cloud instance to use.")
+	rootCmd.PersistentFlags().StringVar(&rest.Domain, "domain", "", "The domain name of the back-end instance to use.")
 	rootCmd.PersistentFlags().MarkHidden("domain")
 
 	// Use a proxy or permit a mismatched certificate.
@@ -210,7 +206,7 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("test_only_disable_https")
 	viper.BindPFlag("test_only_disable_https", rootCmd.PersistentFlags().Lookup("test_only_disable_https"))
 
-	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "Capture HTTP traffic to Akita services that would ordinarily be filtered, and enable assertions")
+	rootCmd.PersistentFlags().BoolVar(&dogfoodFlag, "dogfood", false, "Capture HTTP traffic to Postman services that would ordinarily be filtered, and enable assertions")
 	rootCmd.PersistentFlags().MarkHidden("dogfood")
 	viper.BindPFlag("dogfood", rootCmd.PersistentFlags().Lookup("dogfood"))
 
@@ -259,13 +255,14 @@ func init() {
 		viper.BindPFlag("verbose-level", flag.CommandLine.Lookup("v"))
 	}
 
-	// Register subcommands. Most commands that interact with Akita Cloud should
-	// be guarded by ci_guard.
-	rootCmd.AddCommand(ci_guard.GuardCommand(apidump.Cmd))
+	rootCmd.AddCommand(apidump.Cmd)
 
 	rootCmd.AddCommand(ecs.Cmd)
 	rootCmd.AddCommand(kube.Cmd)
 	rootCmd.AddCommand(ec2.Cmd)
+
+	// Easter egg.
+	rootCmd.AddCommand(ascii.Cmd)
 
 	// Legacy command, included for integration tests but is hidden.
 	legacy.SpecsCmd.Hidden = true
