@@ -3,6 +3,7 @@ package trace
 import (
 	"encoding/base64"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -51,7 +52,8 @@ type witnessWithInfo struct {
 	requestEnd      time.Time
 	responseStart   time.Time
 
-	witness *pb.Witness
+	witness       *pb.Witness
+	xForwardedFor optionals.Optional[string]
 }
 
 func (r witnessWithInfo) toReport() (*kgxapi.WitnessReport, error) {
@@ -62,6 +64,13 @@ func (r witnessWithInfo) toReport() (*kgxapi.WitnessReport, error) {
 	b, err := proto.Marshal(r.witness)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal witness proto")
+	}
+
+	if header, ok := r.xForwardedFor.Get(); ok {
+		printer.Infof("Real source IP %v, X-Forwarded-For header %v\n", r.srcIP, header)
+		addrs := strings.Split(header, ",")
+		// Replace with the leftmost IP, which is the closest to the original (???)
+		r.srcIP = net.ParseIP(addrs[0])
 	}
 
 	return &kgxapi.WitnessReport{
@@ -207,6 +216,8 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 		if isRequest {
 			pair.srcIP, pair.dstIP = pair.dstIP, pair.srcIP
 			pair.srcPort, pair.dstPort = pair.dstPort, pair.srcPort
+
+			pair.xForwardedFor = partial.XForwardedFor
 		}
 
 		c.queueUpload(pair)
@@ -225,6 +236,7 @@ func (c *BackendCollector) Process(t akinet.ParsedNetworkTraffic) error {
 			witness:         partial.Witness,
 			observationTime: t.ObservationTime,
 			id:              partial.PairKey,
+			xForwardedFor:   partial.XForwardedFor,
 		}
 		// Store whichever timestamp brackets the processing interval.
 		w.recordTimestamp(isRequest, t)
