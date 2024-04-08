@@ -133,12 +133,7 @@ func getDistinctID() string {
 		frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
 		userResponse, err := frontClient.GetUser(ctx)
 		if err == nil {
-			if userResponse.Email != "" {
-				return userResponse.Email
-			}
-
-			// Use the user ID if no email is present;
-			// this should be fixed in the current backend.
+			// User postman user's userID as distinctID for telemetry
 			return fmt.Sprint(userResponse.ID)
 		}
 
