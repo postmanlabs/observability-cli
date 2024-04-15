@@ -109,12 +109,28 @@ func Init(isLoggingEnabled bool) {
 			printer.Infof("Please send this log message to %s.\n", consts.SupportEmail)
 		}
 		analyticsClient = nullClient{}
-	} else {
-		analyticsEnabled = true
+		return
 	}
+
+	userID, teamID, err = getUserIdentity() // Initialize user ID and team ID
+	if err != nil {
+		if isLoggingEnabled {
+			printer.Infof("Telemetry unavailable; error getting userID for given API key: %v\n", err)
+			printer.Infof("Postman support will not be able to see any errors you encounter.\n")
+			printer.Infof("Please send this log message to %s.\n", consts.SupportEmail)
+		}
+		analyticsClient = nullClient{}
+		return
+	}
+
+	// Set up automatic reporting of all API errors
+	// (rest can't call telemetry directly because we call rest above!)
+	rest.SetAPIErrorHandler(APIError)
+
+	analyticsEnabled = true
 }
 
-func getUserIdentity() (string, string) {
+func getUserIdentity() (string, string, error) {
 	// If we can get user details use userID and teamID
 	// Otherwise use the configured API Key.
 	// Failing that, try to use the user name and host name.
@@ -122,21 +138,21 @@ func getUserIdentity() (string, string) {
 
 	id := os.Getenv("POSTMAN_ANALYTICS_DISTINCT_ID")
 	if id != "" {
-		return id, ""
+		return id, "", nil
 	}
 
 	// If there's no credentials configured, skip the API call and
 	// do not emit a log message.
 	// Similarly if telemetry is disabled.
 	if cfg.CredentialsPresent() && analyticsEnabled {
-		// Call the REST API to get the user email associated with the configured
+		// Call the REST API to get the postman user associated with the configured
 		// API key.
 		ctx, cancel := context.WithTimeout(context.Background(), userAPITimeout)
 		defer cancel()
 		frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
 		userResponse, err := frontClient.GetUser(ctx)
 		if err == nil {
-			return fmt.Sprint(userResponse.ID), fmt.Sprint(userResponse.TeamID)
+			return fmt.Sprint(userResponse.ID), fmt.Sprint(userResponse.TeamID), nil
 		}
 
 		printer.Infof("Telemetry using temporary ID; GetUser API call failed: %v\n", err)
@@ -148,30 +164,18 @@ func getUserIdentity() (string, string) {
 	// if the getUser() call failed.
 	keyID := cfg.DistinctIDFromCredentials()
 	if keyID != "" {
-		return keyID, ""
+		return keyID, "", nil
 	}
 
 	localUser, err := user.Current()
 	if err != nil {
-		return "", ""
+		return "", "", err
 	}
 	localHost, err := os.Hostname()
 	if err != nil {
-		return localUser.Username, ""
+		return localUser.Username, "", nil
 	}
-	return localUser.Username + "@" + localHost, ""
-}
-
-func initUserIdentity() {
-	userIdentityOnce.Do(func() {
-		userID, teamID = getUserIdentity()
-
-		// Set up automatic reporting of all API errors
-		// (rest can't call telemetry directly because we call rest above!)
-		rest.SetAPIErrorHandler(APIError)
-
-		printer.Debugf("Using user ID %q, team ID %q for telemetry.\n", userID, teamID)
-	})
+	return localUser.Username + "@" + localHost, "", nil
 }
 
 // Report an error in a particular operation (inContext), including
@@ -323,10 +327,11 @@ func Shutdown() {
 // and then sends the event to the analytics client.
 // If there is an error sending the event, a warning message is printed.
 func tryTrackingEvent(eventName string, eventProperties maps.Map[string, any]) {
-	initUserIdentity()
-
 	eventProperties.Upsert("user_id", userID, func(v, newV any) any { return v })
-	eventProperties.Upsert("team_id", teamID, func(v, newV any) any { return v })
+
+	if teamID != "" {
+		eventProperties.Upsert("team_id", teamID, func(v, newV any) any { return v })
+	}
 
 	err := analyticsClient.Track(userID, eventName, eventProperties)
 	if err != nil {
