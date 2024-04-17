@@ -30,13 +30,18 @@ var (
 
 	// Store the user ID and team ID; run through the process
 	// of getting it only once.
-	userID           string
-	teamID           string
-	userIdentityOnce sync.Once
+	userID string
+	teamID string
 
 	// Timeout talking to API.
 	// Shorter than normal because we don't want the CLI to be slow.
 	userAPITimeout = 2 * time.Second
+
+	// Sync.once to ensure that client is initialized before trying to use it.
+	initClientOnce sync.Once
+
+	// Whether to log client init logs to the console
+	isLoggingEnabled bool
 )
 
 type nullClient struct{}
@@ -53,9 +58,14 @@ func (_ nullClient) Close() error {
 	return nil
 }
 
+func Init(loggingEnabled bool) {
+	isLoggingEnabled = loggingEnabled
+	initClientOnce.Do(doInit)
+}
+
 // Initialize the telemetry client.
 // This should be called once at startup either from the root command or from a subcommand that overrides the default PersistentPreRun.
-func Init(isLoggingEnabled bool) {
+func doInit() {
 	// Opt-out mechanism
 	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY") + os.Getenv("POSTMAN_INSIGHTS_AGENT_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
@@ -322,11 +332,13 @@ func Shutdown() {
 	}
 }
 
-// Attempts to track an event using the provided event name and properties.
-// It initializes the user identity, adds the user ID and team ID to the event properties,
-// and then sends the event to the analytics client.
+// Attempts to track an event using the provided event name and properties. It adds the user ID
+// and team ID to the event properties, and then sends the event to the analytics client.
 // If there is an error sending the event, a warning message is printed.
 func tryTrackingEvent(eventName string, eventProperties maps.Map[string, any]) {
+	// precondition: analyticsClient is initialized
+	Init(true)
+
 	eventProperties.Upsert("user_id", userID, func(v, newV any) any { return v })
 
 	if teamID != "" {
