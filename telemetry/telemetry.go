@@ -41,7 +41,7 @@ var (
 	initClientOnce sync.Once
 
 	// Whether to log client init logs to the console
-	isLoggingEnabled bool
+	isLoggingEnabled bool = true
 )
 
 type nullClient struct{}
@@ -58,13 +58,14 @@ func (_ nullClient) Close() error {
 	return nil
 }
 
+// Initialize the telemetry client.
+// This should be called once at startup either from the root command
+// or from a subcommand that overrides the default PersistentPreRun.
 func Init(loggingEnabled bool) {
 	isLoggingEnabled = loggingEnabled
 	initClientOnce.Do(doInit)
 }
 
-// Initialize the telemetry client.
-// This should be called once at startup either from the root command or from a subcommand that overrides the default PersistentPreRun.
 func doInit() {
 	// Opt-out mechanism
 	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY") + os.Getenv("POSTMAN_INSIGHTS_AGENT_DISABLE_TELEMETRY")
@@ -337,7 +338,7 @@ func Shutdown() {
 // If there is an error sending the event, a warning message is printed.
 func tryTrackingEvent(eventName string, eventProperties maps.Map[string, any]) {
 	// precondition: analyticsClient is initialized
-	Init(true)
+	initClientOnce.Do(doInit)
 
 	eventProperties.Upsert("user_id", userID, func(v, newV any) any { return v })
 
