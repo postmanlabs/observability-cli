@@ -123,6 +123,8 @@ func doInit() {
 		return
 	}
 
+	analyticsEnabled = true
+
 	userID, teamID, err = getUserIdentity() // Initialize user ID and team ID
 	if err != nil {
 		if isLoggingEnabled {
@@ -137,8 +139,6 @@ func doInit() {
 	// Set up automatic reporting of all API errors
 	// (rest can't call telemetry directly because we call rest above!)
 	rest.SetAPIErrorHandler(APIError)
-
-	analyticsEnabled = true
 }
 
 func getUserIdentity() (string, string, error) {
