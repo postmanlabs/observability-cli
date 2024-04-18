@@ -15,6 +15,7 @@ import (
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/version"
 	"github.com/akitasoftware/akita-libs/analytics"
+	"github.com/akitasoftware/go-utils/maps"
 )
 
 var (
@@ -27,14 +28,20 @@ var (
 	// Client key; set at link-time with -X flag
 	defaultAmplitudeKey = ""
 
-	// Store the distinct ID; run through the process
+	// Store the user ID and team ID; run through the process
 	// of getting it only once.
-	userDistinctID   string
-	userDistinctOnce sync.Once
+	userID string
+	teamID string
 
 	// Timeout talking to API.
 	// Shorter than normal because we don't want the CLI to be slow.
 	userAPITimeout = 2 * time.Second
+
+	// Sync.once to ensure that client is initialized before trying to use it.
+	initClientOnce sync.Once
+
+	// Whether to log client init logs to the console
+	isLoggingEnabled bool = true
 )
 
 type nullClient struct{}
@@ -52,8 +59,14 @@ func (_ nullClient) Close() error {
 }
 
 // Initialize the telemetry client.
-// This should be called once at startup either from the root command or from a subcommand that overrides the default PersistentPreRun.
-func Init(isLoggingEnabled bool) {
+// This should be called once at startup either from the root command
+// or from a subcommand that overrides the default PersistentPreRun.
+func Init(loggingEnabled bool) {
+	isLoggingEnabled = loggingEnabled
+	initClientOnce.Do(doInit)
+}
+
+func doInit() {
 	// Opt-out mechanism
 	disableTelemetry := os.Getenv("AKITA_DISABLE_TELEMETRY") + os.Getenv("POSTMAN_INSIGHTS_AGENT_DISABLE_TELEMETRY")
 	if disableTelemetry != "" {
@@ -107,39 +120,50 @@ func Init(isLoggingEnabled bool) {
 			printer.Infof("Please send this log message to %s.\n", consts.SupportEmail)
 		}
 		analyticsClient = nullClient{}
-	} else {
-		analyticsEnabled = true
+		return
 	}
+
+	analyticsEnabled = true
+
+	userID, teamID, err = getUserIdentity() // Initialize user ID and team ID
+	if err != nil {
+		if isLoggingEnabled {
+			printer.Infof("Telemetry unavailable; error getting userID for given API key: %v\n", err)
+			printer.Infof("Postman support will not be able to see any errors you encounter.\n")
+			printer.Infof("Please send this log message to %s.\n", consts.SupportEmail)
+		}
+		analyticsClient = nullClient{}
+		return
+	}
+
+	// Set up automatic reporting of all API errors
+	// (rest can't call telemetry directly because we call rest above!)
+	rest.SetAPIErrorHandler(APIError)
 }
 
-func getDistinctID() string {
-	// If we have a user email, use that!
+func getUserIdentity() (string, string, error) {
+	// If we can get user details use userID and teamID
 	// Otherwise use the configured API Key.
-	// Failing that, try to use the user name and host name?
+	// Failing that, try to use the user name and host name.
+	// In latter 2 cases teamID will be empty.
 
 	id := os.Getenv("POSTMAN_ANALYTICS_DISTINCT_ID")
 	if id != "" {
-		return id
+		return id, "", nil
 	}
 
 	// If there's no credentials configured, skip the API call and
 	// do not emit a log message.
 	// Similarly if telemetry is disabled.
 	if cfg.CredentialsPresent() && analyticsEnabled {
-		// Call the REST API to get the user email associated with the configured
+		// Call the REST API to get the postman user associated with the configured
 		// API key.
 		ctx, cancel := context.WithTimeout(context.Background(), userAPITimeout)
 		defer cancel()
 		frontClient := rest.NewFrontClient(rest.Domain, GetClientID())
 		userResponse, err := frontClient.GetUser(ctx)
 		if err == nil {
-			if userResponse.Email != "" {
-				return userResponse.Email
-			}
-
-			// Use the user ID if no email is present;
-			// this should be fixed in the current backend.
-			return fmt.Sprint(userResponse.ID)
+			return fmt.Sprint(userResponse.ID), fmt.Sprint(userResponse.TeamID), nil
 		}
 
 		printer.Infof("Telemetry using temporary ID; GetUser API call failed: %v\n", err)
@@ -148,44 +172,31 @@ func getDistinctID() string {
 	}
 
 	// Try to derive a distinct ID from the credentials, if present, even
-	// if the /v1/user call failed.
+	// if the getUser() call failed.
 	keyID := cfg.DistinctIDFromCredentials()
 	if keyID != "" {
-		return keyID
+		return keyID, "", nil
 	}
 
 	localUser, err := user.Current()
 	if err != nil {
-		return "unknown"
+		return "", "", err
 	}
 	localHost, err := os.Hostname()
 	if err != nil {
-		return localUser.Username
+		return localUser.Username, "", nil
 	}
-	return localUser.Username + "@" + localHost
-}
-
-func distinctID() string {
-	userDistinctOnce.Do(func() {
-		userDistinctID = getDistinctID()
-
-		// Set up automatic reporting of all API errors
-		// (rest can't call telemetry directly because we call rest above!)
-		rest.SetAPIErrorHandler(APIError)
-
-		printer.Debugf("Using ID %q for telemetry\n", userDistinctID)
-	})
-	return userDistinctID
+	return localUser.Username + "@" + localHost, "", nil
 }
 
 // Report an error in a particular operation (inContext), including
 // the text of the error.
 func Error(inContext string, e error) {
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Error in %s", inContext),
+	tryTrackingEvent(
+		"Operation - Errored",
 		map[string]any{
-			"error": e.Error(),
-			"type":  "error",
+			"operation": inContext,
+			"error":     e.Error(),
 		},
 	)
 }
@@ -235,55 +246,54 @@ func RateLimitError(inContext string, e error) {
 		rateLimitMap.Store(inContext, newRecord)
 	}
 
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Error in %s", inContext),
+	tryTrackingEvent(
+		"Operation - Rate Limited",
 		map[string]any{
-			"error": e.Error(),
-			"type":  "error",
-			"count": count,
+			"operation": inContext,
+			"error":     e.Error(),
+			"count":     count,
 		},
 	)
 }
 
 // Report an error in a particular API, including the text of the error.
 func APIError(method string, path string, e error) {
-	analyticsClient.Track(distinctID(),
-		"Error calling API",
+	tryTrackingEvent(
+		"API Call - Errored",
 		map[string]any{
 			"method": method,
 			"path":   path,
 			"error":  e.Error(),
-			"type":   "error",
 		},
 	)
 }
 
 // Report a failure without a specific error object
 func Failure(message string) {
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Unknown Error: %s", message),
+	tryTrackingEvent(
+		"Operation - Errored",
 		map[string]any{
-			"type": "error",
+			"error": message,
 		},
 	)
 }
 
 // Report success of an operation
 func Success(message string) {
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Success in %s", message),
+	tryTrackingEvent(
+		"Operation - Succeeded",
 		map[string]any{
-			"type": "success",
+			"operation": message,
 		},
 	)
 }
 
 // Report a step in a multi-part workflow.
 func WorkflowStep(workflow string, message string) {
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Executing Step: %s", message),
+	tryTrackingEvent(
+		"Workflow Step - Executed",
 		map[string]any{
-			"type":     "workflow",
+			"step":     message,
 			"workflow": workflow,
 		},
 	)
@@ -291,9 +301,10 @@ func WorkflowStep(workflow string, message string) {
 
 // Report command line flags (before any error checking.)
 func CommandLine(command string, commandLine []string) {
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Executed %s", command),
+	tryTrackingEvent(
+		"Command - Executed",
 		map[string]any{
+			"command":      command,
 			"command_line": commandLine,
 		},
 	)
@@ -301,14 +312,14 @@ func CommandLine(command string, commandLine []string) {
 
 // Report the platform and version of an attempted integration
 func InstallIntegrationVersion(integration, arch, platform, version string) {
-	analyticsClient.Track(distinctID(),
-		fmt.Sprintf("Install %s", integration),
+	tryTrackingEvent(
+		"Integration - Installed",
 		map[string]any{
+			"integration":  integration,
 			"architecture": arch,
 			"version":      version,
 			"platform":     platform,
-		},
-	)
+		})
 }
 
 // Flush the telemetry to its endpoint
@@ -319,5 +330,24 @@ func Shutdown() {
 		printer.Stderr.Errorf("Error flushing telemetry: %v\n", err)
 		printer.Infof("Postman support may not be able to see the last error message you received.\n")
 		printer.Infof("Please send the CLI output to %s.\n", consts.SupportEmail)
+	}
+}
+
+// Attempts to track an event using the provided event name and properties. It adds the user ID
+// and team ID to the event properties, and then sends the event to the analytics client.
+// If there is an error sending the event, a warning message is printed.
+func tryTrackingEvent(eventName string, eventProperties maps.Map[string, any]) {
+	// precondition: analyticsClient is initialized
+	initClientOnce.Do(doInit)
+
+	eventProperties.Upsert("user_id", userID, func(v, newV any) any { return v })
+
+	if teamID != "" {
+		eventProperties.Upsert("team_id", teamID, func(v, newV any) any { return v })
+	}
+
+	err := analyticsClient.Track(userID, eventName, eventProperties)
+	if err != nil {
+		printer.Warningf("Error sending analytics event %q: %v\n", eventName, err)
 	}
 }
