@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -8,6 +9,9 @@ import (
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
+	"github.com/akitasoftware/go-utils/optionals"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -19,8 +23,9 @@ var (
 	// Postman Insights project id
 	projectId string
 
-	// Any of these will be interactively prompted if not given on the command line.
-	// On the other hand, to run non-interactively then all of them *must* be given.
+	// For use when injecting a sidecar container into ECS. These will be
+	// interactively prompted if not given on the command line. To inject into ECS
+	// non-interactively, these must all be given.
 	awsProfileFlag        string
 	awsRegionFlag         string
 	ecsClusterFlag        string
@@ -37,7 +42,7 @@ var (
 var Cmd = &cobra.Command{
 	Use:   "ecs",
 	Short: "Add the Postman Insights Agent to AWS ECS.",
-	Long:  "The CLI will collect information from you and add the Postman Insights Agent container to an ECS Task.",
+	Long:  "The agent will collect information from you and add the Postman Insights Agent container to an ECS Task.",
 	// N.B.: this is useless because the root command makes its own determination,
 	// need to return AkitaErr to not show the usage.
 	SilenceUsage: true,
@@ -62,6 +67,20 @@ var RemoveFromECSCmd = &cobra.Command{
 
 	// Temporarily hide from users until complete
 	Hidden: true,
+}
+
+var PrintCloudFormationFragmentCmd = &cobra.Command{
+	Use:   "cf-fragment",
+	Short: "Print an AWS CloudFormation fragment for adding the Postman Insights Agent to AWS ECS.",
+	Long:  "Print a code fragment that can be inserted into a CloudFormation template to add the Postman Insights Agent as a sidecar container.",
+	RunE:  printCloudFormationFragment,
+}
+
+var PrintECSTaskDefinitionCmd = &cobra.Command{
+	Use:   "task-def",
+	Short: "Print an AWS ECS task definition for running the Postman Insights Agent in daemon mode.",
+	Long:  "Print a task definition that can be added to an ECS cluster to run the Postman Insights Agent as a daemon in host-networking mode on every EC2 instance in the cluster.",
+	RunE:  printECSTaskDefinition,
 }
 
 func init() {
@@ -93,17 +112,21 @@ func init() {
 	Cmd.PersistentFlags().MarkHidden("aws-credentials")
 
 	Cmd.AddCommand(AddToECSCmd)
+	Cmd.AddCommand(PrintCloudFormationFragmentCmd)
+	Cmd.AddCommand(PrintECSTaskDefinitionCmd)
 	Cmd.AddCommand(RemoveFromECSCmd)
 }
 
-func addAgentToECS(cmd *cobra.Command, args []string) error {
-	// Check for API key
+// Checks that an API key and a project ID are provided, and that the API key is
+// valid for the project ID.
+func checkAPIKeyAndProjectID() error {
+	// Check for API key.
 	_, err := cmderr.RequirePostmanAPICredentials("The Postman Insights Agent must have an API key in order to capture traces.")
 	if err != nil {
 		return err
 	}
 
-	// Check collecton Id's existence
+	// Check that a collection or project is provided.
 	if collectionId == "" && projectId == "" {
 		return errors.New("exactly one of --project or --collection must be specified")
 	}
@@ -127,9 +150,83 @@ func addAgentToECS(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	return nil
+}
+
+func addAgentToECS(cmd *cobra.Command, args []string) error {
+	err := checkAPIKeyAndProjectID()
+	if err != nil {
+		return err
+	}
+
 	return RunAddWorkflow()
 }
 
 func removeAgentFromECS(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("this command is not yet implemented")
+}
+
+func printCloudFormationFragment(cmd *cobra.Command, args []string) error {
+	err := checkAPIKeyAndProjectID()
+	if err != nil {
+		return err
+	}
+
+	const isEssential = false
+	agentContainer := makeAgentContainerDefinition(
+		optionals.None[string](),
+		optionals.None[string](),
+		optionals.None[string](),
+		isEssential,
+	)
+
+	result, err := json.MarshalIndent(agentContainer, "", "  ")
+	if err != nil {
+		return errors.Wrapf(err, "unable to format container definition as JSON")
+	}
+
+	fmt.Println(string(result))
+	return nil
+}
+
+func printECSTaskDefinition(cmd *cobra.Command, args []string) error {
+	err := checkAPIKeyAndProjectID()
+	if err != nil {
+		return err
+	}
+
+	const isEssential = true
+	agentContainer := makeAgentContainerDefinition(
+		optionals.None[string](),
+		optionals.None[string](),
+		optionals.None[string](),
+		isEssential,
+	)
+
+	taskDefinition := types.TaskDefinition{
+		ContainerDefinitions: []types.ContainerDefinition{agentContainer},
+		Family:               aws.String("postman-insights-agent"),
+		NetworkMode:          types.NetworkModeHost,
+		Status:               types.TaskDefinitionStatusActive,
+		Compatibilities: []types.Compatibility{
+			types.CompatibilityEc2,
+		},
+		RequiresCompatibilities: []types.Compatibility{
+			types.CompatibilityEc2,
+		},
+		Cpu:    aws.String("256"),
+		Memory: aws.String("512"),
+		RuntimePlatform: &types.RuntimePlatform{
+			CpuArchitecture:       types.CPUArchitectureX8664,
+			OperatingSystemFamily: types.OSFamilyLinux,
+		},
+	}
+
+	result, err := json.MarshalIndent(taskDefinition, "", "  ")
+	if err != nil {
+		return errors.Wrapf(err, "unable to format task definition as JSON")
+	}
+
+	fmt.Println(string(result))
+	return nil
 }
