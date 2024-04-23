@@ -861,35 +861,13 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 		Value: aws.String(akitaCreationTagValue),
 	})
 
-	pKey, pEnv := cfg.GetPostmanAPIKeyAndEnvironment()
-	envs := []types.KeyValuePair{}
-	if pEnv != "" {
-		envs = append(envs, []types.KeyValuePair{
-			{Name: aws.String("POSTMAN_ENV"), Value: &pEnv},
-		}...)
-	}
-
-	var entryPoint []string
-
-	if collectionId != "" {
-		entryPoint = []string{"/postman-insights-agent", "apidump", "--collection", collectionId}
-	} else {
-		entryPoint = []string{"/postman-insights-agent", "apidump", "--project", projectId}
-	}
-
-	agentContainer := types.ContainerDefinition{
-		Name:       aws.String("postman-insights-agent"),
-		EntryPoint: entryPoint,
-		Environment: append(envs, []types.KeyValuePair{
-			{Name: aws.String("POSTMAN_API_KEY"), Value: &pKey},
-			// Setting these environment variables will cause the traces to be tagged.
-			{Name: aws.String("POSTMAN_AWS_REGION"), Value: &wf.awsRegion},
-			{Name: aws.String("POSTMAN_ECS_SERVICE"), Value: &wf.ecsService},
-			{Name: aws.String("POSTMAN_ECS_TASK"), Value: &wf.ecsTaskDefinitionFamily},
-		}...),
-		Essential: aws.Bool(false),
-		Image:     aws.String(postmanECRImage),
-	}
+	const isEssential = false
+	agentContainer := makeAgentContainerDefinition(
+		optionals.Some(wf.awsRegion),
+		optionals.Some(wf.ecsService),
+		optionals.Some(wf.ecsTaskDefinitionFamily),
+		isEssential,
+	)
 
 	// If running on EC2, a memory size is required if no task-level memory size is specified.
 	// If running on Fargate, a task-level memory size is required, and the container-level
@@ -927,6 +905,69 @@ func modifyTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowS
 	wf.ecsTaskDefinitionTags = output.Tags
 
 	return awf_next(updateServiceState)
+}
+
+func makeAgentContainerDefinition(
+	awsRegion optionals.Optional[string],
+	ecsService optionals.Optional[string],
+	ecsTaskDefinitionFamily optionals.Optional[string],
+	essential bool,
+) types.ContainerDefinition {
+	pKey, pEnv := cfg.GetPostmanAPIKeyAndEnvironment()
+
+	envs := []types.KeyValuePair{}
+	addToEnv := func(name string, value string) {
+		envs = append(envs, types.KeyValuePair{
+			Name:  &name,
+			Value: &value,
+		})
+	}
+
+	// This is a no-op if valueOpt is None.
+	addOptToEnv := func(name string, valueOpt optionals.Optional[string]) {
+		value, exists := valueOpt.Get()
+		if exists {
+			addToEnv(name, value)
+		}
+	}
+
+	if pEnv != "" {
+		addToEnv("POSTMAN_ENV", pEnv)
+	}
+
+	addToEnv("POSTMAN_API_KEY", pKey)
+
+	// Setting these optional environment variables will cause the traces to be
+	// tagged.
+	addOptToEnv("POSTMAN_AWS_REGION", awsRegion)
+	addOptToEnv("POSTMAN_ECS_SERVICE", ecsService)
+	addOptToEnv("POSTMAN_ECS_TASK", ecsTaskDefinitionFamily)
+
+	var entryPoint []string
+
+	if collectionId != "" {
+		entryPoint = []string{
+			"/postman-insights-agent",
+			"apidump",
+			"--collection",
+			collectionId,
+		}
+	} else {
+		entryPoint = []string{
+			"/postman-insights-agent",
+			"apidump",
+			"--project",
+			projectId,
+		}
+	}
+
+	return types.ContainerDefinition{
+		Name:        aws.String("postman-insights-agent"),
+		EntryPoint:  entryPoint,
+		Environment: envs,
+		Essential:   aws.Bool(essential),
+		Image:       aws.String(postmanECRImage),
+	}
 }
 
 // Update a service with the newly created task definition
