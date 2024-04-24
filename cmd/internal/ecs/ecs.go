@@ -238,7 +238,7 @@ func printECSTaskDefinition(cmd *cobra.Command, args []string) error {
 		"requiresCompatibilities": []types.Compatibility{
 			types.CompatibilityEc2,
 		},
-		"cpu":    "256",
+		"cpu":    "512",
 		"memory": "512",
 		"runtimePlatform": map[string]any{
 			"cpuArchitecture":       types.CPUArchitectureX8664,
