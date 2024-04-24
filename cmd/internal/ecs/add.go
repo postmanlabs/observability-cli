@@ -961,6 +961,9 @@ func makeAgentContainerDefinition(
 		}
 	}
 
+	// XXX If we instantiate any new fields in the container definition here, we
+	// need to remember to update the serialization code in
+	// printECSTaskDefinition.
 	return types.ContainerDefinition{
 		Name:        aws.String("postman-insights-agent"),
 		EntryPoint:  entryPoint,
