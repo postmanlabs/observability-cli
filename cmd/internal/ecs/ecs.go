@@ -1,16 +1,17 @@
 package ecs
 
 import (
-	"encoding/json"
 	"fmt"
 
+	ecs_cloudformation_utils "github.com/akitasoftware/akita-cli/aws_utils/cloudformation/ecs"
+	ecs_console_utils "github.com/akitasoftware/akita-cli/aws_utils/console/ecs"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/rest"
 	"github.com/akitasoftware/akita-cli/telemetry"
 	"github.com/akitasoftware/akita-cli/util"
 	"github.com/akitasoftware/akita-libs/akid"
 	"github.com/akitasoftware/go-utils/optionals"
-	"github.com/akitasoftware/go-utils/slices"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecs/types"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -180,7 +181,7 @@ func printCloudFormationFragment(cmd *cobra.Command, args []string) error {
 		isEssential,
 	)
 
-	result, err := json.MarshalIndent(agentContainer, "", "  ")
+	result, err := ecs_cloudformation_utils.ContainerDefinitionToJSONForCloudformation(agentContainer)
 	if err != nil {
 		return errors.Wrapf(err, "unable to format container definition as JSON")
 	}
@@ -203,50 +204,24 @@ func printECSTaskDefinition(cmd *cobra.Command, args []string) error {
 		isEssential,
 	)
 
-	// XXX Whereas the AWS SDK defines a `types.TaskDefinition`, that type is
-	// intended for use in calling the AWS APIs, not for printing JSON fragments
-	// for pasting into the AWS console. We therefore take the brittle approach of
-	// manually cobbling together an object that will serialize to the appropriate
-	// JSON value.
-	taskDefinition := map[string]any{
-		"containerDefinitions": []map[string]any{
-			{
-				// XXX Omitting a bunch of fields here. If any omitted field gets
-				// instantiated in makeAgentContainerDefinition, that value will not be
-				// included here unless we remember to update this code.
-				"entryPoint": agentContainer.EntryPoint,
-				"environment": slices.Map(
-					agentContainer.Environment,
-					func(kv types.KeyValuePair) map[string]string {
-						result := map[string]string{}
-						if kv.Name != nil {
-							result["name"] = *kv.Name
-						}
-						if kv.Value != nil {
-							result["value"] = *kv.Value
-						}
-						return result
-					},
-				),
-				"essential": optionals.ToOptional(agentContainer.Essential).GetOrDefault(false),
-				"image":     agentContainer.Image,
-				"name":      agentContainer.Name,
-			},
-		},
-		"family":      "postman-insights-agent",
-		"networkMode": types.NetworkModeHost,
-		"requiresCompatibilities": []types.Compatibility{
+	// XXX If we instantiate any new fields in the task definition here, we need
+	// to remember to update the code in the ecs_console_utils package.
+	taskDefinition := types.TaskDefinition{
+		ContainerDefinitions: []types.ContainerDefinition{agentContainer},
+		Family:               aws.String("postman-insights-agent"),
+		NetworkMode:          types.NetworkModeHost,
+		RequiresCompatibilities: []types.Compatibility{
 			types.CompatibilityEc2,
 		},
-		"cpu":    "512",
-		"memory": "512",
-		"runtimePlatform": map[string]any{
-			"cpuArchitecture":       types.CPUArchitectureX8664,
-			"operatingSystemFamily": types.OSFamilyLinux,
+		Cpu:    aws.String("512"),
+		Memory: aws.String("512"),
+		RuntimePlatform: &types.RuntimePlatform{
+			CpuArchitecture:       types.CPUArchitectureX8664,
+			OperatingSystemFamily: types.OSFamilyLinux,
 		},
 	}
 
-	result, err := json.MarshalIndent(taskDefinition, "", "  ")
+	result, err := ecs_console_utils.TaskDefinitionToJSONForConsole(taskDefinition)
 	if err != nil {
 		return errors.Wrapf(err, "unable to format task definition as JSON")
 	}

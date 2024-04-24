@@ -962,8 +962,8 @@ func makeAgentContainerDefinition(
 	}
 
 	// XXX If we instantiate any new fields in the container definition here, we
-	// need to remember to update the serialization code in
-	// printECSTaskDefinition.
+	// need to remember to update the code in the ecs_console_utils and the
+	// ecs_cloudformation_utils packages.
 	return types.ContainerDefinition{
 		Name:        aws.String("postman-insights-agent"),
 		EntryPoint:  entryPoint,
