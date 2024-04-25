@@ -36,6 +36,9 @@ var (
 	// Location of credentials file.
 	awsCredentialsFlag string
 
+	// Output in YAML instead of JSON.
+	yamlFlag bool
+
 	// Print out the steps that would be taken, but do not do them
 	dryRunFlag bool
 )
@@ -106,6 +109,13 @@ func init() {
 		"dry-run",
 		false,
 		"Perform a dry run: show what will be done, but do not modify ECS.",
+	)
+
+	PrintCloudFormationFragmentCmd.Flags().BoolVar(
+		&yamlFlag,
+		"yaml",
+		false,
+		"Output as YAML instead of JSON",
 	)
 
 	// Support for credentials in a nonstandard location
@@ -181,12 +191,16 @@ func printCloudFormationFragment(cmd *cobra.Command, args []string) error {
 		isEssential,
 	)
 
-	result, err := ecs_cloudformation_utils.ContainerDefinitionToJSONForCloudformation(agentContainer)
+	formatter := ecs_cloudformation_utils.ContainerDefinitionToJSONForCloudFormation
+	if yamlFlag {
+		formatter = ecs_cloudformation_utils.ContainerDefinitionToYAMLForCloudFormation
+	}
+	result, err := formatter(agentContainer)
 	if err != nil {
-		return errors.Wrapf(err, "unable to format container definition as JSON")
+		return errors.Wrapf(err, "unable to format CloudFormation fragment")
 	}
 
-	fmt.Println(string(result))
+	fmt.Println(result)
 	return nil
 }
 
