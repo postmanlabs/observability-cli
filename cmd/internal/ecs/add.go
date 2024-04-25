@@ -943,22 +943,11 @@ func makeAgentContainerDefinition(
 	addOptToEnv("POSTMAN_ECS_SERVICE", ecsService)
 	addOptToEnv("POSTMAN_ECS_TASK", ecsTaskDefinitionFamily)
 
-	var entryPoint []string
-
-	if collectionId != "" {
-		entryPoint = []string{
-			"/postman-insights-agent",
-			"apidump",
-			"--collection",
-			collectionId,
-		}
-	} else {
-		entryPoint = []string{
-			"/postman-insights-agent",
-			"apidump",
-			"--project",
-			projectId,
-		}
+	entryPoint := []string{
+		"/postman-insights-agent",
+		"apidump",
+		"--project",
+		projectId,
 	}
 
 	// XXX If we instantiate any new fields in the container definition here, we

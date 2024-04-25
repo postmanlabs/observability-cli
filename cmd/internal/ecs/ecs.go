@@ -18,9 +18,6 @@ import (
 )
 
 var (
-	// Postman collection id
-	collectionId string
-
 	// Postman Insights project id
 	projectId string
 
@@ -90,10 +87,6 @@ var PrintECSTaskDefinitionCmd = &cobra.Command{
 func init() {
 	// TODO: add the ability to specify the credentials directly instead of via an AWS profile?
 	Cmd.PersistentFlags().StringVar(&projectId, "project", "", "Your Insights Project ID")
-
-	Cmd.PersistentFlags().StringVar(&collectionId, "collection", "", "Your Postman collection ID")
-	Cmd.Flags().MarkDeprecated("collection", "Use --project instead.")
-
 	Cmd.PersistentFlags().StringVar(&awsProfileFlag, "profile", "", "Which of your AWS profiles to use to access ECS.")
 	Cmd.PersistentFlags().StringVar(&awsRegionFlag, "region", "", "The AWS region in which your ECS cluster resides.")
 	Cmd.PersistentFlags().StringVar(&ecsClusterFlag, "cluster", "", "The name or ARN of your ECS cluster.")
@@ -138,27 +131,20 @@ func checkAPIKeyAndProjectID() error {
 	}
 
 	// Check that a collection or project is provided.
-	if collectionId == "" && projectId == "" {
-		return errors.New("exactly one of --project or --collection must be specified")
+	if projectId == "" {
+		return errors.New("--project must be specified")
 	}
 
 	frontClient := rest.NewFrontClient(rest.Domain, telemetry.GetClientID())
-	if collectionId != "" {
-		_, err = util.GetOrCreateServiceIDByPostmanCollectionID(frontClient, collectionId)
-		if err != nil {
-			return err
-		}
-	} else {
-		var serviceID akid.ServiceID
-		err := akid.ParseIDAs(projectId, &serviceID)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse service ID")
-		}
+	var serviceID akid.ServiceID
+	err = akid.ParseIDAs(projectId, &serviceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse service ID")
+	}
 
-		_, err = util.GetServiceNameByServiceID(frontClient, serviceID)
-		if err != nil {
-			return err
-		}
+	_, err = util.GetServiceNameByServiceID(frontClient, serviceID)
+	if err != nil {
+		return err
 	}
 
 	return nil
