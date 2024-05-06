@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -943,11 +944,29 @@ func makeAgentContainerDefinition(
 	addOptToEnv("POSTMAN_ECS_SERVICE", ecsService)
 	addOptToEnv("POSTMAN_ECS_TASK", ecsTaskDefinitionFamily)
 
+	// Pass apidump flags as it is, the apidump command will parse them.
+	// We are already handling the default values in apidump command
 	entryPoint := []string{
 		"/postman-insights-agent",
 		"apidump",
 		"--project",
 		projectId,
+		"--filter",
+		filterFlag,
+		"--host-allowlist",
+		strings.Join(hostAllowlistFlag, ","),
+		"--host-exclusions",
+		strings.Join(hostExclusionsFlag, ","),
+		"--interfaces",
+		strings.Join(interfacesFlag, ","),
+		"--path-allowlist",
+		strings.Join(pathAllowlistFlag, ","),
+		"--path-exclusions",
+		strings.Join(pathExclusionsFlag, ","),
+		"--rate-limit",
+		strconv.FormatFloat(rateLimitFlag, 'f', -1, 64),
+		"--stats-log-delay",
+		strconv.Itoa(statsLogDelay),
 	}
 
 	// XXX If we instantiate any new fields in the container definition here, we
