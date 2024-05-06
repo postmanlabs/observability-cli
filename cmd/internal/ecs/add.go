@@ -953,20 +953,29 @@ func makeAgentContainerDefinition(
 		projectId,
 		"--filter",
 		filterFlag,
-		"--host-allowlist",
-		strings.Join(hostAllowlistFlag, ","),
-		"--host-exclusions",
-		strings.Join(hostExclusionsFlag, ","),
-		"--interfaces",
-		strings.Join(interfacesFlag, ","),
-		"--path-allowlist",
-		strings.Join(pathAllowlistFlag, ","),
-		"--path-exclusions",
-		strings.Join(pathExclusionsFlag, ","),
 		"--rate-limit",
 		strconv.FormatFloat(rateLimitFlag, 'f', -1, 64),
 		"--stats-log-delay",
 		strconv.Itoa(statsLogDelay),
+	}
+
+	// Add slice type flags to the entry point.
+	// Flags: --host-allowlist, --host-exclusions, --interfaces, --path-allowlist, --path-exclusions
+	// Added them separately instead of joining with comma(,) to avoid any regex parsing issues.
+	for _, host := range hostAllowlistFlag {
+		entryPoint = append(entryPoint, "--host-allowlist", host)
+	}
+	for _, host := range hostExclusionsFlag {
+		entryPoint = append(entryPoint, "--host-exclusions", host)
+	}
+	for _, interfaceFlag := range interfacesFlag {
+		entryPoint = append(entryPoint, "--interfaces", interfaceFlag)
+	}
+	for _, path := range pathAllowlistFlag {
+		entryPoint = append(entryPoint, "--path-allowlist", path)
+	}
+	for _, path := range pathExclusionsFlag {
+		entryPoint = append(entryPoint, "--path-exclusions", path)
 	}
 
 	// XXX If we instantiate any new fields in the container definition here, we
