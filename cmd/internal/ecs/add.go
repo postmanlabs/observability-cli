@@ -11,6 +11,7 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/consts"
@@ -951,12 +952,14 @@ func makeAgentContainerDefinition(
 		"apidump",
 		"--project",
 		projectId,
-		"--filter",
-		filterFlag,
-		"--rate-limit",
-		strconv.FormatFloat(rateLimitFlag, 'f', -1, 64),
 	}
 
+	if rateLimitFlag != apispec.DefaultRateLimit {
+		entryPoint = append(entryPoint, "--rate-limit", strconv.FormatFloat(rateLimitFlag, 'f', -1, 64))
+	}
+	if filterFlag != "" {
+		entryPoint = append(entryPoint, "--filter", filterFlag)
+	}
 	// Add slice type flags to the entry point.
 	// Flags: --host-allowlist, --host-exclusions, --interfaces, --path-allowlist, --path-exclusions
 	// Added them separately instead of joining with comma(,) to avoid any regex parsing issues.
