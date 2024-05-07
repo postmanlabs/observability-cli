@@ -955,8 +955,6 @@ func makeAgentContainerDefinition(
 		filterFlag,
 		"--rate-limit",
 		strconv.FormatFloat(rateLimitFlag, 'f', -1, 64),
-		"--stats-log-delay",
-		strconv.Itoa(statsLogDelay),
 	}
 
 	// Add slice type flags to the entry point.

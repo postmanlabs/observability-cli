@@ -49,7 +49,6 @@ var (
 	pathAllowlistFlag  []string
 	pathExclusionsFlag []string
 	rateLimitFlag      float64
-	statsLogDelay      int
 )
 
 var Cmd = &cobra.Command{
@@ -127,15 +126,14 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&awsCredentialsFlag, "aws-credentials", "", "Location of AWS credentials file.")
 	Cmd.PersistentFlags().MarkHidden("aws-credentials")
 
-	// initialize apidump flags as persistent flags for the ecs command
-	Cmd.PersistentFlags().StringVar(&filterFlag, "filter", "", "Used to match packets going to and coming from your API service.")
-	Cmd.PersistentFlags().StringSliceVar(&hostAllowlistFlag, "host-allow", nil, "Allows only HTTP hosts matching regular expressions.")
-	Cmd.PersistentFlags().StringSliceVar(&hostExclusionsFlag, "host-exclusions", nil, "Removes HTTP hosts matching regular expressions.")
-	Cmd.PersistentFlags().StringSliceVar(&interfacesFlag, "interfaces", nil, "List of network interfaces to listen on. Defaults to all interfaces on host.")
-	Cmd.PersistentFlags().StringSliceVar(&pathAllowlistFlag, "path-allow", nil, "Allows only HTTP paths matching regular expressions.")
-	Cmd.PersistentFlags().StringSliceVar(&pathExclusionsFlag, "path-exclusions", nil, "Removes HTTP paths matching regular expressions.")
-	Cmd.PersistentFlags().Float64Var(&rateLimitFlag, "rate-limit", apispec.DefaultRateLimit, "Number of requests per minute to capture.")
-	Cmd.PersistentFlags().IntVar(&statsLogDelay, "stats-log-delay", apispec.DefaultStatsLogDelay_seconds, "Print packet capture statistics after N seconds.")
+	// initialize apidump flags as flags for the ecs add command
+	AddToECSCmd.Flags().StringVar(&filterFlag, "filter", "", "Used to match packets going to and coming from your API service.")
+	AddToECSCmd.Flags().StringSliceVar(&hostAllowlistFlag, "host-allow", nil, "Allows only HTTP hosts matching regular expressions.")
+	AddToECSCmd.Flags().StringSliceVar(&hostExclusionsFlag, "host-exclusions", nil, "Removes HTTP hosts matching regular expressions.")
+	AddToECSCmd.Flags().StringSliceVar(&interfacesFlag, "interfaces", nil, "List of network interfaces to listen on. Defaults to all interfaces on host.")
+	AddToECSCmd.Flags().StringSliceVar(&pathAllowlistFlag, "path-allow", nil, "Allows only HTTP paths matching regular expressions.")
+	AddToECSCmd.Flags().StringSliceVar(&pathExclusionsFlag, "path-exclusions", nil, "Removes HTTP paths matching regular expressions.")
+	AddToECSCmd.Flags().Float64Var(&rateLimitFlag, "rate-limit", apispec.DefaultRateLimit, "Number of requests per minute to capture.")
 
 	Cmd.AddCommand(AddToECSCmd)
 	Cmd.AddCommand(PrintCloudFormationFragmentCmd)
