@@ -969,10 +969,10 @@ func makeAgentContainerDefinition(
 		entryPoint = append(entryPoint, "--filter", filterFlag)
 	}
 	// Add slice type flags to the entry point.
-	// Flags: --host-allowlist, --host-exclusions, --interfaces, --path-allowlist, --path-exclusions
+	// Flags: --host-allow, --host-exclusions, --interfaces, --path-allow, --path-exclusions
 	// Added them separately instead of joining with comma(,) to avoid any regex parsing issues.
 	for _, host := range hostAllowlistFlag {
-		entryPoint = append(entryPoint, "--host-allowlist", host)
+		entryPoint = append(entryPoint, "--host-allow", host)
 	}
 	for _, host := range hostExclusionsFlag {
 		entryPoint = append(entryPoint, "--host-exclusions", host)
@@ -981,7 +981,7 @@ func makeAgentContainerDefinition(
 		entryPoint = append(entryPoint, "--interfaces", interfaceFlag)
 	}
 	for _, path := range pathAllowlistFlag {
-		entryPoint = append(entryPoint, "--path-allowlist", path)
+		entryPoint = append(entryPoint, "--path-allow", path)
 	}
 	for _, path := range pathExclusionsFlag {
 		entryPoint = append(entryPoint, "--path-exclusions", path)
