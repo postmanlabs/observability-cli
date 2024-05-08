@@ -3,6 +3,7 @@ package ecs
 import (
 	"fmt"
 
+	"github.com/akitasoftware/akita-cli/apispec"
 	ecs_cloudformation_utils "github.com/akitasoftware/akita-cli/aws_utils/cloudformation/ecs"
 	ecs_console_utils "github.com/akitasoftware/akita-cli/aws_utils/console/ecs"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
@@ -38,6 +39,16 @@ var (
 
 	// Print out the steps that would be taken, but do not do them
 	dryRunFlag bool
+
+	// apidump flags
+	// These flags will be passed to apidump command in task definition file
+	filterFlag         string
+	hostAllowlistFlag  []string
+	hostExclusionsFlag []string
+	interfacesFlag     []string
+	pathAllowlistFlag  []string
+	pathExclusionsFlag []string
+	rateLimitFlag      float64
 )
 
 var Cmd = &cobra.Command{
@@ -114,6 +125,15 @@ func init() {
 	// Support for credentials in a nonstandard location
 	Cmd.PersistentFlags().StringVar(&awsCredentialsFlag, "aws-credentials", "", "Location of AWS credentials file.")
 	Cmd.PersistentFlags().MarkHidden("aws-credentials")
+
+	// initialize apidump flags as flags for the ecs add command
+	AddToECSCmd.Flags().StringVar(&filterFlag, "filter", "", "Used to match packets going to and coming from your API service.")
+	AddToECSCmd.Flags().StringSliceVar(&hostAllowlistFlag, "host-allow", nil, "Allows only HTTP hosts matching regular expressions.")
+	AddToECSCmd.Flags().StringSliceVar(&hostExclusionsFlag, "host-exclusions", nil, "Removes HTTP hosts matching regular expressions.")
+	AddToECSCmd.Flags().StringSliceVar(&interfacesFlag, "interfaces", nil, "List of network interfaces to listen on. Defaults to all interfaces on host.")
+	AddToECSCmd.Flags().StringSliceVar(&pathAllowlistFlag, "path-allow", nil, "Allows only HTTP paths matching regular expressions.")
+	AddToECSCmd.Flags().StringSliceVar(&pathExclusionsFlag, "path-exclusions", nil, "Removes HTTP paths matching regular expressions.")
+	AddToECSCmd.Flags().Float64Var(&rateLimitFlag, "rate-limit", apispec.DefaultRateLimit, "Number of requests per minute to capture.")
 
 	Cmd.AddCommand(AddToECSCmd)
 	Cmd.AddCommand(PrintCloudFormationFragmentCmd)

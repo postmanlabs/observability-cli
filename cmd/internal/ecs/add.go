@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
+	"github.com/akitasoftware/akita-cli/apispec"
 	"github.com/akitasoftware/akita-cli/cfg"
 	"github.com/akitasoftware/akita-cli/cmd/internal/cmderr"
 	"github.com/akitasoftware/akita-cli/consts"
@@ -960,11 +962,38 @@ func makeAgentContainerDefinition(
 	addOptToEnv("POSTMAN_ECS_SERVICE", ecsService)
 	addOptToEnv("POSTMAN_ECS_TASK", ecsTaskDefinitionFamily)
 
+	// Pass apidump flags as it is, the apidump command will parse them.
+	// We are already handling the default values in apidump command
 	entryPoint := []string{
 		"/postman-insights-agent",
 		"apidump",
 		"--project",
 		projectId,
+	}
+
+	if rateLimitFlag != apispec.DefaultRateLimit {
+		entryPoint = append(entryPoint, "--rate-limit", strconv.FormatFloat(rateLimitFlag, 'f', -1, 64))
+	}
+	if filterFlag != "" {
+		entryPoint = append(entryPoint, "--filter", filterFlag)
+	}
+	// Add slice type flags to the entry point.
+	// Flags: --host-allow, --host-exclusions, --interfaces, --path-allow, --path-exclusions
+	// Added them separately instead of joining with comma(,) to avoid any regex parsing issues.
+	for _, host := range hostAllowlistFlag {
+		entryPoint = append(entryPoint, "--host-allow", host)
+	}
+	for _, host := range hostExclusionsFlag {
+		entryPoint = append(entryPoint, "--host-exclusions", host)
+	}
+	for _, interfaceFlag := range interfacesFlag {
+		entryPoint = append(entryPoint, "--interfaces", interfaceFlag)
+	}
+	for _, path := range pathAllowlistFlag {
+		entryPoint = append(entryPoint, "--path-allow", path)
+	}
+	for _, path := range pathExclusionsFlag {
+		entryPoint = append(entryPoint, "--path-exclusions", path)
 	}
 
 	// XXX If we instantiate any new fields in the container definition here, we
