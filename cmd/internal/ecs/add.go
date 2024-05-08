@@ -447,6 +447,14 @@ func (wf *AddWorkflow) loadTaskFromFlag() (nextState optionals.Optional[AddWorkf
 		}
 		return awf_error(errors.Wrap(describeErr, "Error loading task definition"))
 	}
+	// Check for bridge networking mode.
+	if output.NetworkMode == types.NetworkModeBridge {
+		printer.Errorf("This task definition is using bridge mode for networking, which requires running Insights Agent as a daemon service. " +
+			"However, this is not currently supported by \"ecs add\" command. Please refer to documentation for running Insights Agent as a daemon service, " +
+			"https://learning.postman.com/docs/insights/insights-gs/#configure-the-insights-agent-as-a-daemon-service\n")
+		return awf_error(errors.Errorf("Error while validating ECS task definition; bridge networking not supported by \"ecs add\" command"))
+	}
+
 	wf.ecsTaskDefinition = output
 	wf.ecsTaskDefinitionFamily = aws.ToString(output.Family)
 	wf.ecsTaskDefinitionARN = arn(aws.ToString(output.TaskDefinitionArn))
@@ -524,8 +532,9 @@ func getTaskState(wf *AddWorkflow) (nextState optionals.Optional[AddWorkflowStat
 	if output.NetworkMode == types.NetworkModeBridge {
 		printer.Errorf("This task definition is using bridge mode for networking, which requires running Insights Agent as a daemon service. " +
 			"However, this is not currently supported by \"ecs add\" command. Please refer to documentation for running Insights Agent as a daemon service, " +
-			"https://learning.postman.com/docs/insights/insights-gs/#configure-the-insights-agent-as-a-daemon-service")
-		return awf_error(errors.Errorf("Error while validating ECS task definition; bridge networking not supported by \"ecs add\" command"))
+			"https://learning.postman.com/docs/insights/insights-gs/#configure-the-insights-agent-as-a-daemon-service\n")
+		printer.Infof("Please select a different task definition, or hit Ctrl+C to exit.\n")
+		return awf_next(getTaskState)
 	}
 
 	wf.ecsTaskDefinition = output
