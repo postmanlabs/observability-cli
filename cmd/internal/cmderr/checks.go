@@ -20,7 +20,7 @@ func RequirePostmanAPICredentials(explanation string) (string, error) {
 			printer.Infof("Please set the POSTMAN_API_KEY environment variables, either in your shell session or prepend it to postman-insights-agent command.\n")
 		}
 		//lint:ignore ST1005 This is a user-facing error message
-		return "", AkitaErr{Err: errors.New("Could not find an Postman API key to use")}
+		return "", AkitaErr{Err: errors.New("Could not find a Postman API key to use")}
 	}
 
 	return key, nil
