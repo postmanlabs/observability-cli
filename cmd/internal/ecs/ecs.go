@@ -150,7 +150,7 @@ func checkAPIKeyAndProjectID() error {
 		return err
 	}
 
-	// Check that a collection or project is provided.
+	// Check that project ID is provided.
 	if projectId == "" {
 		return errors.New("--project must be specified")
 	}

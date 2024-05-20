@@ -17,10 +17,10 @@ func RequirePostmanAPICredentials(explanation string) (string, error) {
 		if env.InDocker() {
 			printer.Infof("Please set the POSTMAN_API_KEY environment variables on the Docker command line.\n")
 		} else {
-			printer.Infof("Use the POSTMAN_API_KEY environment variables, or run 'postman-insights-agent login'.\n")
+			printer.Infof("Please set the POSTMAN_API_KEY environment variables, either in your shell session or prepend it to postman-insights-agent command.\n")
 		}
-
-		return "", AkitaErr{Err: errors.New("could not find an Postman API key to use")}
+		//lint:ignore ST1005 This is a user-facing error message
+		return "", AkitaErr{Err: errors.New("Could not find an Postman API key to use")}
 	}
 
 	return key, nil
