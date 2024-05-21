@@ -98,7 +98,7 @@ func GetServiceIDByName(c rest.FrontClient, name string) (akid.ServiceID, error)
 }
 
 func GetServiceNameByServiceID(c rest.FrontClient, serviceID akid.ServiceID) (string, error) {
-	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
+	unexpectedErrMsg := "Something went wrong while starting the agent. " +
 		"Please contact Postman support (" + consts.SupportEmail + ") with the error details"
 	failedToGetProjectErrMsg := "Failed to get project for given projectID: %s\n"
 
@@ -173,8 +173,7 @@ func GetServiceIDByPostmanCollectionID(c rest.FrontClient, ctx context.Context, 
 func GetOrCreateServiceIDByPostmanCollectionID(c rest.FrontClient, collectionID string) (akid.ServiceID, error) {
 	// Normalize the collectionID.
 	collectionID = strings.ToLower(collectionID)
-	unexpectedErrMsg := "Something went wrong while starting the Agent. " +
-		"Please contact Postman support (" + consts.SupportEmail + ") with the error details"
+	unexpectedErrMsg := "Something went wrong while starting the agent."
 	failedToCreateProjectErrMsg := "Failed to create project for given collectionID: %s\n"
 
 	if id, found := postmanCollectionIDCache.Get(collectionID); found {

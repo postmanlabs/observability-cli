@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/akitasoftware/akita-cli/cfg"
+	"github.com/akitasoftware/akita-cli/consts"
 	"github.com/akitasoftware/akita-cli/printer"
 	"github.com/akitasoftware/akita-cli/version"
 	"github.com/akitasoftware/akita-libs/spec_util"
@@ -22,6 +23,9 @@ import (
 const (
 	// TODO: Make this tunable.
 	defaultClientTimeout = 5 * time.Second
+	unexpectedErrMsg     = "Unexpected error occured while making request, status code: %d. " +
+		"If the issue persists, run the agent with debug logs enabled (--debug), and " +
+		"contact Postman support (" + consts.SupportEmail + ") with the error logs."
 )
 
 var (
@@ -40,7 +44,8 @@ func (he HTTPError) Error() string {
 	if he.StatusCode == 401 {
 		return `Invalid credentials. Ensure the POSTMAN_API_KEY environment variable has a valid API key for Postman.`
 	}
-	return fmt.Sprintf("received status code %d, body: %s", he.StatusCode, string(he.Body))
+	printer.Debugln("Unexpected error, received status code:", he.StatusCode, "body:", string(he.Body))
+	return fmt.Sprintf(unexpectedErrMsg, he.StatusCode)
 }
 
 // Implements retryablehttp LeveledLogger interface using printer.
